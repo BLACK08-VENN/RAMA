@@ -377,6 +377,7 @@ function RoomResizeHandle({
   const startValue = useRef(room[dimension]);
   const floor = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const [hovered, setHovered] = useState(false);
+  const [active, setActive] = useState(false);
   const position: [number, number, number] = dimension === "width"
     ? [side * room.width / 2, 0.16, 0]
     : [0, 0.16, side * room.depth / 2];
@@ -396,6 +397,7 @@ function RoomResizeHandle({
     if (!dragging.current) return;
     event.stopPropagation();
     dragging.current = false;
+    setActive(false);
     const target = event.nativeEvent.target;
     if (target instanceof Element && target.hasPointerCapture(event.pointerId)) {
       target.releasePointerCapture(event.pointerId);
@@ -427,6 +429,7 @@ function RoomResizeHandle({
         onPointerDown={(event) => {
           event.stopPropagation();
           dragging.current = true;
+          setActive(true);
           nextValue.current = null;
           startValue.current = room[dimension];
           const target = event.nativeEvent.target;
@@ -438,7 +441,7 @@ function RoomResizeHandle({
         onPointerCancel={(event) => finish(event, false)}
       >
         <sphereGeometry args={[0.22, 24, 16]} />
-        <meshStandardMaterial color={hovered || dragging.current ? "#076f75" : "#0d9399"} emissive="#05474b" emissiveIntensity={0.18} depthTest={false} />
+        <meshStandardMaterial color={hovered || active ? "#076f75" : "#0d9399"} emissive="#05474b" emissiveIntensity={0.18} depthTest={false} />
       </mesh>
       <mesh rotation={dimension === "width" ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0]} raycast={() => null}>
         <boxGeometry args={[0.5, 0.045, 0.045]} />
