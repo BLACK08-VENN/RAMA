@@ -26,6 +26,7 @@ type RoomSceneProps = {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onMove: (id: string, position: [number, number, number]) => void;
+  onResize: (dimension: "width" | "depth", value: number) => void;
 };
 
 const initialCameraPosition: [number, number, number] = [7, 5.5, 7];
@@ -356,6 +357,97 @@ function StyledRoom({ room }: { room: RoomConfig }) {
   );
 }
 
+function RoomResizeHandle({
+  room,
+  dimension,
+  side,
+  onPreview,
+  onResize,
+  onDraggingChange,
+}: {
+  room: RoomConfig;
+  dimension: "width" | "depth";
+  side: -1 | 1;
+  onPreview: (dimension: "width" | "depth", value: number) => void;
+  onResize: (dimension: "width" | "depth", value: number) => void;
+  onDraggingChange: (dragging: boolean) => void;
+}) {
+  const dragging = useRef(false);
+  const nextValue = useRef<number | null>(null);
+  const startValue = useRef(room[dimension]);
+  const floor = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
+  const [hovered, setHovered] = useState(false);
+  const position: [number, number, number] = dimension === "width"
+    ? [side * room.width / 2, 0.16, 0]
+    : [0, 0.16, side * room.depth / 2];
+
+  const pointerMove = (event: ThreeEvent<PointerEvent>) => {
+    if (!dragging.current) return;
+    event.stopPropagation();
+    const hit = event.ray.intersectPlane(floor.current, new THREE.Vector3());
+    if (!hit) return;
+    const coordinate = dimension === "width" ? hit.x : hit.z;
+    const value = Math.round(THREE.MathUtils.clamp(side * coordinate * 2, 2.5, 12) * 10) / 10;
+    nextValue.current = value;
+    onPreview(dimension, value);
+  };
+
+  const finish = (event: ThreeEvent<PointerEvent>, commit = true) => {
+    if (!dragging.current) return;
+    event.stopPropagation();
+    dragging.current = false;
+    const target = event.nativeEvent.target;
+    if (target instanceof Element && target.hasPointerCapture(event.pointerId)) {
+      target.releasePointerCapture(event.pointerId);
+    }
+    if (target instanceof HTMLElement) target.style.cursor = "";
+    onDraggingChange(false);
+    if (commit && nextValue.current !== null && nextValue.current !== startValue.current) {
+      onResize(dimension, nextValue.current);
+    }
+    nextValue.current = null;
+  };
+
+  return (
+    <group position={position}>
+      <mesh
+        onPointerOver={(event) => {
+          event.stopPropagation();
+          setHovered(true);
+          if (event.nativeEvent.target instanceof HTMLElement) {
+            event.nativeEvent.target.style.cursor = dimension === "width" ? "ew-resize" : "ns-resize";
+          }
+        }}
+        onPointerOut={(event) => {
+          setHovered(false);
+          if (!dragging.current && event.nativeEvent.target instanceof HTMLElement) {
+            event.nativeEvent.target.style.cursor = "";
+          }
+        }}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          dragging.current = true;
+          nextValue.current = null;
+          startValue.current = room[dimension];
+          const target = event.nativeEvent.target;
+          if (target instanceof Element) target.setPointerCapture(event.pointerId);
+          onDraggingChange(true);
+        }}
+        onPointerMove={pointerMove}
+        onPointerUp={finish}
+        onPointerCancel={(event) => finish(event, false)}
+      >
+        <sphereGeometry args={[0.22, 24, 16]} />
+        <meshStandardMaterial color={hovered || dragging.current ? "#076f75" : "#0d9399"} emissive="#05474b" emissiveIntensity={0.18} depthTest={false} />
+      </mesh>
+      <mesh rotation={dimension === "width" ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0]} raycast={() => null}>
+        <boxGeometry args={[0.5, 0.045, 0.045]} />
+        <meshBasicMaterial color="white" depthTest={false} />
+      </mesh>
+    </group>
+  );
+}
+
 export function RoomScene({
   cameraView,
   showGrid,
@@ -365,9 +457,12 @@ export function RoomScene({
   selectedId,
   onSelect,
   onMove,
+  onResize,
 }: RoomSceneProps) {
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [previewRoom, setPreviewRoom] = useState<RoomConfig | null>(null);
+  const visibleRoom = previewRoom ?? room;
 
   useEffect(() => {
     const probeId = window.requestAnimationFrame(() => {
@@ -419,7 +514,20 @@ export function RoomScene({
       <directionalLight castShadow position={[4, 8, 5]} intensity={2.3} shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[-4, 4, -2]} intensity={0.6} color="#caecee" />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} />
-      <StyledRoom room={room} />
+      <StyledRoom room={visibleRoom} />
+      {(["width", "depth"] as const).flatMap((dimension) =>
+        ([-1, 1] as const).map((side) => (
+          <RoomResizeHandle
+            key={`${dimension}-${side}`}
+            room={visibleRoom}
+            dimension={dimension}
+            side={side}
+            onPreview={(key, value) => setPreviewRoom((current) => ({ ...(current ?? room), [key]: value }))}
+            onResize={onResize}
+            onDraggingChange={(active) => { setDragging(active); if (!active) setPreviewRoom(null); }}
+          />
+        )),
+      )}
       {placedItems.map((item) => (
         <DraggableFurniture
           key={item.id}
