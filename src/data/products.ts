@@ -1,5 +1,12 @@
 export type ProductCategory = "Seating" | "Tables" | "Storage" | "Bedroom";
 
+export type ProductModel = {
+  url: string;
+  width: number;
+  depth: number;
+  height: number;
+};
+
 export type PlannerProduct = {
   id: string;
   openCartProductId: number;
@@ -10,6 +17,7 @@ export type PlannerProduct = {
   image: string;
   dimensions: string;
   accent: string;
+  model?: ProductModel;
 };
 
 export const products: PlannerProduct[] = [
@@ -23,6 +31,12 @@ export const products: PlannerProduct[] = [
     image: "/delton-sofa.jpg",
     dimensions: "W 98 × D 88 × H 82 cm",
     accent: "#292827",
+    model: {
+      url: "/models/delton-sofa.glb",
+      width: 0.98,
+      depth: 0.88,
+      height: 0.82,
+    },
   },
   {
     id: "austin-dining",
@@ -58,6 +72,10 @@ export const products: PlannerProduct[] = [
     accent: "#8a8f92",
   },
 ];
+
+export const productModels: Record<string, ProductModel> = Object.fromEntries(
+  products.flatMap((product) => (product.model ? [[product.id, product.model]] : [])),
+);
 
 export const formatKes = (price: number) =>
   new Intl.NumberFormat("en-KE", {

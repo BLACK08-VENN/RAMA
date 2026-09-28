@@ -1,9 +1,10 @@
 "use client";
 
-import { ContactShadows, Grid, OrbitControls, RoundedBox } from "@react-three/drei";
+import { ContactShadows, Grid, OrbitControls, RoundedBox, useGLTF } from "@react-three/drei";
 import { Canvas, ThreeEvent, useThree } from "@react-three/fiber";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { productModels, type ProductModel } from "@/data/products";
 import {
   getItemPlacementBounds,
   type PlacedItem,
@@ -261,7 +262,50 @@ function Cabinet() {
   );
 }
 
+function GlbModel({ model }: { model: ProductModel }) {
+  const gltf = useGLTF(model.url);
+
+  const { object, scale, offset } = useMemo(() => {
+    gltf.scene.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(gltf.scene);
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    const nextScale = new THREE.Vector3(model.width / size.x, model.height / size.y, model.depth / size.z);
+    const clone = gltf.scene.clone(true);
+    clone.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+    return {
+      object: clone,
+      scale: nextScale,
+      offset: new THREE.Vector3(-center.x * nextScale.x, -bounds.min.y * nextScale.y, -center.z * nextScale.z),
+    };
+  }, [gltf, model]);
+
+  return (
+    <group position={offset} scale={scale}>
+      <primitive object={object} />
+    </group>
+  );
+}
+
 function Furniture({ item }: { item: PlacedItem }) {
+  const model = productModels[item.productId];
+
+  if (model) {
+    return (
+      <Suspense fallback={<Placeholder item={item} />}>
+        <GlbModel model={model} />
+      </Suspense>
+    );
+  }
+
+  return <Placeholder item={item} />;
+}
+
+function Placeholder({ item }: { item: PlacedItem }) {
   if (item.kind === "sofa") return <Sofa />;
   if (item.kind === "table") return <CoffeeTable />;
   if (item.kind === "chair") return <Chair />;
