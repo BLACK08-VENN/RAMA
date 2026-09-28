@@ -423,8 +423,8 @@ function RoomResizeHandle({
   const [hovered, setHovered] = useState(false);
   const [active, setActive] = useState(false);
   const position: [number, number, number] = dimension === "width"
-    ? [side * room.width / 2, 0.16, 0]
-    : [0, 0.16, side * room.depth / 2];
+    ? [side * room.width / 2, 0.12, 0]
+    : [0, 0.12, side * room.depth / 2];
 
   const pointerMove = (event: ThreeEvent<PointerEvent>) => {
     if (!dragging.current) return;
@@ -484,13 +484,18 @@ function RoomResizeHandle({
         onPointerUp={finish}
         onPointerCancel={(event) => finish(event, false)}
       >
-        <sphereGeometry args={[0.22, 24, 16]} />
-        <meshStandardMaterial color={hovered || active ? "#076f75" : "#0d9399"} emissive="#05474b" emissiveIntensity={0.18} depthTest={false} />
+        <sphereGeometry args={[0.2, 16, 12]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      <mesh rotation={dimension === "width" ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0]} raycast={() => null}>
-        <boxGeometry args={[0.5, 0.045, 0.045]} />
-        <meshBasicMaterial color="white" depthTest={false} />
-      </mesh>
+      <group rotation={dimension === "width" ? [0, 0, 0] : [0, Math.PI / 2, 0]}>
+        <RoundedBox args={[0.25, 0.065, 0.09]} radius={0.03} smoothness={4} raycast={() => null}>
+          <meshStandardMaterial color={hovered || active ? "#087c82" : "#177f83"} metalness={0.24} roughness={0.36} depthTest={false} />
+        </RoundedBox>
+        <mesh position={[0, 0.034, 0]} raycast={() => null}>
+          <boxGeometry args={[0.11, 0.004, 0.008]} />
+          <meshBasicMaterial color="#e5faf8" depthTest={false} />
+        </mesh>
+      </group>
     </group>
   );
 }
