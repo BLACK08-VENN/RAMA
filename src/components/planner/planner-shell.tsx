@@ -51,6 +51,9 @@ import {
   type PlacedItem,
   type WindowConfig,
 } from "@/stores/planner-store";
+import { useAuth } from "@/components/auth-provider";
+import { AuthModal } from "@/components/auth-modal";
+import { saveDesignToCloud } from "@/lib/design-storage";
 
 const RoomScene = dynamic(
   () => import("./room-scene").then((module) => module.RoomScene),
@@ -105,6 +108,9 @@ export function PlannerShell() {
   const [notice, setNotice] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [savingToCloud, setSavingToCloud] = useState(false);
+  const { user, isConfigured: isAuthConfigured } = useAuth();
   const {
     design,
     selectedId,
@@ -195,6 +201,29 @@ export function PlannerShell() {
       }
     } catch {
       notify("Fullscreen could not be opened");
+    }
+  };
+
+  const handleSaveToCloud = async () => {
+    if (!isAuthConfigured) {
+      notify("Cloud saves are not configured");
+      return;
+    }
+
+    if (!user) {
+      setAuthModalOpen(true);
+      return;
+    }
+
+    setSavingToCloud(true);
+    try {
+      await saveDesignToCloud(user.id, design);
+      notify("Design saved to cloud");
+    } catch (error) {
+      console.error("Failed to save design:", error);
+      notify("Failed to save design to cloud");
+    } finally {
+      setSavingToCloud(false);
     }
   };
 
@@ -394,11 +423,13 @@ export function PlannerShell() {
           <button className="header-text-button" onClick={shareDesign}>
             <Share2 size={17} /> <span>Share</span>
           </button>
-          <button className="header-text-button" onClick={() => notify("Design saved") }>
-            <Box size={17} /> <span>Save</span>
+          <button className="header-text-button" onClick={handleSaveToCloud} disabled={savingToCloud}>
+            <Box size={17} /> <span>{savingToCloud ? "Saving..." : "Save"}</span>
           </button>
           <button className="icon-button" aria-label="Help"><CircleHelp size={20} /></button>
-          <button className="icon-button" aria-label="Account"><UserRound size={20} /></button>
+          <button className="icon-button" aria-label="Account" onClick={() => setAuthModalOpen(true)}>
+            <UserRound size={20} />
+          </button>
         </div>
       </header>
 
@@ -686,6 +717,8 @@ export function PlannerShell() {
       )}
 
       {notice && <div className="toast" role="status"><span />{notice}</div>}
+
+      {authModalOpen && <AuthModal onClose={() => setAuthModalOpen(false)} />}
     </main>
   );
 }
