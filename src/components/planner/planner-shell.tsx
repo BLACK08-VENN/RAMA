@@ -516,6 +516,7 @@ export function PlannerShell() {
                     <Ruler size={21} />
                     <span><strong>Room dimensions</strong><small>Measurements in metres</small></span>
                   </div>
+                  <p className="resize-instruction">Drag the teal handles on the room edges to pull or push the walls. Use the fields below for exact sizes.</p>
                   <div className="dimension-fields">
                     <label>Width<input type="number" min="2.5" max="12" step="0.1" value={design.room.width} onChange={(event) => updateRoomDimension("width", event.currentTarget.valueAsNumber)} /></label>
                     <label>Depth<input type="number" min="2.5" max="12" step="0.1" value={design.room.depth} onChange={(event) => updateRoomDimension("depth", event.currentTarget.valueAsNumber)} /></label>
@@ -624,6 +625,7 @@ export function PlannerShell() {
             selectedId={selectedId}
             onSelect={selectItem}
             onMove={moveItem}
+            onResize={(dimension, value) => updateRoom({ [dimension]: value })}
           />
 
           {!panelOpen && (
