@@ -138,6 +138,23 @@ input:focus-visible {
   cursor: pointer;
 }
 
+.design-title-input {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  outline: none;
+  transition: 150ms ease;
+}
+
+.design-title-input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgb(13 146 153 / 10%);
+}
+
 .save-status {
   gap: 5px;
   color: #7f8788;

@@ -103,6 +103,8 @@ export function PlannerShell() {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState("");
   const {
     design,
     selectedId,
@@ -112,6 +114,7 @@ export function PlannerShell() {
     setHydrated,
     selectItem,
     loadDesign,
+    renameDesign,
     updateRoom,
     addItem,
     removeItem,
@@ -356,9 +359,35 @@ export function PlannerShell() {
 
         <div className="design-title">
           <span className="save-status"><span />{hydrated ? "Saved locally" : "Opening design"}</span>
-          <button type="button">
-            {design.title} <ChevronDown size={15} />
-          </button>
+          {editingTitle ? (
+            <input
+              type="text"
+              value={titleInput}
+              onChange={(event) => setTitleInput(event.currentTarget.value)}
+              onBlur={() => {
+                if (titleInput.trim() && titleInput !== design.title) {
+                  renameDesign(titleInput.trim());
+                }
+                setEditingTitle(false);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                } else if (event.key === "Escape") {
+                  setEditingTitle(false);
+                }
+              }}
+              autoFocus
+              className="design-title-input"
+            />
+          ) : (
+            <button type="button" onClick={() => {
+              setTitleInput(design.title);
+              setEditingTitle(true);
+            }}>
+              {design.title} <ChevronDown size={15} />
+            </button>
+          )}
         </div>
 
         <div className="header-actions">
