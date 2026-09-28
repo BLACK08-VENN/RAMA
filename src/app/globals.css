@@ -593,6 +593,13 @@ input:focus-visible {
   padding: 13px;
 }
 
+.resize-instruction {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .dimension-card-heading {
   display: grid;
   grid-template-columns: 28px 1fr;
