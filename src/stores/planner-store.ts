@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { ProductKind } from "@/data/products";
+import { findRoomPreset, matchRoomPreset } from "@/data/room-presets";
 
 export type DoorConfig = {
   enabled: boolean;
@@ -17,6 +19,7 @@ export type WindowConfig = {
 };
 
 export type RoomConfig = {
+  presetId: string | null;
   width: number;
   depth: number;
   height: number;
@@ -30,19 +33,20 @@ export type RoomConfig = {
 export type PlacedItem = {
   id: string;
   productId: string;
-  kind: "sofa" | "table" | "chair" | "cabinet";
+  kind: ProductKind;
   position: [number, number, number];
   rotation: [number, number, number];
 };
 
-const itemClearance: Record<PlacedItem["kind"], number> = {
+const itemClearance: Record<ProductKind, number> = {
   sofa: 1.15,
   table: 0.9,
   chair: 0.4,
   cabinet: 0.5,
+  bed: 1.1,
 };
 
-export const getItemPlacementBounds = (room: RoomConfig, kind: PlacedItem["kind"]) => {
+export const getItemPlacementBounds = (room: RoomConfig, kind: ProductKind) => {
   const clearance = itemClearance[kind];
   return {
     maxX: Math.max(0, room.width / 2 - clearance),
@@ -69,6 +73,7 @@ type PlannerState = {
   loadDesign: (design: DesignDocument) => void;
   renameDesign: (title: string) => void;
   updateRoom: (room: Partial<RoomConfig>) => void;
+  applyRoomPreset: (presetId: string) => void;
   addItem: (item: PlacedItem) => void;
   removeItem: (id: string) => void;
   rotateItem: (id: string, radians?: number) => void;
@@ -81,6 +86,7 @@ const initialDesign: DesignDocument = {
   version: 2,
   title: "Modern living room",
   room: {
+    presetId: "standard-living",
     width: 4.8,
     depth: 3.5,
     height: 2.7,
@@ -137,18 +143,28 @@ type PersistedDesign = Omit<Partial<DesignDocument>, "room" | "version"> & {
   room?: PersistedRoom;
 };
 
-const normalizeDesign = (design?: PersistedDesign): DesignDocument => ({
-  ...initialDesign,
-  ...design,
-  version: 2,
-  room: {
+const normalizeDesign = (design?: PersistedDesign): DesignDocument => {
+  const room = {
     ...initialDesign.room,
     ...design?.room,
     door: { ...initialDesign.room.door, ...design?.room?.door },
     window: { ...initialDesign.room.window, ...design?.room?.window },
-  },
-  items: design?.items ?? initialDesign.items,
-});
+  };
+
+  return {
+    ...initialDesign,
+    ...design,
+    version: 2,
+    room: {
+      ...room,
+      presetId:
+        typeof room.presetId === "string" && findRoomPreset(room.presetId)
+          ? room.presetId
+          : matchRoomPreset(room)?.id ?? null,
+    },
+    items: design?.items ?? initialDesign.items,
+  };
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -158,13 +174,14 @@ const isFiniteNumber = (value: unknown) =>
 
 const isValidSharedDesign = (design: DesignDocument) => {
   const { room } = design;
-  const validKinds: PlacedItem["kind"][] = ["sofa", "table", "chair", "cabinet"];
+  const validKinds: ProductKind[] = ["sofa", "table", "chair", "cabinet", "bed"];
   return (
     design.version === 2 &&
     typeof design.title === "string" &&
     design.title.trim().length > 0 &&
     design.title.length <= 120 &&
     typeof design.updatedAt === "string" &&
+    (room.presetId === null || (typeof room.presetId === "string" && room.presetId.length <= 60)) &&
     isFiniteNumber(room.width) && room.width >= 2.5 && room.width <= 12 &&
     isFiniteNumber(room.depth) && room.depth >= 2.5 && room.depth <= 12 &&
     isFiniteNumber(room.height) && room.height >= 2.2 && room.height <= 4.5 &&
@@ -220,6 +237,19 @@ export const decodeSharedDesign = (payload: string): DesignDocument | null => {
   }
 };
 
+const clampItemsToRoom = (items: PlacedItem[], room: RoomConfig): PlacedItem[] =>
+  items.map((item) => {
+    const { maxX, maxZ } = getItemPlacementBounds(room, item.kind);
+    return {
+      ...item,
+      position: [
+        Math.max(-maxX, Math.min(maxX, item.position[0])),
+        item.position[1],
+        Math.max(-maxZ, Math.min(maxZ, item.position[2])),
+      ] as [number, number, number],
+    };
+  });
+
 const withTimestamp = (design: DesignDocument): DesignDocument => ({
   ...design,
   updatedAt: new Date().toISOString(),
@@ -254,21 +284,38 @@ export const usePlannerStore = create<PlannerState>()(
         }),
         renameDesign: (title) => commit((design) => ({ ...design, title })),
         updateRoom: (room) => commit((design) => {
-          const nextRoom = { ...design.room, ...room };
+          const merged = { ...design.room, ...room };
+          const nextRoom: RoomConfig = {
+            ...merged,
+            presetId:
+              room.presetId !== undefined
+                ? room.presetId
+                : matchRoomPreset(merged)?.id ?? null,
+          };
           return {
             ...design,
             room: nextRoom,
-            items: design.items.map((item) => {
-              const { maxX, maxZ } = getItemPlacementBounds(nextRoom, item.kind);
-              return {
-                ...item,
-                position: [
-                  Math.max(-maxX, Math.min(maxX, item.position[0])),
-                  item.position[1],
-                  Math.max(-maxZ, Math.min(maxZ, item.position[2])),
-                ] as [number, number, number],
-              };
-            }),
+            items: clampItemsToRoom(design.items, nextRoom),
+          };
+        }),
+        applyRoomPreset: (presetId) => commit((design) => {
+          const preset = findRoomPreset(presetId);
+          if (!preset) return design;
+          const nextRoom: RoomConfig = {
+            presetId: preset.id,
+            width: preset.width,
+            depth: preset.depth,
+            height: preset.height,
+            wallColor: preset.wallColor,
+            floorColor: preset.floorColor,
+            floorName: preset.floorName,
+            door: { ...preset.door },
+            window: { ...preset.window },
+          };
+          return {
+            ...design,
+            room: nextRoom,
+            items: clampItemsToRoom(design.items, nextRoom),
           };
         }),
         addItem: (item) => {

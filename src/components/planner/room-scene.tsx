@@ -262,6 +262,36 @@ function Cabinet() {
   );
 }
 
+function Bed() {
+  return (
+    <group>
+      <RoundedBox args={[1.5, 0.28, 2.02]} position={[0, 0.32, 0]} radius={0.05} smoothness={3}>
+        <meshStandardMaterial color="#6b4a2f" roughness={0.7} />
+      </RoundedBox>
+      <RoundedBox args={[1.46, 0.22, 1.96]} position={[0, 0.55, 0]} radius={0.07} smoothness={3}>
+        <meshStandardMaterial color="#e6e2d8" roughness={0.95} />
+      </RoundedBox>
+      <RoundedBox args={[1.5, 0.62, 0.1]} position={[0, 0.63, -0.98]} radius={0.06} smoothness={3}>
+        <meshStandardMaterial color="#5c4030" roughness={0.68} />
+      </RoundedBox>
+      {[-0.36, 0.36].map((x) => (
+        <RoundedBox key={x} args={[0.6, 0.12, 0.38]} position={[x, 0.7, -0.74]} radius={0.06} smoothness={3}>
+          <meshStandardMaterial color="#f2efe7" roughness={0.9} />
+        </RoundedBox>
+      ))}
+      <RoundedBox args={[1.5, 0.06, 1.1]} position={[0, 0.68, 0.36]} radius={0.04} smoothness={3}>
+        <meshStandardMaterial color="#9aa3a6" roughness={0.92} />
+      </RoundedBox>
+      {[[-0.66, 0.88], [0.66, 0.88], [-0.66, -0.88], [0.66, -0.88]].map(([x, z]) => (
+        <mesh key={`${x}-${z}`} position={[x, 0.09, z]}>
+          <boxGeometry args={[0.07, 0.18, 0.07]} />
+          <meshStandardMaterial color="#3c3229" roughness={0.6} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function GlbModel({ model }: { model: ProductModel }) {
   const gltf = useGLTF(model.url);
 
@@ -308,6 +338,7 @@ function Furniture({ item }: { item: PlacedItem }) {
 function Placeholder({ item }: { item: PlacedItem }) {
   if (item.kind === "sofa") return <Sofa />;
   if (item.kind === "table") return <CoffeeTable />;
+  if (item.kind === "bed") return <Bed />;
   if (item.kind === "chair") return <Chair />;
   return <Cabinet />;
 }
@@ -318,27 +349,43 @@ function DoorFeature({ room }: { room: RoomConfig }) {
   const width = Math.min(room.door.width, room.depth - 0.7);
   const height = Math.min(room.door.height, room.height - 0.08);
   const z = room.door.position * (room.depth - width);
+  const panelWidth = width * 0.62;
 
   return (
     <group position={[-room.width / 2 + 0.055, 0, z]} rotation={[0, Math.PI / 2, 0]}>
-      <mesh position={[0, height / 2, 0]}>
-        <boxGeometry args={[width, height, 0.045]} />
-        <meshStandardMaterial color="#8b684b" roughness={0.72} />
+      <mesh position={[0, height / 2, 0]} castShadow>
+        <boxGeometry args={[width, height, 0.05]} />
+        <meshStandardMaterial color="#eceeec" roughness={0.6} />
       </mesh>
-      {[-width / 2 - 0.035, width / 2 + 0.035].map((x) => (
-        <mesh key={x} position={[x, height / 2, 0.035]}>
-          <boxGeometry args={[0.07, height + 0.08, 0.07]} />
-          <meshStandardMaterial color="#4e4034" roughness={0.65} />
+      {[
+        { y: height * 0.67, h: height * 0.44 },
+        { y: height * 0.21, h: height * 0.2 },
+      ].map((panel) => (
+        <mesh key={panel.y} position={[0, panel.y, 0.028]} castShadow>
+          <boxGeometry args={[panelWidth, panel.h, 0.012]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.5} />
         </mesh>
       ))}
-      <mesh position={[0, height + 0.035, 0.035]}>
-        <boxGeometry args={[width + 0.14, 0.07, 0.07]} />
-        <meshStandardMaterial color="#4e4034" roughness={0.65} />
+      {[-width / 2 - 0.035, width / 2 + 0.035].map((x) => (
+        <mesh key={x} position={[x, height / 2, 0.02]} castShadow>
+          <boxGeometry args={[0.07, height + 0.08, 0.095]} />
+          <meshStandardMaterial color="#fbfbfa" roughness={0.55} />
+        </mesh>
+      ))}
+      <mesh position={[0, height + 0.035, 0.02]} castShadow>
+        <boxGeometry args={[width + 0.14, 0.07, 0.095]} />
+        <meshStandardMaterial color="#fbfbfa" roughness={0.55} />
       </mesh>
-      <mesh position={[width * 0.34, height * 0.5, 0.055]} rotation={[Math.PI / 2, 0, 0]}>
-        <sphereGeometry args={[0.045, 18, 18]} />
-        <meshStandardMaterial color="#d7b46a" metalness={0.72} roughness={0.25} />
-      </mesh>
+      <group position={[width * 0.36, height * 0.47, 0.03]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.03, 0.034, 0.022, 20]} />
+          <meshStandardMaterial color="#2c2d2e" metalness={0.6} roughness={0.35} />
+        </mesh>
+        <mesh position={[-0.08, 0, 0.024]} castShadow>
+          <boxGeometry args={[0.15, 0.022, 0.022]} />
+          <meshStandardMaterial color="#2c2d2e" metalness={0.6} roughness={0.35} />
+        </mesh>
+      </group>
     </group>
   );
 }

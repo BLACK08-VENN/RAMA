@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ArrowUp,
   Box,
+  Check,
   ChevronDown,
   CircleHelp,
   DoorOpen,
@@ -32,6 +33,7 @@ import {
   Share2,
   ShoppingBag,
   SlidersHorizontal,
+  Shapes,
   Sparkles,
   Trash2,
   Undo2,
@@ -42,13 +44,13 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CameraView } from "./room-scene";
 import { formatKes, products, type ProductCategory } from "@/data/products";
+import { getRoomArea, matchRoomPreset, roomPresets } from "@/data/room-presets";
 import {
   decodeSharedDesign,
   encodeSharedDesign,
   getItemPlacementBounds,
   usePlannerStore,
   type DoorConfig,
-  type PlacedItem,
   type WindowConfig,
 } from "@/stores/planner-store";
 import { useAuth } from "@/components/auth-provider";
@@ -69,13 +71,6 @@ const RoomScene = dynamic(
 );
 
 const categories: Array<"All" | ProductCategory> = ["All", "Seating", "Tables", "Storage", "Bedroom"];
-
-const productKinds: Record<string, PlacedItem["kind"]> = {
-  "delton-sofa": "sofa",
-  "austin-dining": "table",
-  "forte-chair": "chair",
-  "file-cabinet": "cabinet",
-};
 
 const placementSpots: Array<[number, number, number]> = [
   [1.3, 0, 0.4],
@@ -122,6 +117,7 @@ export function PlannerShell() {
     loadDesign,
     renameDesign,
     updateRoom,
+    applyRoomPreset,
     addItem,
     removeItem,
     rotateItem,
@@ -130,7 +126,8 @@ export function PlannerShell() {
     redo,
   } = usePlannerStore();
   const placedItems = design.items;
-  const roomArea = design.room.width * design.room.depth;
+  const roomArea = getRoomArea(design.room);
+  const activeRoomPreset = matchRoomPreset(design.room);
   const openingCount = Number(design.room.door.enabled) + Number(design.room.window.enabled);
   const nextItemNumber = useRef(10);
   const sceneStageRef = useRef<HTMLDivElement>(null);
@@ -228,13 +225,15 @@ export function PlannerShell() {
   };
 
   const addProduct = (productId: string) => {
+    const product = products.find((candidate) => candidate.id === productId);
+    if (!product) return;
     const itemCount = placedItems.filter((item) => item.productId === productId).length;
     let id = `${productId}-${nextItemNumber.current++}`;
     while (placedItems.some((item) => item.id === id)) {
       id = `${productId}-${nextItemNumber.current++}`;
     }
     const spot = placementSpots[placedItems.length % placementSpots.length];
-    const kind = productKinds[productId];
+    const kind = product.kind;
     const { maxX, maxZ } = getItemPlacementBounds(design.room, kind);
     addItem({
       id,
@@ -267,6 +266,13 @@ export function PlannerShell() {
       Math.max(-maxZ, Math.min(maxZ, item.position[2] + deltaZ)),
     ]);
   }, [design.room, moveItem, placedItems, selectedId]);
+
+  const selectRoomPreset = (presetId: string) => {
+    const preset = roomPresets.find((candidate) => candidate.id === presetId);
+    if (!preset) return;
+    applyRoomPreset(presetId);
+    notify(`${preset.name} loaded`);
+  };
 
   const updateRoomDimension = (key: "width" | "depth" | "height", value: number) => {
     if (!Number.isFinite(value)) return;
@@ -513,8 +519,40 @@ export function PlannerShell() {
               <div className="setting-stack">
                 <section className="dimension-card">
                   <div className="dimension-card-heading">
+                    <Shapes size={21} />
+                    <span><strong>Start from a room</strong><small>Ready-made sizes, adjustable after</small></span>
+                  </div>
+                  <div className="room-preset-grid" role="group" aria-label="Room templates">
+                    {roomPresets.map((preset) => {
+                      const selected = activeRoomPreset?.id === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          className={`room-preset ${selected ? "selected" : ""}`}
+                          onClick={() => selectRoomPreset(preset.id)}
+                          aria-pressed={selected}
+                        >
+                          <i style={{ background: preset.wallColor, borderColor: preset.floorColor }}>
+                            <b style={{ background: preset.floorColor }} />
+                          </i>
+                          <span>
+                            <strong>{preset.name}</strong>
+                            <small>{preset.width.toFixed(1)} × {preset.depth.toFixed(1)} m · {getRoomArea(preset).toFixed(1)} m²</small>
+                          </span>
+                          {selected && <Check size={15} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+                <section className="dimension-card">
+                  <div className="dimension-card-heading">
                     <Ruler size={21} />
-                    <span><strong>Room dimensions</strong><small>Measurements in metres</small></span>
+                    <span>
+                      <strong>{activeRoomPreset ? activeRoomPreset.name : "Custom room"}</strong>
+                      <small>Measurements in metres</small>
+                    </span>
                   </div>
                   <p className="resize-instruction">Drag the teal handles on the room edges to pull or push the walls. Use the fields below for exact sizes.</p>
                   <div className="dimension-fields">
@@ -637,7 +675,7 @@ export function PlannerShell() {
               <button aria-label="Undo" onClick={undo} disabled={history.length === 0}><Undo2 size={18} /></button>
               <button aria-label="Redo" onClick={redo} disabled={future.length === 0}><Redo2 size={18} /></button>
             </div>
-            <div className="room-metadata"><span>Living room</span><i />{design.room.width.toFixed(1)} × {design.room.depth.toFixed(1)} m</div>
+            <div className="room-metadata"><span>{activeRoomPreset ? activeRoomPreset.name : "Custom room"}</span><i />{design.room.width.toFixed(1)} × {design.room.depth.toFixed(1)} m</div>
             <button
               className="fullscreen-button"
               aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}

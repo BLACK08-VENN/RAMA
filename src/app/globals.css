@@ -593,6 +593,88 @@ input:focus-visible {
   padding: 13px;
 }
 
+.room-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.room-preset {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  padding: 7px 8px;
+  color: #4f5859;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: 130ms ease;
+}
+
+.room-preset:hover {
+  border-color: #b9d6d7;
+  background: #f7fbfb;
+}
+
+.room-preset.selected {
+  border-color: var(--brand);
+  background: #f1fafa;
+  box-shadow: 0 0 0 1px var(--brand);
+}
+
+.room-preset > i {
+  position: relative;
+  display: block;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgb(64 54 43 / 14%);
+  border-radius: 7px;
+}
+
+.room-preset > i b {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgb(64 54 43 / 18%);
+  border-radius: 3px;
+}
+
+.room-preset span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.room-preset strong {
+  overflow: hidden;
+  color: #293031;
+  font-size: 9px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-preset small {
+  overflow: hidden;
+  color: #879091;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-preset > svg {
+  color: var(--brand);
+}
+
 .resize-instruction {
   margin: 0 0 14px;
   color: var(--muted);
