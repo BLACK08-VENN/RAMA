@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# extracted design source
+/rama-room-designer/
+/rama-room-designer.zip

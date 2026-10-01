@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Extracted reference source, not part of the app build:
+    "rama-room-designer/**",
   ]),
 ]);
 
