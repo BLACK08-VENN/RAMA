@@ -134,17 +134,6 @@ export const products: PlannerProduct[] = [
     accent: "#7d8a92",
   },
   {
-    id: "delton-sofa-grey",
-    productUrl: "https://furniturerama.co.ke/home-furniture/living-room-furniture/sofa-beds/delton-single-sofa-bed-grey",
-    name: "Delton Single Sofa Bed Grey",
-    category: "Seating",
-    kind: "sofa",
-    price: 35000,
-    image: "/products/delton-sofa-grey.jpg",
-    dimensions: "W 98 × D 88 × H 82 cm",
-    accent: "#9aa0a4",
-  },
-  {
     id: "rocking-chair-footstool",
     productUrl: "https://furniturerama.co.ke/home-furniture/living-room-furniture/sofa-sets/rocking-chair-and-foot-stool",
     name: "Rocking Chair & Foot Stool",
