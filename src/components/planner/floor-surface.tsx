@@ -6,8 +6,10 @@ import type { RoomConfig } from "@/stores/planner-store";
 
 export function FloorSurface({ room }: { room: RoomConfig }) {
   const tiled = room.floorName.endsWith(" tiles");
+  const wooden = ["Natural oak", "Light ash", "Warm walnut"].includes(room.floorName);
+  const large = room.floorName.startsWith("Large ");
   const texture = useMemo(() => {
-    if (!tiled || typeof document === "undefined") return null;
+    if ((!tiled && !wooden) || typeof document === "undefined") return null;
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 256;
     const context = canvas.getContext("2d");
@@ -40,22 +42,40 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
         context.closePath(); context.fillStyle = chips[i % chips.length]; context.fill();
       }
     }
-    // The repeating seam makes a 60 cm tile grid, including at the room edges.
-    context.strokeStyle = room.floorName === "Charcoal slate tiles" ? "#676865" : "#b5afa5";
-    context.lineWidth = 3;
-    context.strokeRect(0, 0, 256, 256);
+    if (wooden) {
+      for (let row = 0; row < 4; row++) {
+        const top = row * 64;
+        context.fillStyle = row % 2 ? "rgba(62,35,13,.065)" : "rgba(255,241,203,.055)";
+        context.fillRect(0, top, 256, 64);
+        for (let grain = 0; grain < 85; grain++) {
+          const y = top + random() * 61 + 1;
+          context.beginPath(); context.moveTo(0, y);
+          context.bezierCurveTo(85, y + random() * 4 - 2, 175, y + random() * 4 - 2, 256, y);
+          context.strokeStyle = grain % 3 ? "rgba(70,39,18,.09)" : "rgba(255,240,211,.16)";
+          context.lineWidth = random() * .6 + .25; context.stroke();
+        }
+        context.strokeStyle = "rgba(49,33,20,.3)"; context.lineWidth = 1;
+        context.beginPath(); context.moveTo(0, top); context.lineTo(256, top);
+        const joint = row % 2 ? 128 : 0;
+        context.moveTo(joint, top); context.lineTo(joint, top + 64); context.stroke();
+      }
+    } else {
+      context.strokeStyle = room.floorName === "Charcoal slate tiles" ? "#676865" : large ? "#c6c0b5" : "#b5afa5";
+      context.lineWidth = large ? 1 : 3;
+      context.strokeRect(0, 0, 256, 256);
+    }
     const map = new THREE.CanvasTexture(canvas);
     map.colorSpace = THREE.SRGBColorSpace;
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.repeat.set(room.width / .6, room.depth / .6);
+    map.repeat.set(room.width / (wooden ? 1.8 : large ? 1.2 : .6), room.depth / (wooden ? .72 : large ? 1.2 : .6));
     map.anisotropy = 4;
     return map;
-  }, [tiled, room.floorColor, room.floorName, room.width, room.depth]);
+  }, [tiled, wooden, large, room.floorColor, room.floorName, room.width, room.depth]);
 
   useEffect(() => () => { texture?.dispose(); }, [texture]);
-  const polished = room.floorName === "Marble white tiles";
+  const polished = large || room.floorName === "Marble white tiles";
   return <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
     <planeGeometry args={[room.width, room.depth]} />
-    <meshStandardMaterial key={room.floorName} map={texture} color={texture ? "#ffffff" : room.floorColor} roughness={polished ? .3 : tiled ? .65 : .92} metalness={polished ? .06 : 0} />
+    <meshStandardMaterial key={room.floorName} map={texture} color={texture ? "#ffffff" : room.floorColor} roughness={polished ? .3 : tiled || wooden ? .65 : .92} metalness={polished ? .06 : 0} />
   </mesh>;
 }
