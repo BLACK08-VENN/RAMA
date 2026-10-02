@@ -85,6 +85,10 @@ const floorFinishes = [
   { name: "Natural oak", color: "#d8b78e" },
   { name: "Light ash", color: "#c8b79f" },
   { name: "Warm walnut", color: "#8d6746" },
+  { name: "Ivory porcelain tiles", color: "#e6e0d5" },
+  { name: "Marble white tiles", color: "#f1f0eb" },
+  { name: "Charcoal slate tiles", color: "#525653" },
+  { name: "Sand terrazzo tiles", color: "#d9cbbb" },
 ];
 
 export function PlannerShell() {

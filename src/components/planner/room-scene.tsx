@@ -11,6 +11,7 @@ import {
   type RoomConfig,
 } from "@/stores/planner-store";
 
+import { FloorSurface } from "./floor-surface";
 import { ArchitecturalWalls, DesignerWindow, SlidingDoor, Chandelier } from "./architectural-features";
 
 export type CameraView = "perspective" | "top" | "front";
@@ -399,10 +400,7 @@ function StyledRoom({ room }: { room: RoomConfig }) {
 
   return (
     <group>
-      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-        <planeGeometry args={[room.width, room.depth]} />
-        <meshStandardMaterial color={room.floorColor} roughness={0.92} />
-      </mesh>
+      <FloorSurface room={room} />
       <ArchitecturalWalls room={room} />
       <DoorFeature room={room} />
       <DesignerWindow room={room} />
