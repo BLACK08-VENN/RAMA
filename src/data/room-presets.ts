@@ -1,4 +1,5 @@
 export type RoomPreset = {
+  spaceType?: "indoor" | "balcony" | "garden";
   diningSink?: boolean;
   builtInStorage?: { enabled: boolean; width: number };
   balcony?: { enabled: boolean; width: number; depth: number };
@@ -33,11 +34,16 @@ export type RoomPreset = {
 
 export const roomPresets: RoomPreset[] = [
   {
-    id: "outdoor-living", name: "Indoor & outdoor living", description: "Empty · adjustable balcony and grassy front yard", empty: true,
-    width: 5.4, depth: 4, height: 3, wallColor: "#eeeae3", floorColor: "#ece7dd", floorName: "Large ivory porcelain tiles", chandelier: "rings",
-    door: { enabled: true, style: "sliding", width: 2.4, height: 2.5, position: 0 },
-    window: { enabled: true, style: "panoramic", width: 3.8, height: 2.2, sillHeight: .45, position: 0 },
-    balcony: { enabled: true, width: 5.4, depth: 2.4 }, yard: { enabled: true, width: 7, depth: 4 },
+    id: "balcony", name: "Balcony", description: "Empty · independent timber deck with glass rails", empty: true, spaceType: "balcony",
+    width: 5.4, depth: 2.8, height: 2.7, wallColor: "#eeeae3", floorColor: "#bca78a", floorName: "Natural oak",
+    door: { enabled: false, width: .9, height: 2.1, position: 0 },
+    window: { enabled: false, width: 1.5, height: 1.2, sillHeight: .85, position: 0 },
+  },
+  {
+    id: "backyard-garden", name: "Backyard garden", description: "Empty · independent grass lawn for outdoor furniture", empty: true, spaceType: "garden",
+    width: 7, depth: 5.5, height: 2.7, wallColor: "#eeeae3", floorColor: "#749455", floorName: "Grass lawn",
+    door: { enabled: false, width: .9, height: 2.1, position: 0 },
+    window: { enabled: false, width: 1.5, height: 1.2, sillHeight: .85, position: 0 },
   },
   {
     id: "panoramic-loft", name: "Panoramic loft", description: "Empty · expansive glass & floating light rings", empty: true,

@@ -396,6 +396,7 @@ function DoorFeature({ room }: { room: RoomConfig }) {
 }
 
 function StyledRoom({ room, onStorageMove, onDraggingChange }: { room: RoomConfig; onStorageMove: (position: [number, number]) => void; onDraggingChange: (dragging: boolean) => void }) {
+  if (room.spaceType === "balcony" || room.spaceType === "garden") return <OutdoorSpaces room={room} />;
   return (
     <group>
       <FloorSurface room={room} />

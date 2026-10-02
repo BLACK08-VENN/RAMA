@@ -23,6 +23,7 @@ export type WindowConfig = {
 export type OutdoorArea = { enabled: boolean; width: number; depth: number };
 
 export type RoomConfig = {
+  spaceType?: "indoor" | "balcony" | "garden";
   roomType?: "bedroom" | "other";
   diningSink?: boolean;
   builtInStorage?: { enabled: boolean; width: number; position?: [number, number] };
@@ -60,6 +61,7 @@ const itemClearance: Record<ProductKind, number> = {
 export const isBedroomRoom = (room: RoomConfig) => room.roomType === "bedroom" || (room.roomType === undefined && ["master-bedroom", "guest-bedroom", "kids-bedroom"].includes(room.presetId ?? ""));
 
 export const getOutdoorMetrics = (room: RoomConfig) => {
+  if (room.spaceType && room.spaceType !== "indoor") return { balconyDepth: 0, yardDepth: 0, centerZ: 0, span: Math.max(room.width, room.depth) };
   const balconyDepth = room.balcony?.enabled ? room.balcony.depth : 0;
   const yardDepth = room.yard?.enabled ? room.yard.depth : 0;
   return { balconyDepth, yardDepth, centerZ: (balconyDepth + yardDepth) / 2,
@@ -74,8 +76,8 @@ export const getItemPlacementBounds = (room: RoomConfig, kind: ProductKind) => {
 export const clampItemPosition = (room: RoomConfig, kind: ProductKind, position: [number, number, number]): [number, number, number] => {
   const clearance = itemClearance[kind], { balconyDepth } = getOutdoorMetrics(room);
   const surfaces = [{ width: room.width, depth: room.depth, z: 0 }];
-  if (room.balcony?.enabled) surfaces.push({ width: room.balcony.width, depth: room.balcony.depth, z: room.depth / 2 + room.balcony.depth / 2 });
-  if (room.yard?.enabled) surfaces.push({ width: room.yard.width, depth: room.yard.depth, z: room.depth / 2 + balconyDepth + room.yard.depth / 2 });
+  if ((!room.spaceType || room.spaceType === "indoor") && room.balcony?.enabled) surfaces.push({ width: room.balcony.width, depth: room.balcony.depth, z: room.depth / 2 + room.balcony.depth / 2 });
+  if ((!room.spaceType || room.spaceType === "indoor") && room.yard?.enabled) surfaces.push({ width: room.yard.width, depth: room.yard.depth, z: room.depth / 2 + balconyDepth + room.yard.depth / 2 });
   let best: [number, number, number] = [0, 0, 0], distance = Infinity;
   for (const surface of surfaces) {
     const halfX = Math.max(0, surface.width / 2 - clearance), halfZ = Math.max(0, surface.depth / 2 - clearance);
@@ -212,6 +214,7 @@ const isValidSharedDesign = (design: DesignDocument) => {
   const { room } = design;
   const validKinds: ProductKind[] = ["sofa", "table", "chair", "cabinet", "bed"];
   return (
+    (room.spaceType === undefined || ["indoor", "balcony", "garden"].includes(room.spaceType)) &&
     (room.roomType === undefined || ["bedroom", "other"].includes(room.roomType)) &&
     (room.diningSink === undefined || typeof room.diningSink === "boolean") &&
     (room.builtInStorage === undefined || (isRecord(room.builtInStorage) && typeof room.builtInStorage.enabled === "boolean" && isFiniteNumber(room.builtInStorage.width) && room.builtInStorage.width >= 1 && room.builtInStorage.width <= 4 && (room.builtInStorage.position === undefined || (Array.isArray(room.builtInStorage.position) && room.builtInStorage.position.length === 2 && room.builtInStorage.position.every(isFiniteNumber))))) &&
@@ -337,6 +340,7 @@ export const usePlannerStore = create<PlannerState>()(
           if (!preset) return design;
           const nextRoom: RoomConfig = {
             presetId: preset.id,
+            spaceType: preset.spaceType ?? "indoor",
             roomType: ["master-bedroom", "guest-bedroom", "kids-bedroom"].includes(preset.id) ? "bedroom" : "other",
             diningSink: preset.diningSink ?? false,
             builtInStorage: preset.builtInStorage ? { ...preset.builtInStorage } : undefined,

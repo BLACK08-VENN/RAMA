@@ -566,6 +566,7 @@ export function PlannerShell() {
                     <label>Height<input type="number" min="2.2" max="4.5" step="0.1" value={design.room.height} onChange={(event) => updateRoomDimension("height", event.currentTarget.valueAsNumber)} /></label>
                   </div>
                 </section>
+                {(!design.room.spaceType || design.room.spaceType === "indoor") && <>
                 <section className="dimension-card">
                   <div className="dimension-card-heading"><span><strong>Outdoor spaces</strong><small>Drag furniture onto the deck or lawn</small></span></div>
                   {(["balcony", "yard"] as const).map(area => {
@@ -655,6 +656,7 @@ export function PlannerShell() {
                     ))}
                   </div>
                 </div>
+                </>}
               </div>
             </div>
           )}
