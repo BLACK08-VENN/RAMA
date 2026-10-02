@@ -1,4 +1,6 @@
 export type RoomPreset = {
+  empty?: boolean;
+  chandelier?: "none" | "rings" | "globes";
   id: string;
   name: string;
   description: string;
@@ -9,12 +11,14 @@ export type RoomPreset = {
   floorColor: string;
   floorName: string;
   door: {
+    style?: "hinged" | "sliding";
     enabled: boolean;
     width: number;
     height: number;
     position: number;
   };
   window: {
+    style?: "picture" | "panoramic" | "arched";
     enabled: boolean;
     width: number;
     height: number;
@@ -24,6 +28,24 @@ export type RoomPreset = {
 };
 
 export const roomPresets: RoomPreset[] = [
+  {
+    id: "panoramic-loft", name: "Panoramic loft", description: "Empty · expansive glass & floating light rings", empty: true,
+    width: 6.4, depth: 4.8, height: 3.4, wallColor: "#eeeae3", floorColor: "#c8b79f", floorName: "Light ash", chandelier: "rings",
+    door: { enabled: true, style: "sliding", width: 2.4, height: 2.5, position: 0.05 },
+    window: { enabled: true, style: "panoramic", width: 4.6, height: 2.4, sillHeight: 0.45, position: 0 },
+  },
+  {
+    id: "arched-suite", name: "The arched suite", description: "Empty · sculptural arch & brass globe chandelier", empty: true,
+    width: 5.2, depth: 4.1, height: 3.2, wallColor: "#e9dfd0", floorColor: "#8d6746", floorName: "Warm walnut", chandelier: "globes",
+    door: { enabled: true, style: "hinged", width: 1.1, height: 2.4, position: 0.2 },
+    window: { enabled: true, style: "arched", width: 2.2, height: 2.4, sillHeight: 0.45, position: 0 },
+  },
+  {
+    id: "garden-lounge", name: "Garden lounge", description: "Empty · sliding glass & calm modern proportions", empty: true,
+    width: 5.8, depth: 4.6, height: 3, wallColor: "#e4ede8", floorColor: "#d8b78e", floorName: "Natural oak", chandelier: "rings",
+    door: { enabled: true, style: "sliding", width: 3, height: 2.5, position: 0 },
+    window: { enabled: true, style: "panoramic", width: 3.8, height: 2.2, sillHeight: 0.45, position: 0 },
+  },
   {
     id: "compact-lounge",
     name: "Compact lounge",
@@ -173,3 +195,4 @@ export const matchRoomPreset = (
   ) ?? null;
 
 export const getRoomArea = (room: { width: number; depth: number }) => room.width * room.depth;
+

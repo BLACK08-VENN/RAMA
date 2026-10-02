@@ -11,6 +11,8 @@ import {
   type RoomConfig,
 } from "@/stores/planner-store";
 
+import { ArchitecturalWalls, DesignerWindow, SlidingDoor, Chandelier } from "./architectural-features";
+
 export type CameraView = "perspective" | "top" | "front";
 
 type ZoomRequest = {
@@ -345,6 +347,7 @@ function Placeholder({ item }: { item: PlacedItem }) {
 
 function DoorFeature({ room }: { room: RoomConfig }) {
   if (!room.door.enabled) return null;
+  if (room.door.style === "sliding") return <SlidingDoor room={room} />;
 
   const width = Math.min(room.door.width, room.depth - 0.7);
   const height = Math.min(room.door.height, room.height - 0.08);
@@ -390,36 +393,6 @@ function DoorFeature({ room }: { room: RoomConfig }) {
   );
 }
 
-function WindowFeature({ room }: { room: RoomConfig }) {
-  if (!room.window.enabled) return null;
-
-  const width = Math.min(room.window.width, room.width - 0.7);
-  const height = Math.max(0.6, Math.min(room.window.height, room.height - room.window.sillHeight - 0.15));
-  const x = room.window.position * (room.width - width);
-  const y = room.window.sillHeight + height / 2;
-
-  return (
-    <group position={[x, y, -room.depth / 2 + 0.055]}>
-      <mesh>
-        <boxGeometry args={[width, height, 0.035]} />
-        <meshStandardMaterial color="#cfe3e4" roughness={0.22} metalness={0.06} />
-      </mesh>
-      {[-width / 2, 0, width / 2].map((frameX) => (
-        <mesh key={frameX} position={[frameX, 0, 0.035]}>
-          <boxGeometry args={[0.055, height + 0.1, 0.055]} />
-          <meshStandardMaterial color="#394b4c" />
-        </mesh>
-      ))}
-      {[-height / 2, 0, height / 2].map((frameY) => (
-        <mesh key={frameY} position={[0, frameY, 0.035]}>
-          <boxGeometry args={[width + 0.1, 0.055, 0.055]} />
-          <meshStandardMaterial color="#394b4c" />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
 function StyledRoom({ room }: { room: RoomConfig }) {
   const rugWidth = Math.min(2.6, room.width * 0.58);
   const rugDepth = Math.min(2, room.depth * 0.62);
@@ -430,20 +403,14 @@ function StyledRoom({ room }: { room: RoomConfig }) {
         <planeGeometry args={[room.width, room.depth]} />
         <meshStandardMaterial color={room.floorColor} roughness={0.92} />
       </mesh>
-      <mesh receiveShadow position={[0, room.height / 2, -room.depth / 2]}>
-        <boxGeometry args={[room.width + 0.08, room.height, 0.08]} />
-        <meshStandardMaterial color={room.wallColor} roughness={0.9} />
-      </mesh>
-      <mesh receiveShadow position={[-room.width / 2, room.height / 2, 0]}>
-        <boxGeometry args={[0.08, room.height, room.depth]} />
-        <meshStandardMaterial color={room.wallColor} roughness={0.9} />
-      </mesh>
+      <ArchitecturalWalls room={room} />
       <DoorFeature room={room} />
-      <WindowFeature room={room} />
-      <mesh position={[-room.width * 0.2, 0.018, room.depth * 0.14]} rotation={[-Math.PI / 2, 0, 0]}>
+      <DesignerWindow room={room} />
+      <Chandelier room={room} />
+      {!room.emptyShell && <mesh position={[-room.width * 0.2, 0.018, room.depth * 0.14]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[rugWidth, rugDepth]} />
         <meshStandardMaterial color="#d8d2c5" roughness={1} />
-      </mesh>
+      </mesh>}
     </group>
   );
 }
@@ -675,3 +642,4 @@ export function RoomScene({
     </Canvas>
   );
 }
+

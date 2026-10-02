@@ -4,6 +4,7 @@ import type { ProductKind } from "@/data/products";
 import { findRoomPreset, matchRoomPreset } from "@/data/room-presets";
 
 export type DoorConfig = {
+  style?: "hinged" | "sliding";
   enabled: boolean;
   width: number;
   height: number;
@@ -11,6 +12,7 @@ export type DoorConfig = {
 };
 
 export type WindowConfig = {
+  style?: "picture" | "panoramic" | "arched";
   enabled: boolean;
   width: number;
   height: number;
@@ -19,6 +21,8 @@ export type WindowConfig = {
 };
 
 export type RoomConfig = {
+  chandelier?: "none" | "rings" | "globes";
+  emptyShell?: boolean;
   presetId: string | null;
   width: number;
   depth: number;
@@ -188,14 +192,18 @@ const isValidSharedDesign = (design: DesignDocument) => {
     typeof room.wallColor === "string" && room.wallColor.length <= 32 &&
     typeof room.floorColor === "string" && room.floorColor.length <= 32 &&
     typeof room.floorName === "string" && room.floorName.length <= 80 &&
+    (room.chandelier === undefined || ["none", "rings", "globes"].includes(room.chandelier)) &&
+    (room.emptyShell === undefined || typeof room.emptyShell === "boolean") &&
+    (room.door.style === undefined || ["hinged", "sliding"].includes(room.door.style)) &&
+    (room.window.style === undefined || ["picture", "panoramic", "arched"].includes(room.window.style)) &&
     typeof room.door.enabled === "boolean" &&
-    isFiniteNumber(room.door.width) && room.door.width >= 0.7 && room.door.width <= 1.4 &&
+    isFiniteNumber(room.door.width) && room.door.width >= 0.7 && room.door.width <= 3.6 &&
     isFiniteNumber(room.door.height) && room.door.height >= 1.8 && room.door.height <= 2.5 &&
     isFiniteNumber(room.door.position) && Math.abs(room.door.position) <= 0.35 &&
     typeof room.window.enabled === "boolean" &&
-    isFiniteNumber(room.window.width) && room.window.width >= 0.8 && room.window.width <= 2.4 &&
+    isFiniteNumber(room.window.width) && room.window.width >= 0.8 && room.window.width <= 5.5 &&
     isFiniteNumber(room.window.height) && room.window.height >= 0.6 && room.window.height <= 2.4 &&
-    isFiniteNumber(room.window.sillHeight) && room.window.sillHeight >= 0.5 && room.window.sillHeight <= 1.4 &&
+    isFiniteNumber(room.window.sillHeight) && room.window.sillHeight >= 0.15 && room.window.sillHeight <= 1.4 &&
     isFiniteNumber(room.window.position) && Math.abs(room.window.position) <= 0.35 &&
     Array.isArray(design.items) &&
     design.items.length <= 100 &&
@@ -303,6 +311,8 @@ export const usePlannerStore = create<PlannerState>()(
           if (!preset) return design;
           const nextRoom: RoomConfig = {
             presetId: preset.id,
+            chandelier: preset.chandelier ?? "none",
+            emptyShell: preset.empty ?? false,
             width: preset.width,
             depth: preset.depth,
             height: preset.height,
@@ -315,7 +325,7 @@ export const usePlannerStore = create<PlannerState>()(
           return {
             ...design,
             room: nextRoom,
-            items: clampItemsToRoom(design.items, nextRoom),
+            items: preset.empty ? [] : clampItemsToRoom(design.items, nextRoom),
           };
         }),
         addItem: (item) => {
@@ -391,3 +401,4 @@ export const usePlannerStore = create<PlannerState>()(
     },
   ),
 );
+

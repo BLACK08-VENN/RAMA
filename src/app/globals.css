@@ -1962,3 +1962,6 @@ input:focus-visible {
 .auth-switch button:hover {
   text-decoration: underline;
 }
+
+
+.opening-fields select{width:100%;padding:10px;border:1px solid #d6dedb;border-radius:8px;background:#fff;color:#253a35;font:inherit}.room-preset small{display:block}.room-preset-grid{max-height:440px;overflow:auto}

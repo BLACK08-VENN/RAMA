@@ -271,6 +271,7 @@ export function PlannerShell() {
     const preset = roomPresets.find((candidate) => candidate.id === presetId);
     if (!preset) return;
     applyRoomPreset(presetId);
+    if (preset.empty) selectItem(null);
     notify(`${preset.name} loaded`);
   };
 
@@ -520,7 +521,7 @@ export function PlannerShell() {
                 <section className="dimension-card">
                   <div className="dimension-card-heading">
                     <Shapes size={21} />
-                    <span><strong>Start from a room</strong><small>Ready-made sizes, adjustable after</small></span>
+                    <span><strong>Start from a room</strong><small>Empty designer shells and everyday room sizes</small></span>
                   </div>
                   <div className="room-preset-grid" role="group" aria-label="Room templates">
                     {roomPresets.map((preset) => {
@@ -538,6 +539,7 @@ export function PlannerShell() {
                           </i>
                           <span>
                             <strong>{preset.name}</strong>
+                            <small>{preset.description}</small>
                             <small>{preset.width.toFixed(1)} × {preset.depth.toFixed(1)} m · {getRoomArea(preset).toFixed(1)} m²</small>
                           </span>
                           {selected && <Check size={15} />}
@@ -577,7 +579,8 @@ export function PlannerShell() {
                     </div>
                     {design.room.door.enabled && (
                       <div className="opening-fields">
-                        <label>Width<input type="number" min="0.7" max="1.4" step="0.1" value={design.room.door.width} onChange={(event) => updateOpeningNumber("door", "width", event.currentTarget.valueAsNumber, 0.7, 1.4)} /></label>
+                        <label className="opening-position">Door style<select value={design.room.door.style ?? "hinged"} onChange={(event) => updateDoorSetting({ style: event.currentTarget.value as DoorConfig["style"] })}><option value="hinged">Modern panel door</option><option value="sliding">Sliding glass doors</option></select></label>
+                        <label>Width<input type="number" min="0.7" max="3.6" step="0.1" value={design.room.door.width} onChange={(event) => updateOpeningNumber("door", "width", event.currentTarget.valueAsNumber, 0.7, 3.6)} /></label>
                         <label>Position<input type="range" min="-0.35" max="0.35" step="0.05" value={design.room.door.position} onChange={(event) => updateOpeningNumber("door", "position", event.currentTarget.valueAsNumber, -0.35, 0.35)} /></label>
                       </div>
                     )}
@@ -593,12 +596,17 @@ export function PlannerShell() {
                     </div>
                     {design.room.window.enabled && (
                       <div className="opening-fields">
-                        <label>Width<input type="number" min="0.8" max="2.4" step="0.1" value={design.room.window.width} onChange={(event) => updateOpeningNumber("window", "width", event.currentTarget.valueAsNumber, 0.8, 2.4)} /></label>
-                        <label>Sill height<input type="number" min="0.5" max="1.4" step="0.1" value={design.room.window.sillHeight} onChange={(event) => updateOpeningNumber("window", "sillHeight", event.currentTarget.valueAsNumber, 0.5, 1.4)} /></label>
+                        <label className="opening-position">Window style<select value={design.room.window.style ?? "picture"} onChange={(event) => updateWindowSetting({ style: event.currentTarget.value as WindowConfig["style"] })}><option value="picture">Classic picture window</option><option value="panoramic">Panoramic glass</option><option value="arched">Sculptural arch</option></select></label>
+                        <label>Width<input type="number" min="0.8" max="5.5" step="0.1" value={design.room.window.width} onChange={(event) => updateOpeningNumber("window", "width", event.currentTarget.valueAsNumber, 0.8, 5.5)} /></label>
+                        <label>Sill height<input type="number" min="0.15" max="1.4" step="0.1" value={design.room.window.sillHeight} onChange={(event) => updateOpeningNumber("window", "sillHeight", event.currentTarget.valueAsNumber, 0.15, 1.4)} /></label>
                         <label className="opening-position">Position<input type="range" min="-0.35" max="0.35" step="0.05" value={design.room.window.position} onChange={(event) => updateOpeningNumber("window", "position", event.currentTarget.valueAsNumber, -0.35, 0.35)} /></label>
                       </div>
                     )}
                   </div>
+                </section>
+                <section className="dimension-card">
+                  <div className="dimension-card-heading"><span><strong>Statement lighting</strong><small>Choose a chandelier for your room</small></span></div>
+                  <div className="opening-fields"><label className="opening-position">Chandelier<select value={design.room.chandelier ?? "none"} onChange={(event) => updateRoom({ chandelier: event.currentTarget.value as "none" | "rings" | "globes" })}><option value="none">No chandelier</option><option value="rings">Floating luminous rings</option><option value="globes">Brass & opal globes</option></select></label></div>
                 </section>
                 <div className="finish-section">
                   <span>Floor finish</span>
@@ -762,3 +770,4 @@ export function PlannerShell() {
     </main>
   );
 }
+
