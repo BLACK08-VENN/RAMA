@@ -16,7 +16,7 @@ import { DiningSink } from "./dining-sink";
 import { BuiltInStorage } from "./built-in-storage";
 import { OutdoorSpaces } from "./outdoor-spaces";
 import { FloorSurface } from "./floor-surface";
-import { ArchitecturalWalls, DesignerWindow, SlidingDoor, Chandelier } from "./architectural-features";
+import { CutawayWall, ArchitecturalWalls, DesignerWindow, SlidingDoor, Chandelier } from "./architectural-features";
 
 export type CameraView = "perspective" | "top" | "front";
 
@@ -402,8 +402,8 @@ function StyledRoom({ room, onStorageMove, onDraggingChange }: { room: RoomConfi
       <FloorSurface room={room} />
       <OutdoorSpaces room={room} />
       <ArchitecturalWalls room={room} />
-      <DoorFeature room={room} />
-      <DesignerWindow room={room} />
+      <CutawayWall room={room} wall="left"><DoorFeature room={room} /></CutawayWall>
+      <CutawayWall room={room} wall="back"><DesignerWindow room={room} /></CutawayWall>
       <Chandelier room={room} />
       <BuiltInStorage room={room} onMove={onStorageMove} onDraggingChange={onDraggingChange} />
       <DiningSink room={room} />
@@ -429,6 +429,7 @@ function RoomResizeHandle({
   const dragging = useRef(false);
   const nextValue = useRef<number | null>(null);
   const startValue = useRef(room[dimension]);
+  const startCoordinate = useRef(0);
   const floor = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const [hovered, setHovered] = useState(false);
   const [active, setActive] = useState(false);
@@ -443,7 +444,10 @@ function RoomResizeHandle({
     const hit = event.ray.intersectPlane(floor.current, new THREE.Vector3());
     if (!hit) return;
     const coordinate = dimension === "width" ? hit.x : hit.z;
-    const value = Math.round(THREE.MathUtils.clamp(side * coordinate * 2, 2.5, 12) * 10) / 10;
+    const delta = side * (coordinate - startCoordinate.current);
+    if (Math.abs(delta) < .05) return;
+    const value = Math.round(THREE.MathUtils.clamp(startValue.current + delta * .8, 2.5, 12) * 10) / 10;
+    if (value === nextValue.current) return;
     nextValue.current = value;
     onPreview(dimension, value);
   };
@@ -467,7 +471,7 @@ function RoomResizeHandle({
 
   return (
     <group position={position}>
-      {(active || hovered) && <Html position={[0, .42, 0]} center style={{ pointerEvents: "none", whiteSpace: "nowrap" }}>
+      {active && <Html position={[0, .42, 0]} center style={{ pointerEvents: "none", whiteSpace: "nowrap" }}>
         <div className="resize-readout"><strong>{dimension === "width" ? "Width" : "Depth"}: {room[dimension].toFixed(1)} m</strong>{active && <span>{room[dimension] - startMeasurement >= 0 ? "+" : ""}{(room[dimension] - startMeasurement).toFixed(1)} m change · {(room.width * room.depth).toFixed(1)} m² floor</span>}</div>
       </Html>}
       <mesh
@@ -486,6 +490,9 @@ function RoomResizeHandle({
         }}
         onPointerDown={(event) => {
           event.stopPropagation();
+          const hit = event.ray.intersectPlane(floor.current, new THREE.Vector3());
+          if (!hit) return;
+          startCoordinate.current = dimension === "width" ? hit.x : hit.z;
           dragging.current = true;
           setActive(true);
           nextValue.current = null;

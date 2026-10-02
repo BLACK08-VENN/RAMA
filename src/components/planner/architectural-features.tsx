@@ -1,8 +1,20 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import type { ReactNode } from "react";
 import * as THREE from "three";
 import type { RoomConfig } from "@/stores/planner-store";
+
+export function CutawayWall({ room, wall, children }: { room: RoomConfig; wall: "left" | "right" | "front" | "back"; children: ReactNode }) {
+  const group = useRef<THREE.Group>(null);
+  useFrame(({ camera }) => {
+    if (!group.current) return;
+    const visible = wall === "left" ? camera.position.x > -room.width / 2 : wall === "right" ? camera.position.x < room.width / 2 : wall === "back" ? camera.position.z > -room.depth / 2 : camera.position.z < room.depth / 2;
+    group.current.visible = visible;
+  });
+  return <group ref={group}>{children}</group>;
+}
 
 function openingShape(width: number, height: number, arched: boolean) {
   const shape = new THREE.Shape();
@@ -39,9 +51,13 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
     shape.lineTo(span / 2, 0); shape.lineTo(span / 2, room.height); shape.lineTo(-span / 2, room.height); shape.closePath(); return shape;
   }, [room.depth, room.height, room.door]);
   return <group>
-    <mesh receiveShadow position={[0, 0, -room.depth / 2]}><shapeGeometry args={[back, 48]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh>
-    <mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><shapeGeometry args={[left]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh>
-    <mesh position={[0, .045, -room.depth / 2 + .04]}><boxGeometry args={[room.width, .09, .05]} /><meshStandardMaterial color="#f8f5ef" /></mesh>
+    <CutawayWall room={room} wall="back">
+      <mesh receiveShadow position={[0, 0, -room.depth / 2]}><shapeGeometry args={[back, 48]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh>
+      <mesh position={[0, .045, -room.depth / 2 + .04]}><boxGeometry args={[room.width, .09, .05]} /><meshStandardMaterial color="#f8f5ef" /></mesh>
+    </CutawayWall>
+    <CutawayWall room={room} wall="left"><mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><shapeGeometry args={[left]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="right"><mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="front"><mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh></CutawayWall>
   </group>;
 }
 
