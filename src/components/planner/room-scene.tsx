@@ -6,11 +6,13 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { productModels, type ProductModel } from "@/data/products";
 import {
-  getItemPlacementBounds,
+  clampItemPosition,
+  getOutdoorMetrics,
   type PlacedItem,
   type RoomConfig,
 } from "@/stores/planner-store";
 
+import { OutdoorSpaces } from "./outdoor-spaces";
 import { FloorSurface } from "./floor-surface";
 import { ArchitecturalWalls, DesignerWindow, SlidingDoor, Chandelier } from "./architectural-features";
 
@@ -48,23 +50,24 @@ function CameraRig({
   const lastZoomRequest = useRef(zoomRequest.id);
 
   useEffect(() => {
-    const span = Math.max(room.width, room.depth);
+    const { span, centerZ } = getOutdoorMetrics(room);
     const positions: Record<CameraView, [number, number, number]> = {
       perspective: [span * 1.35, span, span * 1.35],
       top: [0, span * 2.25, 0.01],
       front: [0, span * 0.7, span * 2],
     };
-    camera.position.set(...positions[view]);
-    camera.lookAt(0, room.height * 0.35, 0);
+    const position = positions[view];
+    camera.position.set(position[0], position[1], position[2] + centerZ);
+    camera.lookAt(0, room.height * 0.35, centerZ);
     camera.updateProjectionMatrix();
-  }, [camera, room.depth, room.height, room.width, view]);
+  }, [camera, room, view]);
 
   useEffect(() => {
     if (zoomRequest.id === lastZoomRequest.current) return;
     lastZoomRequest.current = zoomRequest.id;
 
-    const span = Math.max(room.width, room.depth);
-    const target = new THREE.Vector3(0, room.height * 0.3, 0);
+    const { span, centerZ } = getOutdoorMetrics(room);
+    const target = new THREE.Vector3(0, room.height * 0.3, centerZ);
     const offset = camera.position.clone().sub(target);
     const nextDistance = THREE.MathUtils.clamp(
       offset.length() * (zoomRequest.direction === "in" ? 0.82 : 1.22),
@@ -72,9 +75,9 @@ function CameraRig({
       span * 3.5,
     );
     camera.position.copy(target.add(offset.setLength(nextDistance)));
-    camera.lookAt(0, room.height * 0.3, 0);
+    camera.lookAt(0, room.height * 0.3, centerZ);
     camera.updateProjectionMatrix();
-  }, [camera, room.depth, room.height, room.width, zoomRequest]);
+  }, [camera, room, zoomRequest]);
 
   return null;
 }
@@ -125,12 +128,7 @@ function DraggableFurniture({
     event.stopPropagation();
     const point = event.ray.intersectPlane(floorPlane.current, new THREE.Vector3());
     if (!point) return;
-    const { maxX, maxZ } = getItemPlacementBounds(room, item.kind);
-    const position: [number, number, number] = [
-      Math.max(-maxX, Math.min(maxX, point.x + dragOffset.current.x)),
-      0,
-      Math.max(-maxZ, Math.min(maxZ, point.z + dragOffset.current.z)),
-    ];
+    const position = clampItemPosition(room, item.kind, [point.x + dragOffset.current.x, 0, point.z + dragOffset.current.z]);
     groupRef.current.position.set(...position);
     finalPosition.current = position;
   };
@@ -398,6 +396,7 @@ function StyledRoom({ room }: { room: RoomConfig }) {
   return (
     <group>
       <FloorSurface room={room} />
+      <OutdoorSpaces room={room} />
       <ArchitecturalWalls room={room} />
       <DoorFeature room={room} />
       <DesignerWindow room={room} />
@@ -566,7 +565,7 @@ export function RoomScene({
       gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
     >
       <color attach="background" args={["#e9eeee"]} />
-      <fog attach="fog" args={["#e9eeee", 14, 24]} />
+      <fog attach="fog" args={["#e9eeee", getOutdoorMetrics(room).span * 3, getOutdoorMetrics(room).span * 5]} />
       <ambientLight intensity={1.4} />
       <directionalLight castShadow position={[4, 8, 5]} intensity={2.3} shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[-4, 4, -2]} intensity={0.6} color="#caecee" />
@@ -617,7 +616,7 @@ export function RoomScene({
       <ContactShadows
         position={[0, 0.03, 0]}
         opacity={0.3}
-        scale={Math.max(room.width, room.depth) * 1.4}
+        scale={getOutdoorMetrics(room).span * 1.4}
         blur={2.8}
         far={room.height + 2}
       />
@@ -625,12 +624,13 @@ export function RoomScene({
         makeDefault
         enableDamping
         enabled={!dragging}
-        minDistance={Math.max(room.width, room.depth)}
-        maxDistance={Math.max(room.width, room.depth) * 3.5}
+        minDistance={getOutdoorMetrics(room).span}
+        maxDistance={getOutdoorMetrics(room).span * 3.5}
         maxPolarAngle={cameraView === "top" ? 0.15 : Math.PI / 2.02}
-        target={[0, room.height * 0.3, 0]}
+        target={[0, room.height * 0.3, getOutdoorMetrics(room).centerZ]}
       />
     </Canvas>
   );
 }
+
 

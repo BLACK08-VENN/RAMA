@@ -1,4 +1,6 @@
 export type RoomPreset = {
+  balcony?: { enabled: boolean; width: number; depth: number };
+  yard?: { enabled: boolean; width: number; depth: number };
   empty?: boolean;
   chandelier?: "none" | "rings" | "globes";
   id: string;
@@ -28,6 +30,13 @@ export type RoomPreset = {
 };
 
 export const roomPresets: RoomPreset[] = [
+  {
+    id: "outdoor-living", name: "Indoor & outdoor living", description: "Empty · adjustable balcony and grassy front yard", empty: true,
+    width: 5.4, depth: 4, height: 3, wallColor: "#eeeae3", floorColor: "#ece7dd", floorName: "Large ivory porcelain tiles", chandelier: "rings",
+    door: { enabled: true, style: "sliding", width: 2.4, height: 2.5, position: 0 },
+    window: { enabled: true, style: "panoramic", width: 3.8, height: 2.2, sillHeight: .45, position: 0 },
+    balcony: { enabled: true, width: 5.4, depth: 2.4 }, yard: { enabled: true, width: 7, depth: 4 },
+  },
   {
     id: "panoramic-loft", name: "Panoramic loft", description: "Empty · expansive glass & floating light rings", empty: true,
     width: 6.4, depth: 4.8, height: 3.4, wallColor: "#eeeae3", floorColor: "#c8b79f", floorName: "Light ash", chandelier: "rings",

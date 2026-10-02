@@ -20,7 +20,11 @@ export type WindowConfig = {
   position: number;
 };
 
+export type OutdoorArea = { enabled: boolean; width: number; depth: number };
+
 export type RoomConfig = {
+  balcony?: OutdoorArea;
+  yard?: OutdoorArea;
   chandelier?: "none" | "rings" | "globes";
   emptyShell?: boolean;
   presetId: string | null;
@@ -50,12 +54,32 @@ const itemClearance: Record<ProductKind, number> = {
   bed: 1.1,
 };
 
+export const getOutdoorMetrics = (room: RoomConfig) => {
+  const balconyDepth = room.balcony?.enabled ? room.balcony.depth : 0;
+  const yardDepth = room.yard?.enabled ? room.yard.depth : 0;
+  return { balconyDepth, yardDepth, centerZ: (balconyDepth + yardDepth) / 2,
+    span: Math.max(room.width, room.depth + balconyDepth + yardDepth, room.balcony?.enabled ? room.balcony.width : 0, room.yard?.enabled ? room.yard.width : 0) };
+};
+
 export const getItemPlacementBounds = (room: RoomConfig, kind: ProductKind) => {
   const clearance = itemClearance[kind];
-  return {
-    maxX: Math.max(0, room.width / 2 - clearance),
-    maxZ: Math.max(0, room.depth / 2 - clearance),
-  };
+  return { maxX: Math.max(0, room.width / 2 - clearance), maxZ: Math.max(0, room.depth / 2 - clearance) };
+};
+
+export const clampItemPosition = (room: RoomConfig, kind: ProductKind, position: [number, number, number]): [number, number, number] => {
+  const clearance = itemClearance[kind], { balconyDepth } = getOutdoorMetrics(room);
+  const surfaces = [{ width: room.width, depth: room.depth, z: 0 }];
+  if (room.balcony?.enabled) surfaces.push({ width: room.balcony.width, depth: room.balcony.depth, z: room.depth / 2 + room.balcony.depth / 2 });
+  if (room.yard?.enabled) surfaces.push({ width: room.yard.width, depth: room.yard.depth, z: room.depth / 2 + balconyDepth + room.yard.depth / 2 });
+  let best: [number, number, number] = [0, 0, 0], distance = Infinity;
+  for (const surface of surfaces) {
+    const halfX = Math.max(0, surface.width / 2 - clearance), halfZ = Math.max(0, surface.depth / 2 - clearance);
+    const x = Math.max(-halfX, Math.min(halfX, position[0]));
+    const z = Math.max(surface.z - halfZ, Math.min(surface.z + halfZ, position[2]));
+    const delta = (x - position[0]) ** 2 + (z - position[2]) ** 2;
+    if (delta < distance) { distance = delta; best = [x, 0, z]; }
+  }
+  return best;
 };
 
 export type DesignDocument = {
@@ -176,10 +200,13 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isFiniteNumber = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value);
 
+const isValidOutdoorArea = (value: unknown) => value === undefined || (isRecord(value) && typeof value.enabled === "boolean" && isFiniteNumber(value.width) && (value.width as number) >= 2.5 && (value.width as number) <= 12 && isFiniteNumber(value.depth) && (value.depth as number) >= 1.5 && (value.depth as number) <= 12);
+
 const isValidSharedDesign = (design: DesignDocument) => {
   const { room } = design;
   const validKinds: ProductKind[] = ["sofa", "table", "chair", "cabinet", "bed"];
   return (
+    isValidOutdoorArea(room.balcony) && isValidOutdoorArea(room.yard) &&
     design.version === 2 &&
     typeof design.title === "string" &&
     design.title.trim().length > 0 &&
@@ -246,17 +273,7 @@ export const decodeSharedDesign = (payload: string): DesignDocument | null => {
 };
 
 const clampItemsToRoom = (items: PlacedItem[], room: RoomConfig): PlacedItem[] =>
-  items.map((item) => {
-    const { maxX, maxZ } = getItemPlacementBounds(room, item.kind);
-    return {
-      ...item,
-      position: [
-        Math.max(-maxX, Math.min(maxX, item.position[0])),
-        item.position[1],
-        Math.max(-maxZ, Math.min(maxZ, item.position[2])),
-      ] as [number, number, number],
-    };
-  });
+  items.map(item => ({ ...item, position: clampItemPosition(room, item.kind, item.position) }));
 
 const withTimestamp = (design: DesignDocument): DesignDocument => ({
   ...design,
@@ -311,6 +328,8 @@ export const usePlannerStore = create<PlannerState>()(
           if (!preset) return design;
           const nextRoom: RoomConfig = {
             presetId: preset.id,
+            balcony: preset.balcony ? { ...preset.balcony } : undefined,
+            yard: preset.yard ? { ...preset.yard } : undefined,
             chandelier: preset.chandelier ?? "none",
             emptyShell: preset.empty ?? false,
             width: preset.width,

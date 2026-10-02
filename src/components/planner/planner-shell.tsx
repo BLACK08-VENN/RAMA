@@ -49,6 +49,7 @@ import {
   decodeSharedDesign,
   encodeSharedDesign,
   getItemPlacementBounds,
+  clampItemPosition,
   usePlannerStore,
   type DoorConfig,
   type WindowConfig,
@@ -265,16 +266,11 @@ export function PlannerShell() {
     if (!selectedId) return;
     const item = placedItems.find((candidate) => candidate.id === selectedId);
     if (!item) return;
-    const { maxX, maxZ } = getItemPlacementBounds(design.room, item.kind);
-    moveItem(selectedId, [
-      Math.max(-maxX, Math.min(maxX, item.position[0] + deltaX)),
-      0,
-      Math.max(-maxZ, Math.min(maxZ, item.position[2] + deltaZ)),
-    ]);
+    moveItem(item.id, clampItemPosition(design.room, item.kind, [item.position[0] + deltaX, 0, item.position[2] + deltaZ]));
   }, [design.room, moveItem, placedItems, selectedId]);
 
   const selectRoomPreset = (presetId: string) => {
-    const preset = roomPresets.find((candidate) => candidate.id === presetId);
+    const preset = roomPresets.find(candidate => candidate.id === presetId);
     if (!preset) return;
     applyRoomPreset(presetId);
     if (preset.empty) selectItem(null);
@@ -569,6 +565,16 @@ export function PlannerShell() {
                     <label>Height<input type="number" min="2.2" max="4.5" step="0.1" value={design.room.height} onChange={(event) => updateRoomDimension("height", event.currentTarget.valueAsNumber)} /></label>
                   </div>
                 </section>
+                <section className="dimension-card">
+                  <div className="dimension-card-heading"><span><strong>Outdoor spaces</strong><small>Drag furniture onto the deck or lawn</small></span></div>
+                  {(["balcony", "yard"] as const).map(area => {
+                    const value = design.room[area] ?? { enabled: false, width: design.room.width, depth: area === "balcony" ? 2.4 : 4 };
+                    return <div className="opening-section" key={area}>
+                      <div className="opening-row"><strong>{area === "balcony" ? "Balcony deck" : "Grassy front yard"}</strong><label className="toggle-control"><input type="checkbox" checked={value.enabled} onChange={event => updateRoom({ [area]: { ...value, enabled: event.currentTarget.checked } })} /><i /><b>{value.enabled ? "On" : "Off"}</b></label></div>
+                      {value.enabled && <div className="dimension-fields">{(["width", "depth"] as const).map(dimension => <label key={dimension}>{dimension === "width" ? "Width (m)" : "Depth (m)"}<input type="number" min={dimension === "width" ? 2.5 : 1.5} max="12" step="0.1" value={value[dimension]} onChange={event => { const next = event.currentTarget.valueAsNumber; if (Number.isFinite(next)) updateRoom({ [area]: { ...value, [dimension]: Math.max(dimension === "width" ? 2.5 : 1.5, Math.min(12, next)) } }); }} /></label>)}</div>}
+                    </div>;
+                  })}
+                </section>
                 <section className="openings-card">
                   <div className="dimension-card-heading">
                     <DoorOpen size={21} />
@@ -702,6 +708,13 @@ export function PlannerShell() {
 
           {selectedId && (
             <div className="selection-toolbar">
+              {(design.room.balcony?.enabled || design.room.yard?.enabled) && <select aria-label="Place selected furniture in area" value={(() => { const z = placedItems.find(item => item.id === selectedId)?.position[2] ?? 0; return z <= design.room.depth / 2 ? "room" : design.room.balcony?.enabled && z < design.room.depth / 2 + design.room.balcony.depth ? "balcony" : "yard"; })()} onChange={event => {
+                const item = placedItems.find(item => item.id === selectedId); if (!item) return;
+                const area = event.currentTarget.value;
+                const balconyDepth = design.room.balcony?.enabled ? design.room.balcony.depth : 0;
+                const z = area === "room" ? 0 : area === "balcony" ? design.room.depth / 2 + balconyDepth / 2 : design.room.depth / 2 + balconyDepth + (design.room.yard?.depth ?? 4) / 2;
+                moveItem(item.id, clampItemPosition(design.room, item.kind, [0, 0, z]));
+              }}><option value="room">Inside room</option>{design.room.balcony?.enabled && <option value="balcony">Balcony</option>}{design.room.yard?.enabled && <option value="yard">Front yard</option>}</select>}
               <span>Move</span>
               <div className="selection-move-controls" aria-label="Move selected item">
                 <button onClick={() => moveSelected(-0.1, 0)} aria-label="Move left"><ArrowLeft size={15} /></button>

@@ -1965,3 +1965,5 @@ input:focus-visible {
 
 
 .opening-fields select{width:100%;padding:10px;border:1px solid #d6dedb;border-radius:8px;background:#fff;color:#253a35;font:inherit}.room-preset small{display:block}.room-preset-grid{max-height:440px;overflow:auto}
+
+.selection-toolbar select{font:inherit;max-width:130px;border:1px solid #d6dedb;border-radius:8px;padding:8px;background:#fff;color:#253a35}
