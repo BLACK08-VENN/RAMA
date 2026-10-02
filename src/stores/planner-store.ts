@@ -23,8 +23,9 @@ export type WindowConfig = {
 export type OutdoorArea = { enabled: boolean; width: number; depth: number };
 
 export type RoomConfig = {
+  roomType?: "bedroom" | "other";
   diningSink?: boolean;
-  builtInStorage?: { enabled: boolean; width: number };
+  builtInStorage?: { enabled: boolean; width: number; position?: [number, number] };
   balcony?: OutdoorArea;
   yard?: OutdoorArea;
   chandelier?: "none" | "rings" | "globes";
@@ -55,6 +56,8 @@ const itemClearance: Record<ProductKind, number> = {
   cabinet: 0.5,
   bed: 1.1,
 };
+
+export const isBedroomRoom = (room: RoomConfig) => room.roomType === "bedroom" || (room.roomType === undefined && ["master-bedroom", "guest-bedroom", "kids-bedroom"].includes(room.presetId ?? ""));
 
 export const getOutdoorMetrics = (room: RoomConfig) => {
   const balconyDepth = room.balcony?.enabled ? room.balcony.depth : 0;
@@ -187,6 +190,7 @@ const normalizeDesign = (design?: PersistedDesign): DesignDocument => {
     version: 2,
     room: {
       ...room,
+      roomType: room.roomType ?? (["master-bedroom", "guest-bedroom", "kids-bedroom"].includes(room.presetId ?? matchRoomPreset(room)?.id ?? "") ? "bedroom" : "other"),
       presetId:
         typeof room.presetId === "string" && findRoomPreset(room.presetId)
           ? room.presetId
@@ -208,8 +212,9 @@ const isValidSharedDesign = (design: DesignDocument) => {
   const { room } = design;
   const validKinds: ProductKind[] = ["sofa", "table", "chair", "cabinet", "bed"];
   return (
+    (room.roomType === undefined || ["bedroom", "other"].includes(room.roomType)) &&
     (room.diningSink === undefined || typeof room.diningSink === "boolean") &&
-    (room.builtInStorage === undefined || (isRecord(room.builtInStorage) && typeof room.builtInStorage.enabled === "boolean" && isFiniteNumber(room.builtInStorage.width) && room.builtInStorage.width >= 1 && room.builtInStorage.width <= 4)) &&
+    (room.builtInStorage === undefined || (isRecord(room.builtInStorage) && typeof room.builtInStorage.enabled === "boolean" && isFiniteNumber(room.builtInStorage.width) && room.builtInStorage.width >= 1 && room.builtInStorage.width <= 4 && (room.builtInStorage.position === undefined || (Array.isArray(room.builtInStorage.position) && room.builtInStorage.position.length === 2 && room.builtInStorage.position.every(isFiniteNumber))))) &&
     isValidOutdoorArea(room.balcony) && isValidOutdoorArea(room.yard) &&
     design.version === 2 &&
     typeof design.title === "string" &&
@@ -332,6 +337,7 @@ export const usePlannerStore = create<PlannerState>()(
           if (!preset) return design;
           const nextRoom: RoomConfig = {
             presetId: preset.id,
+            roomType: ["master-bedroom", "guest-bedroom", "kids-bedroom"].includes(preset.id) ? "bedroom" : "other",
             diningSink: preset.diningSink ?? false,
             builtInStorage: preset.builtInStorage ? { ...preset.builtInStorage } : undefined,
             balcony: preset.balcony ? { ...preset.balcony } : undefined,

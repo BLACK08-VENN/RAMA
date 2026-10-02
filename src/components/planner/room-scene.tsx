@@ -1,6 +1,6 @@
 "use client";
 
-import { ContactShadows, Grid, OrbitControls, RoundedBox, useGLTF } from "@react-three/drei";
+import { ContactShadows, Grid, Html, OrbitControls, RoundedBox, useGLTF } from "@react-three/drei";
 import { Canvas, ThreeEvent, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -35,6 +35,7 @@ type RoomSceneProps = {
   onSelect: (id: string | null) => void;
   onMove: (id: string, position: [number, number, number]) => void;
   onResize: (dimension: "width" | "depth", value: number) => void;
+  onStorageMove: (position: [number, number]) => void;
 };
 
 const initialCameraPosition: [number, number, number] = [7, 5.5, 7];
@@ -49,10 +50,11 @@ function CameraRig({
   zoomRequest: ZoomRequest;
 }) {
   const { camera } = useThree();
+  const { span, centerZ } = getOutdoorMetrics(room);
+  const height = room.height;
   const lastZoomRequest = useRef(zoomRequest.id);
 
   useEffect(() => {
-    const { span, centerZ } = getOutdoorMetrics(room);
     const positions: Record<CameraView, [number, number, number]> = {
       perspective: [span * 1.35, span, span * 1.35],
       top: [0, span * 2.25, 0.01],
@@ -60,16 +62,15 @@ function CameraRig({
     };
     const position = positions[view];
     camera.position.set(position[0], position[1], position[2] + centerZ);
-    camera.lookAt(0, room.height * 0.35, centerZ);
+    camera.lookAt(0, height * 0.35, centerZ);
     camera.updateProjectionMatrix();
-  }, [camera, room, view]);
+  }, [camera, span, centerZ, height, view]);
 
   useEffect(() => {
     if (zoomRequest.id === lastZoomRequest.current) return;
     lastZoomRequest.current = zoomRequest.id;
 
-    const { span, centerZ } = getOutdoorMetrics(room);
-    const target = new THREE.Vector3(0, room.height * 0.3, centerZ);
+    const target = new THREE.Vector3(0, height * 0.3, centerZ);
     const offset = camera.position.clone().sub(target);
     const nextDistance = THREE.MathUtils.clamp(
       offset.length() * (zoomRequest.direction === "in" ? 0.82 : 1.22),
@@ -77,9 +78,9 @@ function CameraRig({
       span * 3.5,
     );
     camera.position.copy(target.add(offset.setLength(nextDistance)));
-    camera.lookAt(0, room.height * 0.3, centerZ);
+    camera.lookAt(0, height * 0.3, centerZ);
     camera.updateProjectionMatrix();
-  }, [camera, room, zoomRequest]);
+  }, [camera, span, centerZ, height, zoomRequest]);
 
   return null;
 }
@@ -394,7 +395,7 @@ function DoorFeature({ room }: { room: RoomConfig }) {
   );
 }
 
-function StyledRoom({ room }: { room: RoomConfig }) {
+function StyledRoom({ room, onStorageMove, onDraggingChange }: { room: RoomConfig; onStorageMove: (position: [number, number]) => void; onDraggingChange: (dragging: boolean) => void }) {
   return (
     <group>
       <FloorSurface room={room} />
@@ -403,7 +404,7 @@ function StyledRoom({ room }: { room: RoomConfig }) {
       <DoorFeature room={room} />
       <DesignerWindow room={room} />
       <Chandelier room={room} />
-      <BuiltInStorage room={room} />
+      <BuiltInStorage room={room} onMove={onStorageMove} onDraggingChange={onDraggingChange} />
       <DiningSink room={room} />
     </group>
   );
@@ -430,6 +431,7 @@ function RoomResizeHandle({
   const floor = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const [hovered, setHovered] = useState(false);
   const [active, setActive] = useState(false);
+  const [startMeasurement, setStartMeasurement] = useState(room[dimension]);
   const position: [number, number, number] = dimension === "width"
     ? [side * room.width / 2, 0.12, 0]
     : [0, 0.12, side * room.depth / 2];
@@ -464,6 +466,9 @@ function RoomResizeHandle({
 
   return (
     <group position={position}>
+      {(active || hovered) && <Html position={[0, .42, 0]} center style={{ pointerEvents: "none", whiteSpace: "nowrap" }}>
+        <div className="resize-readout"><strong>{dimension === "width" ? "Width" : "Depth"}: {room[dimension].toFixed(1)} m</strong>{active && <span>{room[dimension] - startMeasurement >= 0 ? "+" : ""}{(room[dimension] - startMeasurement).toFixed(1)} m change · {(room.width * room.depth).toFixed(1)} m² floor</span>}</div>
+      </Html>}
       <mesh
         onPointerOver={(event) => {
           event.stopPropagation();
@@ -484,6 +489,7 @@ function RoomResizeHandle({
           setActive(true);
           nextValue.current = null;
           startValue.current = room[dimension];
+          setStartMeasurement(room[dimension]);
           const target = event.nativeEvent.target;
           if (target instanceof Element) target.setPointerCapture(event.pointerId);
           onDraggingChange(true);
@@ -518,6 +524,7 @@ export function RoomScene({
   onSelect,
   onMove,
   onResize,
+  onStorageMove,
 }: RoomSceneProps) {
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -574,7 +581,7 @@ export function RoomScene({
       <directionalLight castShadow position={[4, 8, 5]} intensity={2.3} shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[-4, 4, -2]} intensity={0.6} color="#caecee" />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} />
-      <StyledRoom room={visibleRoom} />
+      <StyledRoom room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={setDragging} />
       {(["width", "depth"] as const).flatMap((dimension) =>
         ([-1, 1] as const).map((side) => (
           <RoomResizeHandle

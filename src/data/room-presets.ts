@@ -153,7 +153,6 @@ export const roomPresets: RoomPreset[] = [
   },
   {
     id: "home-office",
-    builtInStorage: { enabled: true, width: 1.5 },
     name: "Home office",
     description: "Desk and storage zone",
     width: 3.2,
