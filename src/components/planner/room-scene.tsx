@@ -395,9 +395,6 @@ function DoorFeature({ room }: { room: RoomConfig }) {
 }
 
 function StyledRoom({ room }: { room: RoomConfig }) {
-  const rugWidth = Math.min(2.6, room.width * 0.58);
-  const rugDepth = Math.min(2, room.depth * 0.62);
-
   return (
     <group>
       <FloorSurface room={room} />
@@ -405,10 +402,6 @@ function StyledRoom({ room }: { room: RoomConfig }) {
       <DoorFeature room={room} />
       <DesignerWindow room={room} />
       <Chandelier room={room} />
-      {!room.emptyShell && <mesh position={[-room.width * 0.2, 0.018, room.depth * 0.14]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[rugWidth, rugDepth]} />
-        <meshStandardMaterial color="#d8d2c5" roughness={1} />
-      </mesh>}
     </group>
   );
 }
