@@ -23,6 +23,8 @@ export type WindowConfig = {
 export type OutdoorArea = { enabled: boolean; width: number; depth: number };
 
 export type RoomConfig = {
+  diningSink?: boolean;
+  builtInStorage?: { enabled: boolean; width: number };
   balcony?: OutdoorArea;
   yard?: OutdoorArea;
   chandelier?: "none" | "rings" | "globes";
@@ -206,6 +208,8 @@ const isValidSharedDesign = (design: DesignDocument) => {
   const { room } = design;
   const validKinds: ProductKind[] = ["sofa", "table", "chair", "cabinet", "bed"];
   return (
+    (room.diningSink === undefined || typeof room.diningSink === "boolean") &&
+    (room.builtInStorage === undefined || (isRecord(room.builtInStorage) && typeof room.builtInStorage.enabled === "boolean" && isFiniteNumber(room.builtInStorage.width) && room.builtInStorage.width >= 1 && room.builtInStorage.width <= 4)) &&
     isValidOutdoorArea(room.balcony) && isValidOutdoorArea(room.yard) &&
     design.version === 2 &&
     typeof design.title === "string" &&
@@ -328,6 +332,8 @@ export const usePlannerStore = create<PlannerState>()(
           if (!preset) return design;
           const nextRoom: RoomConfig = {
             presetId: preset.id,
+            diningSink: preset.diningSink ?? false,
+            builtInStorage: preset.builtInStorage ? { ...preset.builtInStorage } : undefined,
             balcony: preset.balcony ? { ...preset.balcony } : undefined,
             yard: preset.yard ? { ...preset.yard } : undefined,
             chandelier: preset.chandelier ?? "none",

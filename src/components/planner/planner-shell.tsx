@@ -575,6 +575,11 @@ export function PlannerShell() {
                     </div>;
                   })}
                 </section>
+                <section className="dimension-card">
+                  <div className="opening-row"><span><strong>Built-in wardrobe & drawers</strong><small>Fitted storage along the right wall</small></span><label className="toggle-control"><input type="checkbox" checked={design.room.builtInStorage?.enabled ?? false} onChange={event => updateRoom({ builtInStorage: { width: design.room.builtInStorage?.width ?? 2, enabled: event.currentTarget.checked } })} /><i /><b>{design.room.builtInStorage?.enabled ? "On" : "Off"}</b></label></div>
+                  {design.room.builtInStorage?.enabled && <div className="dimension-fields"><label>Width (m)<input type="number" min="1" max="4" step="0.1" value={design.room.builtInStorage.width} onChange={event => { const value = event.currentTarget.valueAsNumber; if (Number.isFinite(value)) updateRoom({ builtInStorage: { enabled: true, width: Math.max(1, Math.min(4, value)) } }); }} /></label></div>}
+                </section>
+                <section className="dimension-card"><div className="opening-row"><span><strong>Dining corner sink</strong><small>Compact basin, tap and cupboard</small></span><label className="toggle-control"><input type="checkbox" checked={design.room.diningSink ?? false} onChange={event => updateRoom({ diningSink: event.currentTarget.checked })} /><i /><b>{design.room.diningSink ? "On" : "Off"}</b></label></div></section>
                 <section className="openings-card">
                   <div className="dimension-card-heading">
                     <DoorOpen size={21} />

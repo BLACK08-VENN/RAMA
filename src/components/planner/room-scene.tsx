@@ -12,6 +12,8 @@ import {
   type RoomConfig,
 } from "@/stores/planner-store";
 
+import { DiningSink } from "./dining-sink";
+import { BuiltInStorage } from "./built-in-storage";
 import { OutdoorSpaces } from "./outdoor-spaces";
 import { FloorSurface } from "./floor-surface";
 import { ArchitecturalWalls, DesignerWindow, SlidingDoor, Chandelier } from "./architectural-features";
@@ -401,6 +403,8 @@ function StyledRoom({ room }: { room: RoomConfig }) {
       <DoorFeature room={room} />
       <DesignerWindow room={room} />
       <Chandelier room={room} />
+      <BuiltInStorage room={room} />
+      <DiningSink room={room} />
     </group>
   );
 }

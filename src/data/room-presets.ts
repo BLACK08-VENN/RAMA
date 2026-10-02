@@ -1,4 +1,6 @@
 export type RoomPreset = {
+  diningSink?: boolean;
+  builtInStorage?: { enabled: boolean; width: number };
   balcony?: { enabled: boolean; width: number; depth: number };
   yard?: { enabled: boolean; width: number; depth: number };
   empty?: boolean;
@@ -109,6 +111,7 @@ export const roomPresets: RoomPreset[] = [
   },
   {
     id: "master-bedroom",
+    builtInStorage: { enabled: true, width: 2.4 },
     name: "Master bedroom",
     description: "Suite with space to dress",
     width: 4.5,
@@ -122,6 +125,7 @@ export const roomPresets: RoomPreset[] = [
   },
   {
     id: "guest-bedroom",
+    builtInStorage: { enabled: true, width: 1.8 },
     name: "Guest bedroom",
     description: "Compact visitor room",
     width: 3.4,
@@ -135,6 +139,7 @@ export const roomPresets: RoomPreset[] = [
   },
   {
     id: "kids-bedroom",
+    builtInStorage: { enabled: true, width: 1.5 },
     name: "Kids bedroom",
     description: "Playful small space",
     width: 3,
@@ -148,6 +153,7 @@ export const roomPresets: RoomPreset[] = [
   },
   {
     id: "home-office",
+    builtInStorage: { enabled: true, width: 1.5 },
     name: "Home office",
     description: "Desk and storage zone",
     width: 3.2,
@@ -161,6 +167,7 @@ export const roomPresets: RoomPreset[] = [
   },
   {
     id: "dining-room",
+    diningSink: true, chandelier: "globes",
     name: "Dining room",
     description: "Table-first space",
     width: 4.2,
