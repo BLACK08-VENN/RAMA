@@ -113,6 +113,23 @@ export function PlannerShell() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [isPhone, setIsPhone] = useState(false);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [editMode, setEditMode] = useState(true);
+  const [focusMode, setFocusMode] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 700px), (max-width: 1000px) and (max-height: 500px) and (pointer: coarse)");
+    const update = () => { setIsPhone(media.matches); setPanelOpen(!media.matches); setEditMode(!media.matches); setSheetExpanded(false); };
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  const openMobilePanel = (panel: "products" | "decor" | "room" | "design") => {
+    setPanelOpen(!(panelOpen && activePanel === panel));
+    setActivePanel(panel);
+    setSheetExpanded(false);
+    setQuery("");
+  };
   const [notice, setNotice] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
@@ -202,9 +219,10 @@ export function PlannerShell() {
   };
 
   const toggleFullscreen = async () => {
+    if (focusMode) { setFocusMode(false); return; }
     const stage = sceneStageRef.current;
     if (!stage || !document.fullscreenEnabled) {
-      notify("Fullscreen is unavailable in this browser");
+      setFocusMode(true);
       return;
     }
 
@@ -215,7 +233,7 @@ export function PlannerShell() {
         await stage.requestFullscreen();
       }
     } catch {
-      notify("Fullscreen could not be opened");
+      setFocusMode(true);
     }
   };
 
@@ -269,6 +287,7 @@ export function PlannerShell() {
       ], productId, wall),
       rotation: [0, 0, 0],
     });
+    if (isPhone) { setPanelOpen(false); setEditMode(true); }
     notify("Added to your room");
   };
 
@@ -403,7 +422,7 @@ export function PlannerShell() {
 
       <header className="planner-header">
         <div className="header-brand-group">
-          <button className="icon-button mobile-menu" aria-label="Open menu">
+          <button className="icon-button mobile-menu" aria-label={panelOpen ? "Close catalogue" : "Open catalogue"} aria-expanded={panelOpen} onClick={() => setPanelOpen(value => !value)}>
             <Menu size={21} />
           </button>
           <Image
@@ -451,10 +470,10 @@ export function PlannerShell() {
         </div>
 
         <div className="header-actions">
-          <button className="header-text-button" onClick={shareDesign}>
+          <button className="header-text-button" onClick={shareDesign} aria-label="Share design">
             <Share2 size={17} /> <span>Share</span>
           </button>
-          <button className="header-text-button" onClick={handleSaveToCloud} disabled={savingToCloud}>
+          <button className="header-text-button" aria-label="Save design" onClick={handleSaveToCloud} disabled={savingToCloud}>
             <Box size={17} /> <span>{savingToCloud ? "Saving..." : "Save"}</span>
           </button>
           <button className="icon-button" aria-label="Help"><CircleHelp size={20} /></button>
@@ -465,18 +484,28 @@ export function PlannerShell() {
       </header>
 
       <section className={`planner-workspace ${panelOpen ? "" : "panel-collapsed"}`}>
-        <aside className={`catalog-panel ${panelOpen ? "is-open" : ""}`}>
+        <nav className="mobile-tool-nav" aria-label="Mobile planner tools">
+          <button className={panelOpen && activePanel === "products" ? "active" : ""} aria-expanded={panelOpen && activePanel === "products"} onClick={() => openMobilePanel("products")}><PackagePlus size={20} /><span>Furniture</span></button>
+          <button className={panelOpen && activePanel === "decor" ? "active" : ""} aria-expanded={panelOpen && activePanel === "decor"} onClick={() => openMobilePanel("decor")}><Leaf size={20} /><span>Décor</span></button>
+          <button className={panelOpen && activePanel === "room" ? "active" : ""} aria-expanded={panelOpen && activePanel === "room"} onClick={() => openMobilePanel("room")}><Home size={20} /><span>Room</span></button>
+          <button className={panelOpen && activePanel === "design" ? "active" : ""} aria-expanded={panelOpen && activePanel === "design"} onClick={() => openMobilePanel("design")}><ListChecks size={20} /><span>My design</span></button>
+        </nav>
+        <aside className={`catalog-panel ${panelOpen ? "is-open" : ""} ${sheetExpanded ? "sheet-expanded" : ""}`} inert={!panelOpen}>
+          <div className="mobile-sheet-bar">
+            <button onClick={() => setSheetExpanded(value => !value)} aria-label={sheetExpanded ? "Reduce panel" : "Expand panel"} aria-expanded={sheetExpanded}><span className="sheet-grip" /><span>{sheetExpanded ? "Show more room" : "Expand panel"}</span></button>
+            <button onClick={() => setPanelOpen(false)} aria-label="Close panel"><X size={20} /></button>
+          </div>
           <nav className="panel-tabs" aria-label="Planner tools">
-            <button className={activePanel === "products" ? "active" : ""} onClick={() => setActivePanel("products")}>
+            <button aria-label="Products" className={activePanel === "products" ? "active" : ""} onClick={() => setActivePanel("products")}>
               <PackagePlus size={20} /><span>Products</span>
             </button>
             <button className={activePanel === "decor" ? "active" : ""} onClick={() => { setActivePanel("decor"); setQuery(""); }} aria-label="Décor">
               <Leaf size={20} /><span>Décor</span>
             </button>
-            <button className={activePanel === "room" ? "active" : ""} onClick={() => setActivePanel("room")}>
+            <button aria-label="Room" className={activePanel === "room" ? "active" : ""} onClick={() => setActivePanel("room")}>
               <Home size={20} /><span>Room</span>
             </button>
-            <button className={activePanel === "design" ? "active" : ""} onClick={() => setActivePanel("design")}>
+            <button aria-label="My design" className={activePanel === "design" ? "active" : ""} onClick={() => setActivePanel("design")}>
               <ListChecks size={20} /><span>My design</span>
             </button>
           </nav>
@@ -733,9 +762,10 @@ export function PlannerShell() {
           )}
         </aside>
 
-        <div ref={sceneStageRef} className="scene-stage">
+        <div ref={sceneStageRef} className={`scene-stage ${focusMode ? "is-focused" : ""}`}>
           <RoomScene
             cameraView={cameraView}
+            editMode={editMode}
             showGrid={showGrid}
             zoomRequest={zoomRequest}
             room={design.room}
@@ -759,16 +789,16 @@ export function PlannerShell() {
             <div className="room-metadata"><span>{activeRoomPreset ? activeRoomPreset.name : "Custom room"}</span><i />{design.room.width.toFixed(1)} × {design.room.depth.toFixed(1)} m</div>
             <button
               className="fullscreen-button"
-              aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-              aria-pressed={isFullscreen}
+              aria-label={isFullscreen || focusMode ? "Exit fullscreen" : "Enter fullscreen"}
+              aria-pressed={isFullscreen || focusMode}
               onClick={toggleFullscreen}
             >
-              {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              {isFullscreen || focusMode ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
             </button>
           </div>
 
           {selectedId && (
-            <div className="selection-toolbar">
+            <div className={`selection-toolbar ${isPhone && panelOpen ? "behind-sheet" : ""}`}>
               {selectedDecor?.mount !== "wall" && (design.room.balcony?.enabled || design.room.yard?.enabled) && <select aria-label="Place selected furniture in area" value={(() => { const z = placedItems.find(item => item.id === selectedId)?.position[2] ?? 0; return z <= design.room.depth / 2 ? "room" : design.room.balcony?.enabled && z < design.room.depth / 2 + design.room.balcony.depth ? "balcony" : "yard"; })()} onChange={event => {
                 const item = placedItems.find(item => item.id === selectedId); if (!item) return;
                 const area = event.currentTarget.value;
@@ -783,15 +813,17 @@ export function PlannerShell() {
                 <button onClick={() => moveSelected(0, 0.1)} aria-label={selectedDecor?.mount === "wall" ? "Move down" : "Move backward"}><ArrowDown size={15} /></button>
                 <button onClick={() => moveSelected(0.1, 0)} aria-label="Move right"><ArrowRight size={15} /></button>
               </div>
-              <button onClick={() => rotateItem(selectedId)}><RotateCcw size={17} /> {selectedDecor?.mount === "wall" ? "Next wall" : "Rotate"}</button>
-              <button onClick={removeSelected} className="danger"><Trash2 size={17} /> Remove</button>
+              <button aria-label={selectedDecor?.mount === "wall" ? "Move to next wall" : "Rotate selected item"} onClick={() => rotateItem(selectedId)}><RotateCcw size={17} /><span className="selection-action-label">{selectedDecor?.mount === "wall" ? "Next wall" : "Rotate"}</span></button>
+              <button aria-label="Remove selected item" onClick={removeSelected} className="danger"><Trash2 size={17} /><span className="selection-action-label">Remove</span></button>
             </div>
           )}
 
+          {isPhone && !panelOpen && <div className="mobile-gesture-hint">{editMode ? "Drag items and floor handles to adjust" : "One finger to rotate · Pinch to zoom"}</div>}
           <div className="view-toolbar">
-            <button className={cameraView === "perspective" ? "active" : ""} onClick={() => setCameraView("perspective")}><View size={18} /><span>3D view</span></button>
-            <button className={cameraView === "top" ? "active" : ""} onClick={() => setCameraView("top")}><Layers3 size={18} /><span>Top view</span></button>
-            <button className={cameraView === "front" ? "active" : ""} onClick={() => setCameraView("front")}><Armchair size={18} /><span>Front</span></button>
+            {isPhone && <button className={editMode ? "active" : ""} aria-label={editMode ? "Switch to room navigation" : "Switch to moving items"} aria-pressed={editMode} onClick={() => setEditMode(value => !value)}><Armchair size={17} /><b className="mobile-mode-label">{editMode ? "Move" : "Orbit"}</b></button>}
+            <button aria-label="3D view" className={cameraView === "perspective" ? "active" : ""} onClick={() => setCameraView("perspective")}><View size={18} /><span>3D view</span></button>
+            <button aria-label="Top view" className={cameraView === "top" ? "active" : ""} onClick={() => setCameraView("top")}><Layers3 size={18} /><span>Top view</span></button>
+            <button aria-label="Front view" className={cameraView === "front" ? "active" : ""} onClick={() => setCameraView("front")}><Armchair size={18} /><span>Front</span></button>
             <span className="toolbar-divider" />
             <button className={showGrid ? "active" : ""} onClick={() => setShowGrid((value) => !value)}><Grid3X3 size={18} /><span>Grid</span></button>
           </div>

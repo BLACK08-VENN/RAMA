@@ -28,6 +28,7 @@ type ZoomRequest = {
 
 type RoomSceneProps = {
   cameraView: CameraView;
+  editMode: boolean;
   showGrid: boolean;
   zoomRequest: ZoomRequest;
   room: RoomConfig;
@@ -406,7 +407,7 @@ function DoorFeature({ room }: { room: RoomConfig }) {
   );
 }
 
-function StyledRoom({ room, onStorageMove, onDraggingChange }: { room: RoomConfig; onStorageMove: (position: [number, number]) => void; onDraggingChange: (dragging: boolean) => void }) {
+function StyledRoom({ room, editMode, onStorageMove, onDraggingChange }: { room: RoomConfig; editMode: boolean; onStorageMove: (position: [number, number]) => void; onDraggingChange: (dragging: boolean) => void }) {
   if (room.spaceType === "balcony" || room.spaceType === "garden") return <OutdoorSpaces room={room} />;
   return (
     <group>
@@ -416,7 +417,7 @@ function StyledRoom({ room, onStorageMove, onDraggingChange }: { room: RoomConfi
       <CutawayWall room={room} wall="left"><DoorFeature room={room} /></CutawayWall>
       <CutawayWall room={room} wall="back"><DesignerWindow room={room} /></CutawayWall>
       <Chandelier room={room} />
-      <BuiltInStorage room={room} onMove={onStorageMove} onDraggingChange={onDraggingChange} />
+      <BuiltInStorage dragEnabled={editMode} room={room} onMove={onStorageMove} onDraggingChange={onDraggingChange} />
       <DiningSink room={room} />
     </group>
   );
@@ -535,6 +536,7 @@ function RoomResizeHandle({
 
 export function RoomScene({
   cameraView,
+  editMode,
   showGrid,
   zoomRequest,
   room,
@@ -602,8 +604,8 @@ export function RoomScene({
       <directionalLight castShadow position={[4, 8, 5]} intensity={2.3} shadow-mapSize={[512, 512]} shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12} shadow-bias={-.001} />
       <directionalLight position={[-4, 4, -2]} intensity={0.6} color="#caecee" />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} />
-      <StyledRoom room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={setDragging} />
-      {(["width", "depth"] as const).flatMap((dimension) =>
+      <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={setDragging} />
+      {editMode && (["width", "depth"] as const).flatMap((dimension) =>
         ([-1, 1] as const).map((side) => (
           <RoomResizeHandle
             key={`${dimension}-${side}`}
@@ -623,7 +625,7 @@ export function RoomScene({
           item={item}
           room={room}
           selected={selectedId === item.id}
-          dragEnabled={cameraView !== "front"}
+          dragEnabled={editMode && cameraView !== "front"}
           onSelect={onSelect}
           onMove={onMove}
           onDraggingChange={setDragging}
