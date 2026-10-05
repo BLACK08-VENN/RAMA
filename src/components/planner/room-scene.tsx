@@ -18,7 +18,7 @@ import { DiningSink } from "./dining-sink";
 import { BuiltInStorage } from "./built-in-storage";
 import { OutdoorSpaces } from "./outdoor-spaces";
 import { FloorSurface } from "./floor-surface";
-import { CutawayWall, ArchitecturalWalls, DesignerWindow, SlidingDoor, Chandelier } from "./architectural-features";
+import { CutawayWall, ArchitecturalWalls, Ceiling, DesignerWindow, SlidingDoor, Chandelier } from "./architectural-features";
 
 export type CameraView = "perspective" | "top" | "front";
 
@@ -503,6 +503,7 @@ function StyledRoom({ room, editMode, onStorageMove, onDraggingChange }: { room:
       <FloorSurface room={room} />
       <OutdoorSpaces room={room} />
       <ArchitecturalWalls room={room} />
+      <Ceiling room={room} />
       <CutawayWall room={room} wall="left"><DoorFeature room={room} /></CutawayWall>
       <CutawayWall room={room} wall="back"><DesignerWindow room={room} /></CutawayWall>
       <Chandelier room={room} />

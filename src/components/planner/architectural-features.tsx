@@ -6,11 +6,11 @@ import type { ReactNode } from "react";
 import * as THREE from "three";
 import type { RoomConfig } from "@/stores/planner-store";
 
-export function CutawayWall({ room, wall, children }: { room: RoomConfig; wall: "left" | "right" | "front" | "back"; children: ReactNode }) {
+export function CutawayWall({ room, wall, children }: { room: RoomConfig; wall: "left" | "right" | "front" | "back" | "ceiling"; children: ReactNode }) {
   const group = useRef<THREE.Group>(null);
   useFrame(({ camera }) => {
     if (!group.current) return;
-    const visible = wall === "left" ? camera.position.x > -room.width / 2 : wall === "right" ? camera.position.x < room.width / 2 : wall === "back" ? camera.position.z > -room.depth / 2 : camera.position.z < room.depth / 2;
+    const visible = wall === "ceiling" ? camera.position.y < room.height : wall === "left" ? camera.position.x > -room.width / 2 : wall === "right" ? camera.position.x < room.width / 2 : wall === "back" ? camera.position.z > -room.depth / 2 : camera.position.z < room.depth / 2;
     group.current.visible = visible;
   });
   return <group ref={group}>{children}</group>;
@@ -59,6 +59,31 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
     <CutawayWall room={room} wall="right"><mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh></CutawayWall>
     <CutawayWall room={room} wall="front"><mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh></CutawayWall>
   </group>;
+}
+
+export function Ceiling({ room }: { room: RoomConfig }) {
+  // Underside faces down, so it only ever renders for a camera below the slab.
+  const tone = useMemo(() => new THREE.Color(room.wallColor).lerp(new THREE.Color("#ffffff"), 0.6).getStyle(), [room.wallColor]);
+  const band = 0.09, trim = 0.055;
+  const insetX = room.width / 2 - trim / 2, insetZ = room.depth / 2 - trim / 2;
+  const drop = room.height - band / 2;
+  return <CutawayWall room={room} wall="ceiling">
+    <mesh position={[0, room.height, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
+      <planeGeometry args={[room.width, room.depth]} />
+      <meshStandardMaterial color={tone} roughness={0.95} />
+    </mesh>
+    {[
+      { position: [0, drop, insetZ] as const, size: [room.width, band, trim] as const },
+      { position: [0, drop, -insetZ] as const, size: [room.width, band, trim] as const },
+      { position: [insetX, drop, 0] as const, size: [trim, band, room.depth] as const },
+      { position: [-insetX, drop, 0] as const, size: [trim, band, room.depth] as const },
+    ].map((piece) => (
+      <mesh key={piece.position.join(",")} position={piece.position} receiveShadow>
+        <boxGeometry args={piece.size} />
+        <meshStandardMaterial color="#fbfaf6" roughness={0.8} />
+      </mesh>
+    ))}
+  </CutawayWall>;
 }
 
 export function DesignerWindow({ room }: { room: RoomConfig }) {
