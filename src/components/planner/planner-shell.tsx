@@ -60,6 +60,7 @@ import {
 import type { DecorGroup } from "@/data/decor-catalog";
 import { useAuth } from "@/components/auth-provider";
 import { AuthModal } from "@/components/auth-modal";
+import { RoomSwitchPrompt } from "./room-switch-prompt";
 import { readSavedRooms, saveRoomSnapshot, deleteRoomSnapshot, type SavedRoom } from "@/lib/saved-rooms";
 import { saveDesignToCloud } from "@/lib/design-storage";
 
@@ -141,6 +142,9 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [savingToCloud, setSavingToCloud] = useState(false);
   const [savedRooms, setSavedRooms] = useState<SavedRoom[]>([]);
+  const [pendingRoom, setPendingRoom] = useState<{ kind: "preset"; id: string; name: string } | { kind: "saved"; saved: SavedRoom; name: string } | null>(null);
+  const [roomSwitchError, setRoomSwitchError] = useState<string | null>(null);
+  const cancelRoomSwitch = useCallback(() => { setPendingRoom(null); setRoomSwitchError(null); }, []);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       try { setSavedRooms(readSavedRooms(window.localStorage)); } catch { /* Saving remains available if storage becomes accessible later. */ }
@@ -253,17 +257,46 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     try {
       setSavedRooms(saveRoomSnapshot(window.localStorage, design));
       notify("Room saved on this device. Open My design to return to it.");
+      return true;
     } catch {
       notify("Could not save. Your browser storage may be full or unavailable.");
+      return false;
     }
   };
 
-  const openSavedRoom = (saved: SavedRoom) => {
-    const room = decodeSharedDesign(saved.payload);
-    if (!room) { notify("This saved room could not be opened"); return; }
-    loadDesign(room);
+  const performRoomSwitch = (target: NonNullable<typeof pendingRoom>) => {
+    if (target.kind === "preset") {
+      applyRoomPreset(target.id);
+      setActivePanel("decor");
+      setQuery("");
+      setEditMode(!isPhone);
+    } else {
+      const room = decodeSharedDesign(target.saved.payload);
+      if (!room) { notify("This saved room could not be opened"); return; }
+      loadDesign(room);
+    }
     if (isPhone) setPanelOpen(false);
-    notify(`${saved.title} opened`);
+    setPendingRoom(null);
+    setRoomSwitchError(null);
+    notify(`${target.name} opened`);
+  };
+
+  const requestRoomSwitch = (target: NonNullable<typeof pendingRoom>) => {
+    if (design.items.length > 0 || history.length > 0) {
+      setRoomSwitchError(null);
+      setPendingRoom(target);
+    } else performRoomSwitch(target);
+  };
+
+  const openSavedRoom = (saved: SavedRoom) => requestRoomSwitch({ kind: "saved", saved, name: saved.title });
+
+  const saveAndSwitchRoom = () => {
+    if (!pendingRoom) return;
+    if (!saveDecoratedRoom()) {
+      setRoomSwitchError("Your room could not be saved. Free some browser storage and try again, or keep decorating.");
+      return;
+    }
+    performRoomSwitch(pendingRoom);
   };
 
   const deleteSavedRoom = (id: string) => {
@@ -347,10 +380,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
 
   const selectRoomPreset = (presetId: string) => {
     const preset = roomPresets.find(candidate => candidate.id === presetId);
-    if (!preset) return;
-    applyRoomPreset(presetId);
-    if (preset.empty) selectItem(null);
-    notify(`${preset.name} loaded`);
+    if (!preset || design.room.presetId === presetId) return;
+    requestRoomSwitch({ kind: "preset", id: presetId, name: preset.name });
   };
 
   const updateRoomDimension = (key: "width" | "depth" | "height", value: number) => {
@@ -423,6 +454,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (pendingRoom) return;
       const target = event.target as HTMLElement;
       if (target.matches("input, textarea, [contenteditable='true']")) return;
       if ((event.key === "Delete" || event.key === "Backspace") && selectedId) {
@@ -444,7 +476,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [moveSelected, removeItem, selectedId]);
+  }, [moveSelected, removeItem, selectedId, pendingRoom]);
 
   return (
     <main className="planner-app">
@@ -924,6 +956,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
 
       {notice && <div className="toast" role="status"><span />{notice}</div>}
 
+      {pendingRoom && <RoomSwitchPrompt target={pendingRoom.name} error={roomSwitchError} onSave={saveAndSwitchRoom} onDiscard={() => performRoomSwitch(pendingRoom)} onCancel={cancelRoomSwitch} />}
       {authModalOpen && <AuthModal onClose={() => setAuthModalOpen(false)} />}
     </main>
   );

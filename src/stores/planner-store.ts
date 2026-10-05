@@ -352,9 +352,10 @@ export const usePlannerStore = create<PlannerState>()(
             items: clampItemsToRoom(design.items, nextRoom),
           };
         }),
-        applyRoomPreset: (presetId) => commit((design) => {
+        applyRoomPreset: (presetId) => set((state) => {
+          const design = state.design;
           const preset = findRoomPreset(presetId);
-          if (!preset) return design;
+          if (!preset) return {};
           const nextRoom: RoomConfig = {
             presetId: preset.id,
             spaceType: preset.spaceType ?? "indoor",
@@ -375,9 +376,10 @@ export const usePlannerStore = create<PlannerState>()(
             window: { ...preset.window },
           };
           return {
-            ...design,
-            room: nextRoom,
-            items: preset.empty ? [] : clampItemsToRoom(design.items, nextRoom),
+            design: withTimestamp({ ...design, title: preset.name, room: nextRoom, items: [] }),
+            selectedId: null,
+            history: [],
+            future: [],
           };
         }),
         addItem: (item) => {

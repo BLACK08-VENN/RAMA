@@ -87,9 +87,10 @@ const outsideProject = createWallDragProjection(room, 'back', back, back, outsid
 assert.equal(isWallVisible(room, 'front', outside), false);
 assert.equal(outsideProject(new THREE.Ray(outside, back.clone().sub(outside).normalize())).wall, 'back');
 // Save wall, orientation and clamped position in one history entry, then undo/redo it.
+const presets = load('src/data/room-presets.ts');
 const storeModule = load('src/stores/planner-store.ts', {
   '@/data/products': { productById: { mirror: { decor: { mount: 'wall', width: 0.8, height: 0.8 } } } },
-  '@/data/room-presets': { findRoomPreset: () => null, matchRoomPreset: () => null },
+  '@/data/room-presets': presets,
   'zustand/middleware': { persist: fn => fn },
 });
 const store = storeModule.usePlannerStore;
@@ -127,3 +128,25 @@ const { decorProducts } = load('src/data/decor-catalog.ts');
 assert.equal(decorProducts.length, 38); assert.equal(new Set(decorProducts.map(p => p.id)).size, 38);
 for (const product of decorProducts) { assert(product.decorative && product.decor); assert(fs.existsSync(path.join(root, 'public', product.image))); }
 console.log('Save checks passed: restore, update, separate named rooms, deletion and storage failures. All 38 décor items have thumbnails.');
+
+// A fresh template must never inherit items, a selection, or undo history from the previous room.
+for (const preset of presets.roomPresets) {
+  store.getState().loadDesign({ ...design, title: 'Decorated room to keep' });
+  store.getState().addItem({ ...design.items[0], id: 'another-mirror' });
+  const before = store.getState().design;
+  const copies = snapshots.saveRoomSnapshot(storage, before);
+  const savedBefore = copies.find(copy => copy.title === before.title);
+  store.getState().applyRoomPreset(preset.id);
+  const after = store.getState();
+  assert.equal(after.design.room.presetId, preset.id);
+  assert.equal(after.design.title, preset.name);
+  assert.deepEqual(after.design.items, []);
+  assert.equal(after.selectedId, null);
+  assert.equal(after.history.length, 0); assert.equal(after.future.length, 0);
+  after.undo(); assert.deepEqual(store.getState().design.items, []);
+  const previous = storeModule.decodeSharedDesign(savedBefore.payload);
+  assert.equal(previous.items.length, 2);
+  store.getState().loadDesign(previous);
+  assert.equal(store.getState().design.items.length, 2);
+}
+console.log(`Room switch checks passed: all ${presets.roomPresets.length} templates start empty, selection/history reset, saved décor restores.`);
