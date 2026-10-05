@@ -18,6 +18,7 @@ import {
   Heart,
   Home,
   Layers3,
+  Leaf,
   LayoutGrid,
   ListChecks,
   Maximize2,
@@ -48,14 +49,15 @@ import { getRoomArea, matchRoomPreset, roomPresets } from "@/data/room-presets";
 import {
   decodeSharedDesign,
   encodeSharedDesign,
-  getItemPlacementBounds,
   clampItemPosition,
   isBedroomRoom,
   getStoragePlacement,
   usePlannerStore,
   type DoorConfig,
   type WindowConfig,
+  type WallSide,
 } from "@/stores/planner-store";
+import type { DecorGroup } from "@/data/decor-catalog";
 import { useAuth } from "@/components/auth-provider";
 import { AuthModal } from "@/components/auth-modal";
 import { saveDesignToCloud } from "@/lib/design-storage";
@@ -73,7 +75,8 @@ const RoomScene = dynamic(
   },
 );
 
-const categories: Array<"All" | ProductCategory> = ["All", "Seating", "Tables", "Storage", "Bedroom", "Décor"];
+const categories: Array<"All" | ProductCategory> = ["All", "Seating", "Tables", "Storage", "Bedroom"];
+const decorGroups: Array<"All" | DecorGroup> = ["All", "Floor plants", "Hanging plants", "Table plants", "Wall art", "Mirrors", "Rugs", "Vases"];
 
 const placementSpots: Array<[number, number, number]> = [
   [1.3, 0, 0.4],
@@ -97,8 +100,9 @@ const floorFinishes = [
 ];
 
 export function PlannerShell() {
-  const [activePanel, setActivePanel] = useState<"products" | "room" | "design">("products");
+  const [activePanel, setActivePanel] = useState<"products" | "decor" | "room" | "design">("products");
   const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>("All");
+  const [activeDecorGroup, setActiveDecorGroup] = useState<(typeof decorGroups)[number]>("All");
   const [query, setQuery] = useState("");
   const [cameraView, setCameraView] = useState<CameraView>("perspective");
   const [showGrid, setShowGrid] = useState(false);
@@ -130,11 +134,14 @@ export function PlannerShell() {
     addItem,
     removeItem,
     rotateItem,
+    setItemWall,
     moveItem,
     undo,
     redo,
   } = usePlannerStore();
   const placedItems = design.items;
+  const selectedItem = placedItems.find(item => item.id === selectedId);
+  const selectedDecor = products.find(product => product.id === selectedItem?.productId)?.decor;
   const roomArea = getRoomArea(design.room);
   const activeRoomPreset = matchRoomPreset(design.room);
   const openingCount = Number(design.room.door.enabled) + Number(design.room.window.enabled);
@@ -144,11 +151,13 @@ export function PlannerShell() {
   const filteredProducts = useMemo(
     () =>
       products.filter((product) => {
-        const matchesCategory = activeCategory === "All" || product.category === activeCategory;
+        const matchesCategory = activePanel === "decor"
+          ? Boolean(product.decorative) && (activeDecorGroup === "All" || product.decor?.group === activeDecorGroup)
+          : !product.decorative && (activeCategory === "All" || product.category === activeCategory);
         const matchesQuery = product.name.toLowerCase().includes(query.toLowerCase());
         return matchesCategory && matchesQuery;
       }),
-    [activeCategory, query],
+    [activePanel, activeCategory, activeDecorGroup, query],
   );
 
   const total = useMemo(
@@ -236,6 +245,13 @@ export function PlannerShell() {
   const addProduct = (productId: string) => {
     const product = products.find((candidate) => candidate.id === productId);
     if (!product) return;
+    const spec = product.decor;
+    if (spec && (spec.mount === "wall" || spec.mount === "ceiling") && design.room.spaceType && design.room.spaceType !== "indoor") {
+      notify("Choose an indoor room for wall and ceiling décor"); return;
+    }
+    if (spec?.mount === "floor" && (spec.width > design.room.width || spec.depth > design.room.depth)) {
+      notify("Choose a smaller size or enlarge the room first"); return;
+    }
     const itemCount = placedItems.filter((item) => item.productId === productId).length;
     let id = `${productId}-${nextItemNumber.current++}`;
     while (placedItems.some((item) => item.id === id)) {
@@ -243,16 +259,14 @@ export function PlannerShell() {
     }
     const spot = placementSpots[placedItems.length % placementSpots.length];
     const kind = product.kind;
-    const { maxX, maxZ } = getItemPlacementBounds(design.room, kind);
+    const wall = spec?.mount === "wall" ? "back" as const : undefined;
     addItem({
-      id,
-      productId,
-      kind,
-      position: [
-        Math.max(-maxX, Math.min(maxX, spot[0] + itemCount * 0.28)),
-        0,
-        Math.max(-maxZ, Math.min(maxZ, spot[2] + itemCount * 0.2)),
-      ],
+      id, productId, kind, wall,
+      position: clampItemPosition(design.room, kind, [
+        spec?.mount === "wall" ? 0 : spot[0] + itemCount * .28,
+        spec?.mount === "wall" ? 1.55 : spec?.mount === "table" ? .8 : 0,
+        spot[2] + itemCount * .2,
+      ], productId, wall),
       rotation: [0, 0, 0],
     });
     notify("Added to your room");
@@ -268,8 +282,14 @@ export function PlannerShell() {
     if (!selectedId) return;
     const item = placedItems.find((candidate) => candidate.id === selectedId);
     if (!item) return;
-    moveItem(item.id, clampItemPosition(design.room, item.kind, [item.position[0] + deltaX, 0, item.position[2] + deltaZ]));
-  }, [design.room, moveItem, placedItems, selectedId]);
+    const position: [number, number, number] = [...item.position];
+    const mounted = products.find(product => product.id === item.productId)?.decor?.mount === "wall";
+    if (mounted) {
+      position[item.wall === "left" || item.wall === "right" ? 2 : 0] += deltaX;
+      position[1] -= deltaZ;
+    } else { position[0] += deltaX; position[2] += deltaZ; }
+    moveItem(item.id, position);
+  }, [moveItem, placedItems, selectedId]);
 
   const selectRoomPreset = (presetId: string) => {
     const preset = roomPresets.find(candidate => candidate.id === presetId);
@@ -450,6 +470,9 @@ export function PlannerShell() {
             <button className={activePanel === "products" ? "active" : ""} onClick={() => setActivePanel("products")}>
               <PackagePlus size={20} /><span>Products</span>
             </button>
+            <button className={activePanel === "decor" ? "active" : ""} onClick={() => { setActivePanel("decor"); setQuery(""); }} aria-label="Décor">
+              <Leaf size={20} /><span>Décor</span>
+            </button>
             <button className={activePanel === "room" ? "active" : ""} onClick={() => setActivePanel("room")}>
               <Home size={20} /><span>Room</span>
             </button>
@@ -458,28 +481,28 @@ export function PlannerShell() {
             </button>
           </nav>
 
-          {activePanel === "products" && (
+          {(activePanel === "products" || activePanel === "decor") && (
             <div className="panel-content">
               <div className="panel-heading">
                 <div>
                   <span className="eyebrow">FurnitureRama collection</span>
-                  <h1>Add products</h1>
+                  <h1>{activePanel === "decor" ? "Style your room" : "Add products"}</h1>
                 </div>
                 <button className="icon-button close-panel" onClick={() => setPanelOpen(false)} aria-label="Close products panel"><X size={19} /></button>
               </div>
 
               <label className="catalog-search">
                 <Search size={19} />
-                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search furniture" />
+                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={activePanel === "decor" ? "Search décor" : "Search furniture"} />
                 <button aria-label="Filters"><SlidersHorizontal size={18} /></button>
               </label>
 
-              <div className="category-list" aria-label="Product categories">
-                {categories.map((category) => (
+              <div className="category-list" aria-label={activePanel === "decor" ? "Décor categories" : "Product categories"}>
+                {(activePanel === "decor" ? decorGroups : categories).map((category) => (
                   <button
                     key={category}
-                    className={activeCategory === category ? "active" : ""}
-                    onClick={() => setActiveCategory(category)}
+                    className={(activePanel === "decor" ? activeDecorGroup : activeCategory) === category ? "active" : ""}
+                    onClick={() => activePanel === "decor" ? setActiveDecorGroup(category as (typeof decorGroups)[number]) : setActiveCategory(category as (typeof categories)[number])}
                   >
                     {category}
                   </button>
@@ -487,7 +510,7 @@ export function PlannerShell() {
               </div>
 
               <div className="catalog-result-heading">
-                <span>{filteredProducts.length} planner-ready products</span>
+                <span>{filteredProducts.length} {activePanel === "decor" ? "styling accessories" : "planner-ready products"}</span>
                 <button><LayoutGrid size={16} /> Grid</button>
               </div>
 
@@ -497,10 +520,10 @@ export function PlannerShell() {
                     <div className="product-image-wrap">
                       <Image src={product.image} width={500} height={500} sizes="(max-width: 640px) 42vw, 160px" alt={product.name} className="product-image" />
                       <button className="favorite-button" aria-label={`Save ${product.name}`}><Heart size={17} /></button>
-                      <span className="model-ready">3D READY</span>
+                      <span className="model-ready">{product.decor ? product.decor.mount === "wall" ? "WALL" : product.decor.mount === "ceiling" ? "HANGING" : "3D DÉCOR" : "3D READY"}</span>
                     </div>
                     <div className="product-card-body">
-                      <span className="product-category">{product.category}</span>
+                      <span className="product-category">{product.decor?.group ?? product.category}</span>
                       <h2>{product.name}</h2>
                       <span className="product-dimensions">{product.dimensions}</span>
                       <div className="product-card-footer">
@@ -682,6 +705,17 @@ export function PlannerShell() {
           {activePanel === "design" && (
             <div className="panel-content">
               <div className="panel-heading"><div><span className="eyebrow">Project overview</span><h1>My design</h1></div></div>
+              {selectedItem && selectedDecor && <div className="opening-card decor-placement">
+                <strong>{products.find(product => product.id === selectedItem.productId)?.name}</strong>
+                {selectedDecor.mount === "wall" && <label>Wall<select aria-label="Décor wall" value={selectedItem.wall ?? "back"} onChange={event => setItemWall(selectedItem.id, event.currentTarget.value as WallSide)}>
+                  <option value="back">Back wall</option><option value="left">Left wall</option><option value="right">Right wall</option><option value="front">Front wall</option>
+                </select></label>}
+                {(selectedDecor.mount === "wall" || selectedDecor.mount === "table") && <label>{selectedDecor.mount === "wall" ? "Centre height (m)" : "Height above floor (m)"}<input type="number" step="0.1" min="0" max={design.room.height} value={Number(selectedItem.position[1].toFixed(2))} onChange={event => {
+                  const height = event.currentTarget.valueAsNumber;
+                  if (Number.isFinite(height)) moveItem(selectedItem.id, [selectedItem.position[0], height, selectedItem.position[2]]);
+                }} /></label>}
+                <small>{selectedDecor.mount === "table" ? "Set the height to match your tabletop." : selectedDecor.mount === "wall" ? "Drag along the wall. Rotate moves it to the next wall." : selectedDecor.mount === "ceiling" ? "Suspended from the ceiling; drag to reposition." : "Drag to move, or use the arrows and rotation controls."}</small>
+              </div>}
               <div className="design-list">
                 {placedItems.map((item) => {
                   const product = products.find((candidate) => candidate.id === item.productId);
@@ -735,21 +769,21 @@ export function PlannerShell() {
 
           {selectedId && (
             <div className="selection-toolbar">
-              {(design.room.balcony?.enabled || design.room.yard?.enabled) && <select aria-label="Place selected furniture in area" value={(() => { const z = placedItems.find(item => item.id === selectedId)?.position[2] ?? 0; return z <= design.room.depth / 2 ? "room" : design.room.balcony?.enabled && z < design.room.depth / 2 + design.room.balcony.depth ? "balcony" : "yard"; })()} onChange={event => {
+              {selectedDecor?.mount !== "wall" && (design.room.balcony?.enabled || design.room.yard?.enabled) && <select aria-label="Place selected furniture in area" value={(() => { const z = placedItems.find(item => item.id === selectedId)?.position[2] ?? 0; return z <= design.room.depth / 2 ? "room" : design.room.balcony?.enabled && z < design.room.depth / 2 + design.room.balcony.depth ? "balcony" : "yard"; })()} onChange={event => {
                 const item = placedItems.find(item => item.id === selectedId); if (!item) return;
                 const area = event.currentTarget.value;
                 const balconyDepth = design.room.balcony?.enabled ? design.room.balcony.depth : 0;
                 const z = area === "room" ? 0 : area === "balcony" ? design.room.depth / 2 + balconyDepth / 2 : design.room.depth / 2 + balconyDepth + (design.room.yard?.depth ?? 4) / 2;
-                moveItem(item.id, clampItemPosition(design.room, item.kind, [0, 0, z]));
+                moveItem(item.id, [0, item.position[1], z]);
               }}><option value="room">Inside room</option>{design.room.balcony?.enabled && <option value="balcony">Balcony</option>}{design.room.yard?.enabled && <option value="yard">Front yard</option>}</select>}
               <span>Move</span>
               <div className="selection-move-controls" aria-label="Move selected item">
                 <button onClick={() => moveSelected(-0.1, 0)} aria-label="Move left"><ArrowLeft size={15} /></button>
-                <button onClick={() => moveSelected(0, -0.1)} aria-label="Move forward"><ArrowUp size={15} /></button>
-                <button onClick={() => moveSelected(0, 0.1)} aria-label="Move backward"><ArrowDown size={15} /></button>
+                <button onClick={() => moveSelected(0, -0.1)} aria-label={selectedDecor?.mount === "wall" ? "Move up" : "Move forward"}><ArrowUp size={15} /></button>
+                <button onClick={() => moveSelected(0, 0.1)} aria-label={selectedDecor?.mount === "wall" ? "Move down" : "Move backward"}><ArrowDown size={15} /></button>
                 <button onClick={() => moveSelected(0.1, 0)} aria-label="Move right"><ArrowRight size={15} /></button>
               </div>
-              <button onClick={() => rotateItem(selectedId)}><RotateCcw size={17} /> Rotate</button>
+              <button onClick={() => rotateItem(selectedId)}><RotateCcw size={17} /> {selectedDecor?.mount === "wall" ? "Next wall" : "Rotate"}</button>
               <button onClick={removeSelected} className="danger"><Trash2 size={17} /> Remove</button>
             </div>
           )}

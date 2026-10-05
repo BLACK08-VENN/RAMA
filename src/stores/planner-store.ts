@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ProductKind } from "@/data/products";
+import { productById, type ProductKind } from "@/data/products";
 import { findRoomPreset, matchRoomPreset } from "@/data/room-presets";
 
 export type DoorConfig = {
@@ -42,10 +42,14 @@ export type RoomConfig = {
   window: WindowConfig;
 };
 
+export type WallSide = "back" | "right" | "front" | "left";
+export const wallRotation: Record<WallSide, number> = { back: 0, right: -Math.PI / 2, front: Math.PI, left: Math.PI / 2 };
+
 export type PlacedItem = {
   id: string;
   productId: string;
   kind: ProductKind;
+  wall?: WallSide;
   position: [number, number, number];
   rotation: [number, number, number];
 };
@@ -60,6 +64,7 @@ const itemClearance: Record<ProductKind, number> = {
   rug: 1.45,
   mirror: .5,
   vase: .25,
+  "wall-art": .4,
 };
 
 export const isBedroomRoom = (room: RoomConfig) => room.roomType === "bedroom" || (room.roomType === undefined && ["master-bedroom", "guest-bedroom", "kids-bedroom"].includes(room.presetId ?? ""));
@@ -89,19 +94,31 @@ export const getItemPlacementBounds = (room: RoomConfig, kind: ProductKind) => {
   return { maxX: Math.max(0, room.width / 2 - clearance), maxZ: Math.max(0, room.depth / 2 - clearance) };
 };
 
-export const clampItemPosition = (room: RoomConfig, kind: ProductKind, position: [number, number, number]): [number, number, number] => {
+export const clampItemPosition = (room: RoomConfig, kind: ProductKind, position: [number, number, number], productId?: string, wall: WallSide = "back", rotation = 0): [number, number, number] => {
+  const spec = productId ? productById[productId]?.decor : undefined;
+  if (spec?.mount === "wall") {
+    const horizontal = wall === "back" || wall === "front";
+    const limit = Math.max(0, (horizontal ? room.width : room.depth) / 2 - spec.width / 2 - .03);
+    const along = Math.max(-limit, Math.min(limit, position[horizontal ? 0 : 2]));
+    const y = Math.max(spec.height / 2 + .08, Math.min(room.height - spec.height / 2 - .08, position[1]));
+    return horizontal ? [along, y, (wall === "back" ? -1 : 1) * (room.depth / 2 - .025)] : [(wall === "left" ? -1 : 1) * (room.width / 2 - .025), y, along];
+  }
   const clearance = itemClearance[kind], { balconyDepth } = getOutdoorMetrics(room);
   const surfaces = [{ width: room.width, depth: room.depth, z: 0 }];
   if ((!room.spaceType || room.spaceType === "indoor") && room.balcony?.enabled) surfaces.push({ width: room.balcony.width, depth: room.balcony.depth, z: room.depth / 2 + room.balcony.depth / 2 });
   if ((!room.spaceType || room.spaceType === "indoor") && room.yard?.enabled) surfaces.push({ width: room.yard.width, depth: room.yard.depth, z: room.depth / 2 + balconyDepth + room.yard.depth / 2 });
   let best: [number, number, number] = [0, 0, 0], distance = Infinity;
   for (const surface of surfaces) {
-    const halfX = Math.max(0, surface.width / 2 - clearance), halfZ = Math.max(0, surface.depth / 2 - clearance);
+    const extentX = spec ? Math.abs(Math.cos(rotation)) * spec.width / 2 + Math.abs(Math.sin(rotation)) * spec.depth / 2 : clearance;
+    const extentZ = spec ? Math.abs(Math.sin(rotation)) * spec.width / 2 + Math.abs(Math.cos(rotation)) * spec.depth / 2 : clearance;
+    const halfX = Math.max(0, surface.width / 2 - extentX), halfZ = Math.max(0, surface.depth / 2 - extentZ);
     const x = Math.max(-halfX, Math.min(halfX, position[0]));
     const z = Math.max(surface.z - halfZ, Math.min(surface.z + halfZ, position[2]));
     const delta = (x - position[0]) ** 2 + (z - position[2]) ** 2;
     if (delta < distance) { distance = delta; best = [x, 0, z]; }
   }
+  if (spec?.mount === "ceiling") best[1] = room.height - .03;
+  if (spec?.mount === "table") best[1] = Math.max(0, Math.min(room.height - spec.height, position[1]));
   return best;
 };
 
@@ -129,6 +146,7 @@ type PlannerState = {
   removeItem: (id: string) => void;
   rotateItem: (id: string, radians?: number) => void;
   moveItem: (id: string, position: [number, number, number]) => void;
+  setItemWall: (id: string, wall: WallSide) => void;
   undo: () => void;
   redo: () => void;
 };
@@ -214,7 +232,11 @@ const normalizeDesign = (design?: PersistedDesign): DesignDocument => {
           ? room.presetId
           : matchRoomPreset(room)?.id ?? null,
     },
-    items: design?.items ?? initialDesign.items,
+    items: (design?.items ?? initialDesign.items).map(item => item.productId === "decor-floor-mirror" ? {
+      ...item, productId: "decor-mirror-arch", wall: "back" as WallSide,
+      position: [0, 1.55, -(design?.room?.depth ?? initialDesign.room.depth) / 2 + .025] as [number, number, number],
+      rotation: [0, 0, 0] as [number, number, number],
+    } : item),
   };
 };
 
@@ -228,7 +250,7 @@ const isValidOutdoorArea = (value: unknown) => value === undefined || (isRecord(
 
 const isValidSharedDesign = (design: DesignDocument) => {
   const { room } = design;
-  const validKinds: ProductKind[] = ["sofa", "table", "chair", "cabinet", "bed", "plant", "rug", "mirror", "vase"];
+  const validKinds: ProductKind[] = ["sofa", "table", "chair", "cabinet", "bed", "plant", "rug", "mirror", "vase", "wall-art"];
   return (
     (room.spaceType === undefined || ["indoor", "balcony", "garden"].includes(room.spaceType)) &&
     (room.roomType === undefined || ["bedroom", "other"].includes(room.roomType)) &&
@@ -267,6 +289,7 @@ const isValidSharedDesign = (design: DesignDocument) => {
       typeof item.id === "string" && item.id.length > 0 && item.id.length <= 120 &&
       typeof item.productId === "string" && item.productId.length > 0 && item.productId.length <= 120 &&
       validKinds.includes(item.kind as PlacedItem["kind"]) &&
+      (item.wall === undefined || ["back", "right", "front", "left"].includes(item.wall as string)) &&
       Array.isArray(item.position) && item.position.length === 3 && item.position.every(isFiniteNumber) &&
       Array.isArray(item.rotation) && item.rotation.length === 3 && item.rotation.every(isFiniteNumber),
     )
@@ -301,7 +324,7 @@ export const decodeSharedDesign = (payload: string): DesignDocument | null => {
 };
 
 const clampItemsToRoom = (items: PlacedItem[], room: RoomConfig): PlacedItem[] =>
-  items.map(item => ({ ...item, position: clampItemPosition(room, item.kind, item.position) }));
+  items.map(item => ({ ...item, position: clampItemPosition(room, item.kind, item.position, item.productId, item.wall, item.rotation[1]) }));
 
 const withTimestamp = (design: DesignDocument): DesignDocument => ({
   ...design,
@@ -392,15 +415,27 @@ export const usePlannerStore = create<PlannerState>()(
         },
         rotateItem: (id, radians = Math.PI / 4) => commit((design) => ({
           ...design,
-          items: design.items.map((item) =>
-            item.id === id
-              ? { ...item, rotation: [item.rotation[0], item.rotation[1] + radians, item.rotation[2]] }
-              : item,
-          ),
+          items: design.items.map(item => {
+            if (item.id !== id) return item;
+            if (productById[item.productId]?.decor?.mount === "wall") {
+              const walls: WallSide[] = ["back", "right", "front", "left"];
+              const wall = walls[(walls.indexOf(item.wall ?? "back") + 1) % 4];
+              return { ...item, wall, position: clampItemPosition(design.room, item.kind, [0, item.position[1], 0], item.productId, wall), rotation: [0, wallRotation[wall], 0] };
+            }
+            const rotation: [number, number, number] = [item.rotation[0], item.rotation[1] + radians, item.rotation[2]];
+            return { ...item, rotation, position: clampItemPosition(design.room, item.kind, item.position, item.productId, item.wall, rotation[1]) };
+          }),
         })),
         moveItem: (id, position) => commit((design) => ({
           ...design,
-          items: design.items.map((item) => item.id === id ? { ...item, position } : item),
+          items: design.items.map(item => item.id === id ? { ...item, position: clampItemPosition(design.room, item.kind, position, item.productId, item.wall, item.rotation[1]) } : item),
+        })),
+        setItemWall: (id, wall) => commit(design => ({
+          ...design,
+          items: design.items.map(item => item.id === id && productById[item.productId]?.decor?.mount === "wall" ? {
+            ...item, wall, rotation: [0, wallRotation[wall], 0],
+            position: clampItemPosition(design.room, item.kind, [0, item.position[1], 0], item.productId, wall),
+          } : item),
         })),
         undo: () => {
           const { history, design, selectedId } = get();

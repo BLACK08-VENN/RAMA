@@ -4,7 +4,7 @@ import { Grid, Html, OrbitControls, RoundedBox, useGLTF } from "@react-three/dre
 import { Canvas, ThreeEvent, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { productModels, type ProductModel } from "@/data/products";
+import { productById, productModels, type ProductModel } from "@/data/products";
 import {
   clampItemPosition,
   getOutdoorMetrics,
@@ -113,18 +113,23 @@ function DraggableFurniture({
   const dragOffset = useRef(new THREE.Vector3());
   const finalPosition = useRef<[number, number, number]>(item.position);
   const startPosition = useRef<[number, number, number]>(item.position);
-  const floorPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
+  const decor = productById[item.productId]?.decor;
+  const mounted = decor?.mount === "wall";
+  const wall = item.wall ?? "back";
+  const dragPlane = mounted
+    ? new THREE.Plane(wall === "left" || wall === "right" ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1), -(wall === "left" || wall === "right" ? item.position[0] : item.position[2]))
+    : new THREE.Plane(new THREE.Vector3(0, 1, 0), -(item.position[1] - (decor?.mount === "ceiling" ? decor.height * .45 : 0)));
 
   const handlePointerDown = (event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation();
     onSelect(item.id);
     if (!dragEnabled) return;
-    const point = event.ray.intersectPlane(floorPlane.current, new THREE.Vector3());
+    const point = event.ray.intersectPlane(dragPlane, new THREE.Vector3());
     if (!point) return;
     dragging.current = true;
     startPosition.current = [...item.position];
     finalPosition.current = [...item.position];
-    dragOffset.current.set(item.position[0] - point.x, 0, item.position[2] - point.z);
+    dragOffset.current.set(item.position[0] - point.x, item.position[1] - point.y, item.position[2] - point.z);
     const target = event.nativeEvent.target;
     if (target instanceof Element) target.setPointerCapture(event.pointerId);
     onDraggingChange(true);
@@ -133,9 +138,9 @@ function DraggableFurniture({
   const handlePointerMove = (event: ThreeEvent<PointerEvent>) => {
     if (!dragging.current || !groupRef.current) return;
     event.stopPropagation();
-    const point = event.ray.intersectPlane(floorPlane.current, new THREE.Vector3());
+    const point = event.ray.intersectPlane(dragPlane, new THREE.Vector3());
     if (!point) return;
-    const position = clampItemPosition(room, item.kind, [point.x + dragOffset.current.x, 0, point.z + dragOffset.current.z]);
+    const position = clampItemPosition(room, item.kind, [point.x + dragOffset.current.x, point.y + dragOffset.current.y, point.z + dragOffset.current.z], item.productId, item.wall, item.rotation[1]);
     groupRef.current.position.set(...position);
     invalidate();
     finalPosition.current = position;
@@ -152,7 +157,7 @@ function DraggableFurniture({
     onDraggingChange(false);
     const start = startPosition.current;
     const next = finalPosition.current;
-    if (start[0] !== next[0] || start[2] !== next[2]) {
+    if (start.some((value, index) => value !== next[index])) {
       onMove(item.id, next);
     }
   };
@@ -169,7 +174,7 @@ function DraggableFurniture({
       onPointerCancel={finishDrag}
     >
       {children}
-      {selected && (
+      {selected && !mounted && (
         <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[1.18, 1.24, 48]} />
           <meshBasicMaterial color="#0d9399" transparent opacity={0.9} />
@@ -331,7 +336,7 @@ function GlbModel({ model }: { model: ProductModel }) {
 }
 
 function Furniture({ item }: { item: PlacedItem }) {
-  if (["plant", "rug", "mirror", "vase"].includes(item.kind)) return <DecorModel item={item} />;
+  if (["plant", "rug", "mirror", "vase", "wall-art"].includes(item.kind)) return <DecorModel item={item} />;
   const model = productModels[item.productId];
 
   if (model) {
@@ -611,7 +616,8 @@ export function RoomScene({
           />
         )),
       )}
-      {placedItems.map((item) => (
+      {placedItems.map((item) => {
+        const content = (
         <DraggableFurniture
           key={item.id}
           item={item}
@@ -624,7 +630,9 @@ export function RoomScene({
         >
           <Furniture item={item} />
         </DraggableFurniture>
-      ))}
+        );
+        return productById[item.productId]?.decor?.mount === "wall" ? <CutawayWall key={item.id} room={room} wall={item.wall ?? "back"}>{content}</CutawayWall> : content;
+      })}
       {showGrid && (
         <Grid
           position={[0, 0.025, 0]}
