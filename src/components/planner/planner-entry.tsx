@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { ArrowRight, Box, Leaf, Ruler, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { FeaturedOffers } from "./featured-offers";
 
@@ -30,14 +30,14 @@ export function PlannerEntry() {
       </div>
       <div className="welcome-visual">
         <Image className="welcome-room-photo" src="/furnished-room-hero.webp" width={1536} height={1024} sizes="(max-width: 760px) 90vw, 50vw" alt="A charcoal sofa and wooden dining set in a naturally lit room with woven rugs and plants" priority />
-        <span className="welcome-visual-label"><Sparkles size={18} /> A little inspiration. Endless possibilities.</span>
+        <span className="welcome-visual-label">A little inspiration. Endless possibilities.</span>
       </div>
     </div>
     <FeaturedOffers />
     <ol className="welcome-steps" aria-label="How it works">
-      <li><Ruler /><span><strong>Choose your room</strong><small>A space that fits your vision</small></span></li>
-      <li><Leaf /><span><strong>Style it your way</strong><small>Plants, mirrors, rugs and more</small></span></li>
-      <li><Box /><span><strong>Save your creation</strong><small>Come back to your ideas later</small></span></li>
+      <li><span><strong>Choose your room</strong><small>A space that fits your vision</small></span></li>
+      <li><span><strong>Style it your way</strong><small>Plants, mirrors, rugs and more</small></span></li>
+      <li><span><strong>Save your creation</strong><small>Come back to your ideas later</small></span></li>
     </ol>
   </main>;
 }
