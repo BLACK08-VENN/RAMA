@@ -169,3 +169,11 @@ cleanups.forEach(cleanup => cleanup());
 assert.equal(controls.enabled, true);
 assert.equal(captures.size, 0);
 console.log('Lost capture and unmount restore camera controls');
+
+const bedroom = { ...store.getState().design.room, roomType: 'bedroom', builtInStorage: { enabled: true, width: 2, rotation: 270, position: [1, 1] } };
+const rotatedStorage = storeModule.getRotatedStorage(bedroom, 45);
+assert.equal(rotatedStorage.rotation, 315);
+assert.equal(storeModule.getRotatedStorage({ ...bedroom, builtInStorage: rotatedStorage }, 45).rotation, 0);
+assert.equal(storeModule.getRotatedStorage(bedroom, -315).rotation, 315);
+assert.deepEqual(rotatedStorage.position, storeModule.getStoragePlacement({ ...bedroom, builtInStorage: rotatedStorage }, [1, 1]));
+console.log('Drawer rotation wraps angles and keeps rotated storage inside the room');

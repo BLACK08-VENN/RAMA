@@ -81,6 +81,14 @@ export function getStoragePlacement(room: RoomConfig, requested?: [number, numbe
   return [Math.max(-limitX, Math.min(limitX, x)), Math.max(-limitZ, Math.min(limitZ, z))];
 }
 
+export function getRotatedStorage(room: RoomConfig, degrees: number) {
+  const storage = { ...room.builtInStorage, enabled: room.builtInStorage?.enabled ?? false,
+    width: room.builtInStorage?.width ?? 2,
+    rotation: (((room.builtInStorage?.rotation ?? -90) + degrees) % 360 + 360) % 360 };
+  storage.position = getStoragePlacement({ ...room, builtInStorage: storage }, getStoragePlacement(room));
+  return storage;
+}
+
 export const getOutdoorMetrics = (room: RoomConfig) => {
   if (room.spaceType && room.spaceType !== "indoor") return { balconyDepth: 0, yardDepth: 0, centerZ: 0, span: Math.max(room.width, room.depth) };
   const balconyDepth = room.balcony?.enabled ? room.balcony.depth : 0;

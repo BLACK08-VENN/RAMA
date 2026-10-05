@@ -1,10 +1,13 @@
 "use client";
 
+import { Html } from "@react-three/drei";
+import { RotateCcw } from "lucide-react";
 import * as THREE from "three";
 import { useObjectDrag } from "./use-object-drag";
-import { getStoragePlacement, isBedroomRoom, type RoomConfig } from "@/stores/planner-store";
+import { getStoragePlacement, getRotatedStorage, usePlannerStore, isBedroomRoom, type RoomConfig } from "@/stores/planner-store";
 
 export function BuiltInStorage({ room, dragEnabled, onMove, onDraggingChange }: { room: RoomConfig; dragEnabled: boolean; onMove: (position: [number, number]) => void; onDraggingChange: (dragging: boolean) => void }) {
+  const updateRoom = usePlannerStore(state => state.updateRoom);
   const position = getStoragePlacement(room);
   const drag = useObjectDrag({
     enabled: dragEnabled,
@@ -21,6 +24,9 @@ export function BuiltInStorage({ room, dragEnabled, onMove, onDraggingChange }: 
   const rotation = (room.builtInStorage.rotation ?? -90) * Math.PI / 180;
   return <group {...drag} position={[position[0],0,position[1]]} rotation={[0,rotation,0]}>
 
+    {dragEnabled && <Html position={[0, height + .25, 0]} center zIndexRange={[8, 0]}>
+      <button className="storage-scene-rotate" aria-label="Rotate bedroom drawers 45 degrees" onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); updateRoom({ builtInStorage: getRotatedStorage(room, 45) }); }}><RotateCcw size={18} /><span>Rotate</span></button>
+    </Html>}
     <mesh castShadow receiveShadow position={[0, height / 2, 0]}><boxGeometry args={[width, height, .58]} /><meshStandardMaterial color="#b9a487" roughness={.75} /></mesh>
     <mesh position={[0, .06, .29]}><boxGeometry args={[width - .05, .12, .03]} /><meshStandardMaterial color="#665e52" roughness={.8} /></mesh>
     {Array.from({length:bays},(_,i) => { const x=-width/2+bayWidth*(i+.5); return <group key={i} position={[x,0,.305]}>

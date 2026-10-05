@@ -52,6 +52,7 @@ import {
   clampItemPosition,
   isBedroomRoom,
   getStoragePlacement,
+  getRotatedStorage,
   usePlannerStore,
   type DoorConfig,
   type WindowConfig,
@@ -717,7 +718,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 </section>
                 {(!design.room.spaceType || design.room.spaceType === "indoor") && <>
                 <section className="dimension-card">
-                  <div className="dimension-card-heading"><span><strong>Outdoor spaces</strong><small>Drag furniture onto the deck or lawn</small></span></div>
+                  <div className="dimension-card-heading"><span><strong>Outdoor spaces</strong><small>Optional deck and lawn</small></span></div>
                   {(["balcony", "yard"] as const).map(area => {
                     const value = design.room[area] ?? { enabled: false, width: design.room.width, depth: area === "balcony" ? 2.4 : 4 };
                     return <div className="opening-section" key={area}>
@@ -727,9 +728,13 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                   })}
                 </section>
                 {isBedroomRoom(design.room) && <section className="dimension-card">
-                  <div className="opening-row"><span><strong>Built-in wardrobe & drawers</strong><small>Drag to move in any direction; adjust its angle below</small></span><label className="toggle-control"><input type="checkbox" checked={design.room.builtInStorage?.enabled ?? false} onChange={event => updateRoom({ builtInStorage: { ...design.room.builtInStorage, width: design.room.builtInStorage?.width ?? 2, enabled: event.currentTarget.checked } })} /><i /><b>{design.room.builtInStorage?.enabled ? "On" : "Off"}</b></label></div>
+                  <div className="opening-row"><span><strong>Built-in wardrobe & drawers</strong><small>Drag to move; use the buttons to rotate</small></span><label className="toggle-control"><input type="checkbox" checked={design.room.builtInStorage?.enabled ?? false} onChange={event => updateRoom({ builtInStorage: { ...design.room.builtInStorage, width: design.room.builtInStorage?.width ?? 2, enabled: event.currentTarget.checked } })} /><i /><b>{design.room.builtInStorage?.enabled ? "On" : "Off"}</b></label></div>
                   {design.room.builtInStorage?.enabled && <div className="dimension-fields"><label>Width (m)<input type="number" min="1" max="4" step="0.1" value={design.room.builtInStorage.width} onChange={event => { const value = event.currentTarget.valueAsNumber; if (Number.isFinite(value)) updateRoom({ builtInStorage: { ...design.room.builtInStorage, enabled: true, width: Math.max(1, Math.min(4, value)) } }); }} /></label></div>}
                   {design.room.builtInStorage?.enabled && <>
+                    <div className="storage-rotation-controls">
+                      <button aria-label="Rotate drawers left" onClick={() => updateRoom({ builtInStorage: getRotatedStorage(design.room, -45) })}><RotateCcw size={18} /> Left</button>
+                      <button aria-label="Rotate drawers right" onClick={() => updateRoom({ builtInStorage: getRotatedStorage(design.room, 45) })}>Right <RotateCcw size={18} style={{ transform: "scaleX(-1)" }} /></button>
+                    </div>
                     <div className="dimension-fields"><label>Rotation (°)<input type="number" min="0" max="360" step="5" value={((design.room.builtInStorage.rotation ?? -90) % 360 + 360) % 360} onChange={event => {
                       const value = event.currentTarget.valueAsNumber;
                       if (!Number.isFinite(value)) return;
