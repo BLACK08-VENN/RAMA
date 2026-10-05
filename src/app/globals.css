@@ -2268,3 +2268,9 @@ input:focus-visible {
 .decor-image-add:focus-visible { outline: 3px solid var(--brand); outline-offset: -3px; }
 .product-image-wrap .favorite-button { z-index: 2; }
 .product-image-wrap .model-ready { z-index: 2; pointer-events: none; }
+
+.welcome-room-photo { width: 100%; height: auto; max-height: 38dvh; object-fit: cover; border-radius: 20px; box-shadow: 0 12px 32px rgb(36 57 54 / 10%); }
+.welcome-room-photo + .welcome-visual-label { margin-top: 12px; }
+@media (orientation: portrait), (max-width: 760px) {
+  .welcome-room-photo { max-height: 16dvh; object-position: center 58%; border-radius: 14px; }
+}
