@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { createDragProjection } from "./drag-projection";
@@ -31,10 +31,29 @@ export function useObjectDrag({ enabled, position, normal, clamp, onSelect, onMo
   const group = useRef<THREE.Group>(null);
   const invalidate = useThree(state => state.invalidate);
   const get = useThree(state => state.get);
+  const canvas = useThree(state => state.gl.domElement);
   const session = useRef<{
     pointerId: number; capture: PointerCaptureTarget; start: Position; next: Position;
     project: ReturnType<typeof createDragProjection>;
+    cancel: () => void;
   } | null>(null);
+
+  useEffect(() => {
+    const cancel = () => session.current?.cancel();
+    const lost = (event: PointerEvent) => { if (event.pointerId === session.current?.pointerId) cancel(); };
+    const hidden = () => { if (document.hidden) cancel(); };
+    canvas.addEventListener("lostpointercapture", lost);
+    window.addEventListener("blur", cancel);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      cancel();
+      canvas.removeEventListener("lostpointercapture", lost);
+      window.removeEventListener("blur", cancel);
+      document.removeEventListener("visibilitychange", hidden);
+    };
+  }, [canvas]);
+
+  useEffect(() => { if (!enabled) session.current?.cancel(); }, [enabled]);
 
   useFrame((_, delta) => {
     if (group.current && isVisible) group.current.visible = isVisible();
@@ -59,7 +78,9 @@ export function useObjectDrag({ enabled, position, normal, clamp, onSelect, onMo
     const next = commit ? active.next : active.start;
     if (!commit) onCancel?.();
     if (group.current) { group.current.position.set(...next); onPreview?.(group.current, next); }
-    if (active.capture.hasPointerCapture(active.pointerId)) active.capture.releasePointerCapture(active.pointerId);
+    try {
+      if (active.capture.hasPointerCapture(active.pointerId)) active.capture.releasePointerCapture(active.pointerId);
+    } catch { /* The browser may already have released capture. */ }
     if (commit && active.start.some((value, index) => Math.abs(value - next[index]) > 0.00001)) onMove(next);
     onDraggingChange(false);
     invalidate();
@@ -75,10 +96,15 @@ export function useObjectDrag({ enabled, position, normal, clamp, onSelect, onMo
       onSelect?.();
       if (!enabled) return;
       const start: Position = [...position];
-      session.current = { pointerId: event.pointerId, capture: pointerCaptureTarget(event), start, next: start,
+      const cancel = () => {
+        if (!session.current) return;
+        finish(event, false);
+      };
+      session.current = { pointerId: event.pointerId, capture: pointerCaptureTarget(event), start, next: start, cancel,
         project: createProjection ? createProjection(new THREE.Vector3(...start), event.point) : createDragProjection(new THREE.Vector3(...start), event.point, normal) };
       // Fiber capture routes moves to this object even after the finger leaves its mesh.
-      pointerCaptureTarget(event).setPointerCapture(event.pointerId);
+      try { pointerCaptureTarget(event).setPointerCapture(event.pointerId); }
+      catch { session.current = null; return; }
       onDraggingChange(true);
     },
     onPointerMove: (event: ThreeEvent<PointerEvent>) => {

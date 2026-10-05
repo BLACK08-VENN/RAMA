@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { ArrowRight, Box, Leaf, Ruler, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { FeaturedOffers } from "./featured-offers";
 
 const Planner = dynamic(() => import("./planner-shell").then(module => module.PlannerShell), {
   ssr: false,
@@ -55,6 +56,7 @@ export function PlannerEntry() {
         <span className="welcome-visual-label"><Sparkles size={18} /> A little inspiration. Endless possibilities.</span>
       </div>
     </div>
+    <FeaturedOffers />
     <ol className="welcome-steps" aria-label="How it works">
       <li><Ruler /><span><strong>Choose your room</strong><small>A space that fits your vision</small></span></li>
       <li><Leaf /><span><strong>Style it your way</strong><small>Plants, mirrors, rugs and more</small></span></li>

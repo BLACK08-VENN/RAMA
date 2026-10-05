@@ -37,11 +37,15 @@ const wall = createDragProjection(new THREE.Vector3(0, 1, -2), new THREE.Vector3
 assert(Math.abs(wall(new THREE.Ray(new THREE.Vector3(1, 2, 3), new THREE.Vector3(0, 0, -1))).z + 2) < 1e-8);
 assert.equal(wall(new THREE.Ray(new THREE.Vector3(0, 0, 3), new THREE.Vector3(1, 0, 0))), null);
 assert.equal(wall(new THREE.Ray(new THREE.Vector3(0, 0, 3), new THREE.Vector3(0, 0, 1))), null);
-let frame; const controls = { enabled: true }; let invalidations = 0;
+let frame; const effects = []; const listeners = new Map();
+const canvas = { addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: name => listeners.delete(name) };
+globalThis.window = { addEventListener() {}, removeEventListener() {} };
+globalThis.document = { hidden: false, addEventListener() {}, removeEventListener() {} };
+const controls = { enabled: true }; let invalidations = 0;
 const { useObjectDrag } = load('src/components/planner/use-object-drag.ts', {
-  react: { useRef: value => ({ current: value }) },
+  react: { useRef: value => ({ current: value }), useEffect: fn => effects.push(fn) },
   '@react-three/fiber': {
-    useThree: select => select({ invalidate: () => invalidations++, get: () => ({ controls }) }),
+    useThree: select => select({ gl: { domElement: canvas }, invalidate: () => invalidations++, get: () => ({ controls }) }),
     useFrame: fn => { frame = fn; },
   },
   './drag-projection': projection,
@@ -150,3 +154,18 @@ for (const preset of presets.roomPresets) {
   assert.equal(store.getState().design.items.length, 2);
 }
 console.log(`Room switch checks passed: all ${presets.roomPresets.length} templates start empty, selection/history reset, saved décor restores.`);
+
+
+const cleanups = effects.map(effect => effect()).filter(Boolean);
+drag.onPointerDown(event(99, 0));
+drag.onPointerMove(event(99, 1));
+listeners.get('lostpointercapture')({ pointerId: 98 });
+assert.equal(controls.enabled, false);
+listeners.get('lostpointercapture')({ pointerId: 99 });
+assert.equal(controls.enabled, true);
+assert.equal(captures.size, 0);
+drag.onPointerDown(event(100, 0));
+cleanups.forEach(cleanup => cleanup());
+assert.equal(controls.enabled, true);
+assert.equal(captures.size, 0);
+console.log('Lost capture and unmount restore camera controls');

@@ -573,6 +573,17 @@ function RoomResizeHandle({
   const startValue = useRef(room[dimension]);
   const startCoordinate = useRef(0);
   const floor = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
+  const canvas = useThree(state => state.gl.domElement);
+  const dragSession = useRef<{ pointerId: number; cancel: () => void } | null>(null);
+  useEffect(() => {
+    const cancel = () => dragSession.current?.cancel();
+    const lost = (event: PointerEvent) => { if (dragSession.current?.pointerId === event.pointerId) cancel(); };
+    const hidden = () => { if (document.hidden) cancel(); };
+    canvas.addEventListener("lostpointercapture", lost);
+    window.addEventListener("blur", cancel);
+    document.addEventListener("visibilitychange", hidden);
+    return () => { cancel(); canvas.removeEventListener("lostpointercapture", lost); window.removeEventListener("blur", cancel); document.removeEventListener("visibilitychange", hidden); };
+  }, [canvas]);
   const [hovered, setHovered] = useState(false);
   const [active, setActive] = useState(false);
   const [startMeasurement, setStartMeasurement] = useState(room[dimension]);
@@ -581,7 +592,7 @@ function RoomResizeHandle({
     : [0, 0.12, side * room.depth / 2];
 
   const pointerMove = (event: ThreeEvent<PointerEvent>) => {
-    if (!dragging.current) return;
+    if (!dragging.current || dragSession.current?.pointerId !== event.pointerId) return;
     event.stopPropagation();
     const hit = event.ray.intersectPlane(floor.current, new THREE.Vector3());
     if (!hit) return;
@@ -595,14 +606,15 @@ function RoomResizeHandle({
   };
 
   const finish = (event: ThreeEvent<PointerEvent>, commit = true) => {
-    if (!dragging.current) return;
+    if (!dragging.current || dragSession.current?.pointerId !== event.pointerId) return;
     event.stopPropagation();
     dragging.current = false;
+    dragSession.current = null;
     setActive(false);
     const target = event.nativeEvent.target;
-    if (pointerCaptureTarget(event).hasPointerCapture(event.pointerId)) {
-      pointerCaptureTarget(event).releasePointerCapture(event.pointerId);
-    }
+    try {
+      if (pointerCaptureTarget(event).hasPointerCapture(event.pointerId)) pointerCaptureTarget(event).releasePointerCapture(event.pointerId);
+    } catch { /* Capture may already be gone. */ }
     if (target instanceof HTMLElement) target.style.cursor = "";
     onDraggingChange(false);
     if (commit && nextValue.current !== null && nextValue.current !== startValue.current) {
@@ -632,6 +644,7 @@ function RoomResizeHandle({
         }}
         onPointerDown={(event) => {
           event.stopPropagation();
+          if (dragSession.current || event.button !== 0) return;
           const hit = event.ray.intersectPlane(floor.current, new THREE.Vector3());
           if (!hit) return;
           startCoordinate.current = dimension === "width" ? hit.x : hit.z;
@@ -640,7 +653,8 @@ function RoomResizeHandle({
           nextValue.current = null;
           startValue.current = room[dimension];
           setStartMeasurement(room[dimension]);
-          pointerCaptureTarget(event).setPointerCapture(event.pointerId);
+          dragSession.current = { pointerId: event.pointerId, cancel: () => finish(event, false) };
+          try { pointerCaptureTarget(event).setPointerCapture(event.pointerId); } catch { finish(event, false); return; }
           onDraggingChange(true);
         }}
         onPointerMove={pointerMove}
@@ -663,6 +677,16 @@ function RoomResizeHandle({
   );
 }
 
+function ContextRecovery({ onLost }: { onLost: () => void }) {
+  const canvas = useThree(state => state.gl.domElement);
+  useEffect(() => {
+    const lost = (event: Event) => { event.preventDefault(); onLost(); };
+    canvas.addEventListener("webglcontextlost", lost);
+    return () => canvas.removeEventListener("webglcontextlost", lost);
+  }, [canvas, onLost]);
+  return null;
+}
+
 export function RoomScene({
   cameraView,
   editMode,
@@ -678,6 +702,8 @@ export function RoomScene({
 }: RoomSceneProps) {
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [contextLost, setContextLost] = useState(false);
+  const [sceneGeneration, setSceneGeneration] = useState(0);
   const [previewRoom, setPreviewRoom] = useState<RoomConfig | null>(null);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const visibleRoom = previewRoom ?? room;
@@ -730,8 +756,14 @@ export function RoomScene({
     );
   }
 
+  if (contextLost) return <div className="scene-recovery" role="alert">
+    <strong>The 3D preview paused.</strong><span>Your room design is still saved. Try reopening the preview.</span>
+    <button onClick={() => { setDragging(false); setPreviewRoom(null); setContextLost(false); setSceneGeneration(value => value + 1); }}>Reopen 3D preview</button>
+  </div>;
+
   return (
     <Canvas
+      key={sceneGeneration}
       frameloop="demand"
       // "percentage" is PCFShadowMap. Both the bare boolean and "soft" resolve to
       // PCFSoftShadowMap, which three deprecated in r186, so the renderer silently
@@ -745,6 +777,7 @@ export function RoomScene({
     >
       <color attach="background" args={["#e9eeee"]} />
       <fog attach="fog" args={["#e9eeee", getOutdoorMetrics(room).span * 3, getOutdoorMetrics(room).span * 5]} />
+      <ContextRecovery onLost={() => setContextLost(true)} />
       <AdaptiveResolution />
       <StudioEnvironment />
       <ambientLight intensity={1.4} />
@@ -823,4 +856,3 @@ export function RoomScene({
     </Canvas>
   );
 }
-

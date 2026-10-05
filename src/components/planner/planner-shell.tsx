@@ -116,14 +116,19 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [isPhone, setIsPhone] = useState(false);
+  const [isTouch, setIsTouch] = useState(false);
   const [editMode, setEditMode] = useState(true);
   const [focusMode, setFocusMode] = useState(false);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 700px), (max-width: 1000px) and (max-height: 500px) and (pointer: coarse)");
-    const update = () => { setIsPhone(media.matches); setPanelOpen(!media.matches); setEditMode(!media.matches); };
+    const touch = window.matchMedia("(any-pointer: coarse)");
+    const updateLayout = () => { setIsPhone(media.matches); setPanelOpen(!media.matches); };
+    const updateTouch = () => { setIsTouch(touch.matches); setEditMode(!touch.matches); };
+    const update = () => { updateLayout(); updateTouch(); };
     update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
+    media.addEventListener("change", updateLayout);
+    touch.addEventListener("change", updateTouch);
+    return () => { media.removeEventListener("change", updateLayout); touch.removeEventListener("change", updateTouch); };
   }, []);
   useEffect(() => {
     if (!isPhone || !panelOpen) return;
@@ -136,6 +141,31 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     window.addEventListener("keydown", dismiss);
     return () => window.removeEventListener("keydown", dismiss);
   }, [isPhone, panelOpen]);
+  useEffect(() => {
+    const container = summaryOpen ? document.querySelector<HTMLElement>(".summary-drawer")
+      : isPhone && panelOpen ? document.querySelector<HTMLElement>("#planner-menu") : null;
+    if (!container) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusable = () => Array.from(container.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex='0']"))
+      .filter(element => element.tabIndex >= 0 && element.getClientRects().length > 0);
+    focusable()[0]?.focus();
+    const trap = (event: KeyboardEvent) => {
+      const modal = document.activeElement instanceof Element ? document.activeElement.closest("[aria-modal='true']") : null;
+      if (event.defaultPrevented || (modal && !modal.contains(container))) return;
+      if (event.key === "Escape" && summaryOpen) { event.preventDefault(); setSummaryOpen(false); }
+      if (event.key !== "Tab") return;
+      const elements = focusable();
+      const first = elements[0], last = elements.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && (document.activeElement === first || !container.contains(document.activeElement))) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !container.contains(document.activeElement))) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener("keydown", trap);
+    return () => { document.removeEventListener("keydown", trap); if (previous?.isConnected) previous.focus(); };
+  }, [isPhone, panelOpen, summaryOpen]);
   const [notice, setNotice] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
@@ -355,7 +385,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
       ], productId, wall),
       rotation: [0, 0, 0],
     });
-    if (isPhone) { setPanelOpen(false); setEditMode(true); }
+    if (isPhone) setPanelOpen(false);
+    if (isTouch) setEditMode(true);
     notify("Added to your room");
   };
 
@@ -828,7 +859,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                   const product = products.find((candidate) => candidate.id === item.productId);
                   if (!product) return null;
                   return (
-                    <button key={item.id} className={selectedId === item.id ? "active" : ""} onClick={() => selectItem(item.id)}>
+                    <button key={item.id} className={selectedId === item.id ? "active" : ""} onClick={() => { selectItem(item.id); if (isTouch) setEditMode(true); if (isPhone) setPanelOpen(false); }}>
                       <Image src={product.image} alt="" width={56} height={56} />
                       <span><strong>{product.name}</strong><small>{(product.decorative ? "Styling accessory" : formatKes(product.price))}</small></span>
                       <ChevronDown size={16} />
@@ -840,7 +871,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
           )}
         </aside>
 
-        <div ref={sceneStageRef} className={`scene-stage ${focusMode ? "is-focused" : ""}`}>
+        <div ref={sceneStageRef} className={`scene-stage ${isTouch ? "touch-scene" : ""} ${focusMode ? "is-focused" : ""}`}>
           <RoomScene
             cameraView={cameraView}
             editMode={editMode}
@@ -896,9 +927,9 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
             </div>
           )}
 
-          {isPhone && !panelOpen && <div className="mobile-gesture-hint">{editMode ? "Drag items and floor handles to adjust" : "One finger to rotate · Pinch to zoom"}</div>}
+          {isTouch && !panelOpen && <div className="mobile-gesture-hint">{editMode ? "Drag items and floor handles to adjust" : "One finger to rotate · Pinch to zoom"}</div>}
           <div className="view-toolbar">
-            {isPhone && <button className={editMode ? "active" : ""} aria-label={editMode ? "Switch to room navigation" : "Switch to moving items"} aria-pressed={editMode} onClick={() => setEditMode(value => !value)}><Armchair size={17} /><b className="mobile-mode-label">{editMode ? "Move" : "Orbit"}</b></button>}
+            {isTouch && <button className={editMode ? "active" : ""} aria-label={editMode ? "Switch to room navigation" : "Switch to moving items"} aria-pressed={editMode} onClick={() => setEditMode(value => !value)}><Armchair size={17} /><b className="mobile-mode-label">{editMode ? "Move" : "Orbit"}</b></button>}
             <button aria-label="3D view" className={cameraView === "perspective" ? "active" : ""} onClick={() => setCameraView("perspective")}><View size={18} /><span>3D view</span></button>
             <button aria-label="Top view" className={cameraView === "top" ? "active" : ""} onClick={() => setCameraView("top")}><Layers3 size={18} /><span>Top view</span></button>
             <button aria-label="Front view" className={cameraView === "front" ? "active" : ""} onClick={() => setCameraView("front")}><Armchair size={18} /><span>Front</span></button>
