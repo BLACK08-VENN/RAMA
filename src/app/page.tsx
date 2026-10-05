@@ -1,5 +1,5 @@
-import { PlannerShell } from "@/components/planner/planner-shell";
+import { PlannerEntry } from "@/components/planner/planner-entry";
 
 export default function Home() {
-  return <PlannerShell />;
+  return <PlannerEntry />;
 }

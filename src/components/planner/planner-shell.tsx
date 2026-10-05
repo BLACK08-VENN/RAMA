@@ -100,7 +100,7 @@ const floorFinishes = [
   { name: "Sand terrazzo tiles", color: "#d9cbbb" },
 ];
 
-export function PlannerShell() {
+export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const [activePanel, setActivePanel] = useState<"products" | "decor" | "room" | "design">("decor");
   const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>("All");
   const [activeDecorGroup, setActiveDecorGroup] = useState<(typeof decorGroups)[number]>("All");
@@ -460,6 +460,7 @@ export function PlannerShell() {
           <button className="icon-button mobile-menu" aria-label={panelOpen ? "Close menu" : "Open menu"} aria-controls="planner-menu" aria-expanded={panelOpen} onClick={() => setPanelOpen(value => !value)}>
             <Menu size={21} />
           </button>
+          <button className="planner-brand-home" onClick={onWelcome} aria-label="Back to welcome">
           <Image
             src="/furniturerama-logo.png"
             width={619}
@@ -468,6 +469,7 @@ export function PlannerShell() {
             className="brand-logo"
             priority
           />
+          </button>
           <span className="planner-badge">ROOM PLANNER</span>
         </div>
 
@@ -926,4 +928,3 @@ export function PlannerShell() {
     </main>
   );
 }
-
