@@ -145,7 +145,7 @@ type PlannerState = {
   addItem: (item: PlacedItem) => void;
   removeItem: (id: string) => void;
   rotateItem: (id: string, radians?: number) => void;
-  moveItem: (id: string, position: [number, number, number]) => void;
+  moveItem: (id: string, position: [number, number, number], wall?: WallSide) => void;
   setItemWall: (id: string, wall: WallSide) => void;
   undo: () => void;
   redo: () => void;
@@ -426,9 +426,14 @@ export const usePlannerStore = create<PlannerState>()(
             return { ...item, rotation, position: clampItemPosition(design.room, item.kind, item.position, item.productId, item.wall, rotation[1]) };
           }),
         })),
-        moveItem: (id, position) => commit((design) => ({
+        moveItem: (id, position, requestedWall) => commit((design) => ({
           ...design,
-          items: design.items.map(item => item.id === id ? { ...item, position: clampItemPosition(design.room, item.kind, position, item.productId, item.wall, item.rotation[1]) } : item),
+          items: design.items.map(item => {
+            if (item.id !== id) return item;
+            const wall = productById[item.productId]?.decor?.mount === "wall" ? requestedWall ?? item.wall ?? "back" : item.wall;
+            const rotation: [number, number, number] = wall ? [0, wallRotation[wall], 0] : item.rotation;
+            return { ...item, wall, rotation, position: clampItemPosition(design.room, item.kind, position, item.productId, wall, rotation[1]) };
+          }),
         })),
         setItemWall: (id, wall) => commit(design => ({
           ...design,

@@ -15,7 +15,7 @@ export type PointerCaptureTarget = {
 // Fiber supplies these methods on its synthetic target; its EventTarget type omits them.
 export const pointerCaptureTarget = (event: ThreeEvent<PointerEvent>) => event.target as unknown as PointerCaptureTarget;
 
-export function useObjectDrag({ enabled, position, normal, clamp, onSelect, onMove, onDraggingChange }: {
+export function useObjectDrag({ enabled, position, normal, clamp, onSelect, onMove, onDraggingChange, createProjection, onPreview, onCancel, isVisible }: {
   enabled: boolean;
   position: Position;
   normal: THREE.Vector3;
@@ -23,6 +23,10 @@ export function useObjectDrag({ enabled, position, normal, clamp, onSelect, onMo
   onSelect?: () => void;
   onMove: (position: Position) => void;
   onDraggingChange: (active: boolean) => void;
+  createProjection?: (origin: THREE.Vector3, grabbed: THREE.Vector3) => ReturnType<typeof createDragProjection>;
+  onPreview?: (group: THREE.Group, position: Position) => void;
+  onCancel?: () => void;
+  isVisible?: () => boolean;
 }) {
   const group = useRef<THREE.Group>(null);
   const invalidate = useThree(state => state.invalidate);
@@ -33,8 +37,10 @@ export function useObjectDrag({ enabled, position, normal, clamp, onSelect, onMo
   } | null>(null);
 
   useFrame((_, delta) => {
+    if (group.current && isVisible) group.current.visible = isVisible();
     const active = session.current;
     if (!active || !group.current) return;
+    onPreview?.(group.current, active.next);
     const target = new THREE.Vector3(...active.next);
     if (group.current.position.distanceToSquared(target) < 0.000001) {
       group.current.position.copy(target);
@@ -51,7 +57,8 @@ export function useObjectDrag({ enabled, position, normal, clamp, onSelect, onMo
     event.stopPropagation();
     session.current = null;
     const next = commit ? active.next : active.start;
-    group.current?.position.set(...next);
+    if (!commit) onCancel?.();
+    if (group.current) { group.current.position.set(...next); onPreview?.(group.current, next); }
     if (active.capture.hasPointerCapture(active.pointerId)) active.capture.releasePointerCapture(active.pointerId);
     if (commit && active.start.some((value, index) => Math.abs(value - next[index]) > 0.00001)) onMove(next);
     onDraggingChange(false);
@@ -69,7 +76,7 @@ export function useObjectDrag({ enabled, position, normal, clamp, onSelect, onMo
       if (!enabled) return;
       const start: Position = [...position];
       session.current = { pointerId: event.pointerId, capture: pointerCaptureTarget(event), start, next: start,
-        project: createDragProjection(new THREE.Vector3(...start), event.point, normal) };
+        project: createProjection ? createProjection(new THREE.Vector3(...start), event.point) : createDragProjection(new THREE.Vector3(...start), event.point, normal) };
       // Fiber capture routes moves to this object even after the finger leaves its mesh.
       pointerCaptureTarget(event).setPointerCapture(event.pointerId);
       onDraggingChange(true);

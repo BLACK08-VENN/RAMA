@@ -742,7 +742,7 @@ export function PlannerShell() {
                   const height = event.currentTarget.valueAsNumber;
                   if (Number.isFinite(height)) moveItem(selectedItem.id, [selectedItem.position[0], height, selectedItem.position[2]]);
                 }} /></label>}
-                <small>{selectedDecor.mount === "table" ? "Set the height to match your tabletop." : selectedDecor.mount === "wall" ? "Drag along the wall. Rotate moves it to the next wall." : selectedDecor.mount === "ceiling" ? "Suspended from the ceiling; drag to reposition." : "Drag to move, or use the arrows and rotation controls."}</small>
+                <small>{selectedDecor.mount === "table" ? "Set the height to match your tabletop." : selectedDecor.mount === "wall" ? "Drag onto another visible wall to move it there. Orbit the room to reach every wall." : selectedDecor.mount === "ceiling" ? "Suspended from the ceiling; drag to reposition." : "Drag to move, or use the arrows and rotation controls."}</small>
               </div>}
               <div className="design-list">
                 {placedItems.map((item) => {

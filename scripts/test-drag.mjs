@@ -65,3 +65,43 @@ drag.onPointerDown(event(3, 0)); drag.onPointerMove(event(3, -2)); frame(null, 1
 assert.equal(drag.ref.current.position.x, 0); assert.equal(commits.length, 1); assert.equal(controls.enabled, true);
 assert.equal(selections, 2); assert(invalidations > 0);
 console.log('Drag checks passed: 24 camera poses, both directions, wall depth, horizon guards, Fiber capture, pointer ownership, smoothing, release and cancel.');
+
+const { createWallDragProjection, isWallVisible } = load('src/components/planner/wall-drag.ts');
+const room = { width: 6, depth: 5, height: 3 };
+const cameraInside = new THREE.Vector3(0, 1.5, 0);
+const faces = { back: [0, 1.5, -2.475], right: [2.975, 1.5, 0], front: [0, 1.5, 2.475], left: [-2.975, 1.5, 0] };
+for (const startWall of Object.keys(faces)) {
+  const origin = new THREE.Vector3(...faces[startWall]);
+  const project = createWallDragProjection(room, startWall, origin, origin, cameraInside);
+  for (const targetWall of Object.keys(faces)) {
+    const target = new THREE.Vector3(...faces[targetWall]);
+    const result = project(new THREE.Ray(cameraInside, target.clone().sub(cameraInside).normalize()));
+    assert.equal(result.wall, targetWall);
+    assert(result.position.distanceTo(target) < 1e-7);
+  }
+}
+// Skip the cutaway foreground wall, so a gesture reaches the wall visible behind it.
+const outside = new THREE.Vector3(0, 1.5, 7);
+const back = new THREE.Vector3(...faces.back);
+const outsideProject = createWallDragProjection(room, 'back', back, back, outside);
+assert.equal(isWallVisible(room, 'front', outside), false);
+assert.equal(outsideProject(new THREE.Ray(outside, back.clone().sub(outside).normalize())).wall, 'back');
+// Save wall, orientation and clamped position in one history entry, then undo/redo it.
+const storeModule = load('src/stores/planner-store.ts', {
+  '@/data/products': { productById: { mirror: { decor: { mount: 'wall', width: 0.8, height: 0.8 } } } },
+  '@/data/room-presets': { findRoomPreset: () => null, matchRoomPreset: () => null },
+  'zustand/middleware': { persist: fn => fn },
+});
+const store = storeModule.usePlannerStore;
+const design = { ...store.getState().design, room: { ...store.getState().design.room, ...room }, items: [{ id: 'mirror', productId: 'mirror', kind: 'mirror', wall: 'back', position: faces.back, rotation: [0, 0, 0] }] };
+store.getState().loadDesign(design);
+store.getState().moveItem('mirror', [2.975, 1.5, 0.4], 'right');
+assert.equal(store.getState().design.items[0].wall, 'right');
+assert.equal(store.getState().design.items[0].rotation[1], -Math.PI / 2);
+assert.equal(store.getState().design.items[0].position[2], 0.4);
+assert.equal(store.getState().history.length, 1);
+store.getState().undo(); assert.equal(store.getState().design.items[0].wall, 'back');
+store.getState().redo(); assert.equal(store.getState().design.items[0].wall, 'right');
+const encoded = storeModule.encodeSharedDesign(store.getState().design);
+assert.equal(storeModule.decodeSharedDesign(encoded).items[0].wall, 'right');
+console.log('Wall checks passed: all 16 wall pairs, cutaway visibility, atomic save, undo/redo and sharing.');

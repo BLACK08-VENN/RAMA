@@ -8,11 +8,14 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { productById, productModels, type ProductModel } from "@/data/products";
 import {
   clampItemPosition,
+  wallRotation,
+  type WallSide,
   getOutdoorMetrics,
   type PlacedItem,
   type RoomConfig,
 } from "@/stores/planner-store";
 
+import { createWallDragProjection, isWallVisible } from "./wall-drag";
 import { useObjectDrag, pointerCaptureTarget } from "./use-object-drag";
 import { DecorModel } from "./decor-models";
 import { DiningSink } from "./dining-sink";
@@ -37,7 +40,7 @@ type RoomSceneProps = {
   placedItems: PlacedItem[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  onMove: (id: string, position: [number, number, number]) => void;
+  onMove: (id: string, position: [number, number, number], wall?: WallSide) => void;
   onResize: (dimension: "width" | "depth", value: number) => void;
   onStorageMove: (position: [number, number]) => void;
 };
@@ -196,20 +199,41 @@ function DraggableFurniture({
   selected: boolean;
   dragEnabled: boolean;
   onSelect: (id: string) => void;
-  onMove: (id: string, position: [number, number, number]) => void;
+  onMove: (id: string, position: [number, number, number], wall?: WallSide) => void;
   onDraggingChange: (dragging: boolean) => void;
   children: React.ReactNode;
 }) {
   const decor = productById[item.productId]?.decor;
   const mounted = decor?.mount === "wall";
   const wall = item.wall ?? "back";
+  const previewWall = useRef<WallSide>(wall);
+  const camera = useThree(state => state.camera);
+  useEffect(() => { previewWall.current = wall; }, [wall]);
   const drag = useObjectDrag({
     enabled: dragEnabled,
     position: item.position,
     normal: mounted ? new THREE.Vector3(wall === "left" || wall === "right" ? 1 : 0, 0, wall === "left" || wall === "right" ? 0 : 1) : new THREE.Vector3(0, 1, 0),
-    clamp: position => clampItemPosition(room, item.kind, position, item.productId, item.wall, item.rotation[1]),
+    clamp: position => clampItemPosition(room, item.kind, position, item.productId, mounted ? previewWall.current : item.wall, item.rotation[1]),
+    createProjection: mounted ? (origin, grabbed) => {
+      previewWall.current = wall;
+      const project = createWallDragProjection(room, wall, origin, grabbed, camera.position.clone());
+      return ray => {
+        const result = project(ray);
+        if (!result) return null;
+        previewWall.current = result.wall;
+        return result.position;
+      };
+    } : undefined,
+    onPreview: mounted ? (group, position) => {
+      const angle = wallRotation[previewWall.current];
+      // Keep the piece flush against its new wall rather than easing through the corner.
+      if (Math.abs(group.rotation.y - angle) > .001) group.position.set(...position);
+      group.rotation.set(0, angle, 0);
+    } : undefined,
+    onCancel: () => { previewWall.current = wall; },
+    isVisible: mounted ? () => isWallVisible(room, previewWall.current, camera.position) : undefined,
     onSelect: () => onSelect(item.id),
-    onMove: position => onMove(item.id, position),
+    onMove: position => onMove(item.id, position, mounted ? previewWall.current : undefined),
     onDraggingChange,
   });
 
@@ -680,7 +704,7 @@ export function RoomScene({
           item={item}
           room={room}
           selected={selectedId === item.id}
-          dragEnabled={editMode && cameraView !== "front"}
+          dragEnabled={editMode && (cameraView !== "front" || productById[item.productId]?.decor?.mount === "wall")}
           onSelect={onSelect}
           onMove={onMove}
           onDraggingChange={handleDraggingChange}
@@ -688,7 +712,7 @@ export function RoomScene({
           <Furniture item={item} />
         </DraggableFurniture>
         );
-        return productById[item.productId]?.decor?.mount === "wall" ? <CutawayWall key={item.id} room={room} wall={item.wall ?? "back"}>{content}</CutawayWall> : content;
+        return content;
       })}
       {showGrid && (
         <Grid
