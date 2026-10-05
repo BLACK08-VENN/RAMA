@@ -2274,3 +2274,9 @@ input:focus-visible {
 @media (orientation: portrait), (max-width: 760px) {
   .welcome-room-photo { max-height: 16dvh; object-position: center 58%; border-radius: 14px; }
 }
+
+/* Compact artwork cards keep the offer strip light on the welcome screen. */
+.featured-offers .offer-card { width: clamp(220px, 26vw, 320px); }
+@media (orientation: portrait), (max-width: 760px) {
+  .featured-offers .offer-card { width: clamp(220px, 34vw, 280px); }
+}
