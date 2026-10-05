@@ -43,7 +43,7 @@ export const products: PlannerProduct[] = [
     dimensions: "Sofa W 75 × D 85 × H 86 cm · Bed L 190 × W 75 cm",
     accent: "#656568",
     model: {
-      url: "/models/delton-grey-pbr.glb",
+      url: "/models/delton-grey-optimized.glb",
       width: 0.75,
       depth: 0.85,
       height: 0.86,

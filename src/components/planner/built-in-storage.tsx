@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef } from "react";
-import type { ThreeEvent } from "@react-three/fiber";
+import { useThree, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { getStoragePlacement, isBedroomRoom, type RoomConfig } from "@/stores/planner-store";
 
 export function BuiltInStorage({ room, onMove, onDraggingChange }: { room: RoomConfig; onMove: (position: [number, number]) => void; onDraggingChange: (dragging: boolean) => void }) {
+  const invalidate = useThree(state => state.invalidate);
   const group = useRef<THREE.Group>(null);
   const dragging = useRef(false), offset = useRef(new THREE.Vector3());
   const nextPosition = useRef<[number, number] | null>(null);
@@ -24,11 +25,11 @@ export function BuiltInStorage({ room, onMove, onDraggingChange }: { room: RoomC
     if (target instanceof Element && target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
     if (commit && nextPosition.current) onMove(nextPosition.current);
     else group.current?.position.set(position[0], 0, position[1]);
-    nextPosition.current = null; onDraggingChange(false);
+    nextPosition.current = null; invalidate(); onDraggingChange(false);
   };
   return <group ref={group} position={[position[0],0,position[1]]} rotation={[0,rotation,0]}
     onPointerDown={event => { event.stopPropagation(); const hit = event.ray.intersectPlane(floor.current, new THREE.Vector3()); if (!hit) return; dragging.current = true; offset.current.set(position[0]-hit.x,0,position[1]-hit.z); nextPosition.current = null; const target = event.nativeEvent.target; if(target instanceof Element) target.setPointerCapture(event.pointerId); onDraggingChange(true); }}
-    onPointerMove={event => { if (!dragging.current || !group.current) return; event.stopPropagation(); const hit = event.ray.intersectPlane(floor.current,new THREE.Vector3()); if (!hit) return; const next = clamp(hit.x+offset.current.x, hit.z+offset.current.z); group.current.position.set(next[0],0,next[1]); nextPosition.current = next; }}
+    onPointerMove={event => { if (!dragging.current || !group.current) return; event.stopPropagation(); const hit = event.ray.intersectPlane(floor.current,new THREE.Vector3()); if (!hit) return; const next = clamp(hit.x+offset.current.x, hit.z+offset.current.z); group.current.position.set(next[0],0,next[1]); nextPosition.current = next; invalidate(); }}
     onPointerUp={event => finish(event,true)} onPointerCancel={event => finish(event,false)}>
 
     <mesh castShadow receiveShadow position={[0, height / 2, 0]}><boxGeometry args={[width, height, .58]} /><meshStandardMaterial color="#b9a487" roughness={.75} /></mesh>

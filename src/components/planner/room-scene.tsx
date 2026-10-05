@@ -1,6 +1,6 @@
 "use client";
 
-import { ContactShadows, Grid, Html, OrbitControls, RoundedBox, useGLTF } from "@react-three/drei";
+import { Grid, Html, OrbitControls, RoundedBox, useGLTF } from "@react-three/drei";
 import { Canvas, ThreeEvent, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -50,7 +50,7 @@ function CameraRig({
   room: RoomConfig;
   zoomRequest: ZoomRequest;
 }) {
-  const { camera } = useThree();
+  const { camera, invalidate } = useThree();
   const { span, centerZ } = getOutdoorMetrics(room);
   const height = room.height;
   const lastZoomRequest = useRef(zoomRequest.id);
@@ -65,7 +65,8 @@ function CameraRig({
     camera.position.set(position[0], position[1], position[2] + centerZ);
     camera.lookAt(0, height * 0.35, centerZ);
     camera.updateProjectionMatrix();
-  }, [camera, span, centerZ, height, view]);
+    invalidate();
+  }, [camera, invalidate, span, centerZ, height, view]);
 
   useEffect(() => {
     if (zoomRequest.id === lastZoomRequest.current) return;
@@ -81,7 +82,8 @@ function CameraRig({
     camera.position.copy(target.add(offset.setLength(nextDistance)));
     camera.lookAt(0, height * 0.3, centerZ);
     camera.updateProjectionMatrix();
-  }, [camera, span, centerZ, height, zoomRequest]);
+    invalidate();
+  }, [camera, invalidate, span, centerZ, height, zoomRequest]);
 
   return null;
 }
@@ -105,6 +107,7 @@ function DraggableFurniture({
   onDraggingChange: (dragging: boolean) => void;
   children: React.ReactNode;
 }) {
+  const invalidate = useThree(state => state.invalidate);
   const groupRef = useRef<THREE.Group>(null);
   const dragging = useRef(false);
   const dragOffset = useRef(new THREE.Vector3());
@@ -134,6 +137,7 @@ function DraggableFurniture({
     if (!point) return;
     const position = clampItemPosition(room, item.kind, [point.x + dragOffset.current.x, 0, point.z + dragOffset.current.z]);
     groupRef.current.position.set(...position);
+    invalidate();
     finalPosition.current = position;
   };
 
@@ -178,19 +182,19 @@ function DraggableFurniture({
 function Sofa() {
   return (
     <group>
-      <RoundedBox args={[2.25, 0.42, 0.9]} position={[0, 0.48, 0]} radius={0.12} smoothness={4}>
+      <RoundedBox args={[2.25, 0.42, 0.9]} position={[0, 0.48, 0]} radius={0.12} smoothness={2} bevelSegments={2}>
         <meshStandardMaterial color="#373735" roughness={0.78} />
       </RoundedBox>
-      <RoundedBox args={[2.25, 0.9, 0.28]} position={[0, 1.02, -0.34]} radius={0.12} smoothness={4}>
+      <RoundedBox args={[2.25, 0.9, 0.28]} position={[0, 1.02, -0.34]} radius={0.12} smoothness={2} bevelSegments={2}>
         <meshStandardMaterial color="#2d2d2b" roughness={0.8} />
       </RoundedBox>
       {[-0.72, 0, 0.72].map((x) => (
-        <RoundedBox key={x} args={[0.67, 0.2, 0.68]} position={[x, 0.76, 0.05]} radius={0.08} smoothness={3}>
+        <RoundedBox key={x} args={[0.67, 0.2, 0.68]} position={[x, 0.76, 0.05]} radius={0.08} smoothness={2} bevelSegments={2}>
           <meshStandardMaterial color="#41413f" roughness={0.86} />
         </RoundedBox>
       ))}
       {[-0.96, 0.96].map((x) => (
-        <RoundedBox key={x} args={[0.28, 0.72, 0.88]} position={[x, 0.67, 0]} radius={0.1} smoothness={3}>
+        <RoundedBox key={x} args={[0.28, 0.72, 0.88]} position={[x, 0.67, 0]} radius={0.1} smoothness={2} bevelSegments={2}>
           <meshStandardMaterial color="#333331" roughness={0.82} />
         </RoundedBox>
       ))}
@@ -209,7 +213,7 @@ function Sofa() {
 function CoffeeTable() {
   return (
     <group>
-      <RoundedBox args={[1.7, 0.12, 0.86]} position={[0, 0.55, 0]} radius={0.04} smoothness={3}>
+      <RoundedBox args={[1.7, 0.12, 0.86]} position={[0, 0.55, 0]} radius={0.04} smoothness={2} bevelSegments={2}>
         <meshStandardMaterial color="#6c4630" roughness={0.58} />
       </RoundedBox>
       {[-0.7, 0.7].map((x) =>
@@ -227,10 +231,10 @@ function CoffeeTable() {
 function Chair() {
   return (
     <group>
-      <RoundedBox args={[0.68, 0.16, 0.66]} position={[0, 0.66, 0]} radius={0.06} smoothness={3}>
+      <RoundedBox args={[0.68, 0.16, 0.66]} position={[0, 0.66, 0]} radius={0.06} smoothness={2} bevelSegments={2}>
         <meshStandardMaterial color="#202428" roughness={0.7} />
       </RoundedBox>
-      <RoundedBox args={[0.68, 0.88, 0.12]} position={[0, 1.15, -0.27]} radius={0.05} smoothness={3}>
+      <RoundedBox args={[0.68, 0.88, 0.12]} position={[0, 1.15, -0.27]} radius={0.05} smoothness={2} bevelSegments={2}>
         <meshStandardMaterial color="#2e3538" wireframe />
       </RoundedBox>
       {[-0.26, 0.26].map((x) =>
@@ -248,7 +252,7 @@ function Chair() {
 function Cabinet() {
   return (
     <group>
-      <RoundedBox args={[0.9, 1.35, 0.72]} position={[0, 0.72, 0]} radius={0.05} smoothness={3}>
+      <RoundedBox args={[0.9, 1.35, 0.72]} position={[0, 0.72, 0]} radius={0.05} smoothness={2} bevelSegments={2}>
         <meshStandardMaterial color="#92989a" metalness={0.25} roughness={0.48} />
       </RoundedBox>
       {[0.45, 0.9].map((y) => (
@@ -270,21 +274,21 @@ function Cabinet() {
 function Bed() {
   return (
     <group>
-      <RoundedBox args={[1.5, 0.28, 2.02]} position={[0, 0.32, 0]} radius={0.05} smoothness={3}>
+      <RoundedBox args={[1.5, 0.28, 2.02]} position={[0, 0.32, 0]} radius={0.05} smoothness={2} bevelSegments={2}>
         <meshStandardMaterial color="#6b4a2f" roughness={0.7} />
       </RoundedBox>
-      <RoundedBox args={[1.46, 0.22, 1.96]} position={[0, 0.55, 0]} radius={0.07} smoothness={3}>
+      <RoundedBox args={[1.46, 0.22, 1.96]} position={[0, 0.55, 0]} radius={0.07} smoothness={2} bevelSegments={2}>
         <meshStandardMaterial color="#e6e2d8" roughness={0.95} />
       </RoundedBox>
-      <RoundedBox args={[1.5, 0.62, 0.1]} position={[0, 0.63, -0.98]} radius={0.06} smoothness={3}>
+      <RoundedBox args={[1.5, 0.62, 0.1]} position={[0, 0.63, -0.98]} radius={0.06} smoothness={2} bevelSegments={2}>
         <meshStandardMaterial color="#5c4030" roughness={0.68} />
       </RoundedBox>
       {[-0.36, 0.36].map((x) => (
-        <RoundedBox key={x} args={[0.6, 0.12, 0.38]} position={[x, 0.7, -0.74]} radius={0.06} smoothness={3}>
+        <RoundedBox key={x} args={[0.6, 0.12, 0.38]} position={[x, 0.7, -0.74]} radius={0.06} smoothness={2} bevelSegments={2}>
           <meshStandardMaterial color="#f2efe7" roughness={0.9} />
         </RoundedBox>
       ))}
-      <RoundedBox args={[1.5, 0.06, 1.1]} position={[0, 0.68, 0.36]} radius={0.04} smoothness={3}>
+      <RoundedBox args={[1.5, 0.06, 1.1]} position={[0, 0.68, 0.36]} radius={0.04} smoothness={2} bevelSegments={2}>
         <meshStandardMaterial color="#9aa3a6" roughness={0.92} />
       </RoundedBox>
       {[[-0.66, 0.88], [0.66, 0.88], [-0.66, -0.88], [0.66, -0.88]].map(([x, z]) => (
@@ -512,7 +516,7 @@ function RoomResizeHandle({
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       <group rotation={dimension === "width" ? [0, 0, 0] : [0, Math.PI / 2, 0]}>
-        <RoundedBox args={[0.25, 0.065, 0.09]} radius={0.03} smoothness={4} raycast={() => null}>
+        <RoundedBox args={[0.25, 0.065, 0.09]} radius={0.03} smoothness={2} bevelSegments={2} raycast={() => null}>
           <meshStandardMaterial color={hovered || active ? "#087c82" : "#177f83"} metalness={0.24} roughness={0.36} depthTest={false} />
         </RoundedBox>
         <mesh position={[0, 0.034, 0]} raycast={() => null}>
@@ -546,6 +550,7 @@ export function RoomScene({
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
       setWebglAvailable(Boolean(context));
+      context?.getExtension("WEBGL_lose_context")?.loseContext();
     });
 
     return () => window.cancelAnimationFrame(probeId);
@@ -579,16 +584,17 @@ export function RoomScene({
 
   return (
     <Canvas
+      frameloop="demand"
       shadows
-      dpr={[1, 1.75]}
+      dpr={[1, 1.25]}
       camera={{ position: initialCameraPosition, fov: 42 }}
       onPointerMissed={() => onSelect(null)}
-      gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+      gl={{ antialias: false, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
     >
       <color attach="background" args={["#e9eeee"]} />
       <fog attach="fog" args={["#e9eeee", getOutdoorMetrics(room).span * 3, getOutdoorMetrics(room).span * 5]} />
       <ambientLight intensity={1.4} />
-      <directionalLight castShadow position={[4, 8, 5]} intensity={2.3} shadow-mapSize={[1024, 1024]} />
+      <directionalLight castShadow position={[4, 8, 5]} intensity={2.3} shadow-mapSize={[512, 512]} shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12} shadow-bias={-.001} />
       <directionalLight position={[-4, 4, -2]} intensity={0.6} color="#caecee" />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} />
       <StyledRoom room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={setDragging} />
@@ -634,13 +640,6 @@ export function RoomScene({
           infiniteGrid={false}
         />
       )}
-      <ContactShadows
-        position={[0, 0.03, 0]}
-        opacity={0.3}
-        scale={getOutdoorMetrics(room).span * 1.4}
-        blur={2.8}
-        far={room.height + 2}
-      />
       <OrbitControls
         makeDefault
         enableDamping

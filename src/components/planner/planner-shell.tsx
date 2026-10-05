@@ -495,7 +495,7 @@ export function PlannerShell() {
                 {filteredProducts.map((product) => (
                   <article className="product-card" key={product.id}>
                     <div className="product-image-wrap">
-                      <Image src={product.image} width={500} height={500} alt={product.name} className="product-image" />
+                      <Image src={product.image} width={500} height={500} sizes="(max-width: 640px) 42vw, 160px" alt={product.name} className="product-image" />
                       <button className="favorite-button" aria-label={`Save ${product.name}`}><Heart size={17} /></button>
                       <span className="model-ready">3D READY</span>
                     </div>

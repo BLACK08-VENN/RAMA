@@ -10,7 +10,7 @@ export function OutdoorSpaces({ room }: { room: RoomConfig }) {
   const grassDepth = room.spaceType === "garden" ? room.depth : room.yard?.depth;
   const grassEnabled = room.spaceType === "garden" || Boolean(room.yard?.enabled);
   const grass = useMemo(() => {
-    if (!grassEnabled || !grassWidth || !grassDepth || typeof document === "undefined") return null;
+    if (!grassEnabled || typeof document === "undefined") return null;
     const canvas = document.createElement("canvas"); canvas.width = canvas.height = 256;
     const c = canvas.getContext("2d"); if (!c) return null;
     c.fillStyle = "#749455"; c.fillRect(0, 0, 256, 256);
@@ -18,9 +18,10 @@ export function OutdoorSpaces({ room }: { room: RoomConfig }) {
     const random = () => { seed = seed * 16807 % 2147483647; return seed / 2147483647; };
     for (let i = 0; i < 6000; i++) { const x = random() * 256, y = random() * 256; c.strokeStyle = i % 2 ? "#92ac6b" : "#5e7e45"; c.lineWidth = .6; c.beginPath(); c.moveTo(x, y); c.lineTo(x + random() * 2 - 1, y - random() * 4); c.stroke(); }
     const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace; map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.repeat.set(grassWidth, grassDepth); map.anisotropy = 4; return map;
-  }, [grassEnabled, grassWidth, grassDepth]);
+    map.anisotropy = 2; return map;
+  }, [grassEnabled]);
   useEffect(() => () => { grass?.dispose(); }, [grass]);
+  useEffect(() => { grass?.repeat.set(grassWidth ?? 1, grassDepth ?? 1); }, [grass, grassWidth, grassDepth]);
   const { balconyDepth } = getOutdoorMetrics(room);
   const deck = room.spaceType === "balcony" ? { enabled: true, width: room.width, depth: room.depth } : room.balcony, yard = room.spaceType === "garden" ? { enabled: true, width: room.width, depth: room.depth } : room.yard;
   return <group>

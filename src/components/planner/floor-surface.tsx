@@ -67,12 +67,14 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
     const map = new THREE.CanvasTexture(canvas);
     map.colorSpace = THREE.SRGBColorSpace;
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.repeat.set(room.width / (wooden ? 1.8 : large ? 1.2 : .6), room.depth / (wooden ? .72 : large ? 1.2 : .6));
     map.anisotropy = 4;
     return map;
-  }, [tiled, wooden, large, room.floorColor, room.floorName, room.width, room.depth]);
+  }, [tiled, wooden, large, room.floorColor, room.floorName]);
 
   useEffect(() => () => { texture?.dispose(); }, [texture]);
+  useEffect(() => {
+    texture?.repeat.set(room.width / (wooden ? 1.8 : large ? 1.2 : .6), room.depth / (wooden ? .72 : large ? 1.2 : .6));
+  }, [texture, room.width, room.depth, wooden, large]);
   const polished = large || room.floorName === "Marble white tiles";
   return <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
     <planeGeometry args={[room.width, room.depth]} />

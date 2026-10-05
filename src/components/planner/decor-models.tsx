@@ -52,8 +52,8 @@ function Plant({ tall }: { tall: boolean }) {
 
 function Mirror() {
   return <group rotation={[-.08, 0, 0]}>
-    <RoundedBox args={[.8, 1.8, .075]} radius={.18} smoothness={4} position={[0, .94, 0]} castShadow><meshStandardMaterial color="#a98b53" metalness={.65} roughness={.3} /></RoundedBox>
-    <RoundedBox args={[.73, 1.72, .018]} radius={.16} smoothness={4} position={[0, .94, .045]}><meshStandardMaterial color="#a9c2c6" metalness={.85} roughness={.12} /></RoundedBox>
+    <RoundedBox args={[.8, 1.8, .075]} radius={.18} smoothness={2} bevelSegments={2} position={[0, .94, 0]} castShadow><meshStandardMaterial color="#a98b53" metalness={.65} roughness={.3} /></RoundedBox>
+    <RoundedBox args={[.73, 1.72, .018]} radius={.16} smoothness={2} bevelSegments={2} position={[0, .94, .045]}><meshStandardMaterial color="#a9c2c6" metalness={.85} roughness={.12} /></RoundedBox>
     <mesh position={[.16, 1.1, .057]} rotation={[0, 0, -.22]}><planeGeometry args={[.065, 1.35]} /><meshBasicMaterial color="#eef5f1" transparent opacity={.3} /></mesh>
     <mesh position={[0, .03, -.18]}><boxGeometry args={[.65, .06, .45]} /><meshStandardMaterial color="#5d5448" /></mesh>
   </group>;
