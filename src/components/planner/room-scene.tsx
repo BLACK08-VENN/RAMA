@@ -1,9 +1,10 @@
 "use client";
 
 import { Grid, Html, OrbitControls, RoundedBox, useGLTF } from "@react-three/drei";
-import { Canvas, ThreeEvent, useThree } from "@react-three/fiber";
+import { Canvas, ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { productById, productModels, type ProductModel } from "@/data/products";
 import {
   clampItemPosition,
@@ -42,49 +43,137 @@ type RoomSceneProps = {
 
 const initialCameraPosition: [number, number, number] = [7, 5.5, 7];
 
+// Zooming all the way in drops the camera to standing height and looks the room dead level,
+// so the far end of the space reads like you are standing in it rather than hovering above it.
+const EYE_HEIGHT = 1.55;
+const WALK_ELEVATION = 0.1;
+const WALK_DISTANCE = 0.9;
+const MIN_CAMERA_DISTANCE = 0.7;
+const ZOOM_STEP = 0.34;
+const MAX_ZOOM_BACK = 1;
+const TOP_VIEW_ZOOM = 0.28;
+
+type CameraPose = { position: THREE.Vector3; target: THREE.Vector3 };
+
+function viewPose(view: CameraView, roomHeight: number, span: number, centerZ: number): CameraPose {
+  const offsets: Record<CameraView, [number, number, number]> = {
+    perspective: [span * 1.35, span, span * 1.35],
+    top: [0, span * 2.25, 0.01],
+    front: [0, span * 0.7, span * 2],
+  };
+  const [x, y, z] = offsets[view];
+  return {
+    position: new THREE.Vector3(x, y, z + centerZ),
+    target: new THREE.Vector3(0, roomHeight * 0.35, centerZ),
+  };
+}
+
+/**
+ * Reshapes the view's framing along the current orbit bearing. `immersion` runs 0 at the
+ * default framing, 1 fully inside the room, and negative for pulling back past the default.
+ */
+function poseImmersion(
+  base: CameraPose,
+  centerZ: number,
+  azimuth: number,
+  immersion: number,
+  walkable: boolean,
+): CameraPose {
+  const offset = base.position.clone().sub(base.target);
+  const baseDistance = Math.max(offset.length(), 0.001);
+  const baseElevation = Math.asin(THREE.MathUtils.clamp(offset.y / baseDistance, -1, 1));
+  const inward = Math.max(0, immersion);
+  const outward = Math.max(0, -immersion);
+
+  if (!walkable) {
+    const distance = inward > 0
+      ? baseDistance * THREE.MathUtils.lerp(1, TOP_VIEW_ZOOM, inward)
+      : baseDistance * (1 + outward * 0.55);
+    return { position: base.target.clone().add(offset.setLength(distance)), target: base.target.clone() };
+  }
+
+  const distance = inward > 0
+    ? THREE.MathUtils.lerp(baseDistance, WALK_DISTANCE, inward)
+    : baseDistance * (1 + outward * 0.55);
+  const elevation = inward > 0
+    ? THREE.MathUtils.lerp(baseElevation, WALK_ELEVATION, inward)
+    : baseElevation + outward * 0.12;
+  const target = new THREE.Vector3(
+    0,
+    inward > 0 ? THREE.MathUtils.lerp(base.target.y, EYE_HEIGHT, inward) : base.target.y,
+    centerZ,
+  );
+  const flat = Math.cos(elevation) * distance;
+  return {
+    target,
+    position: new THREE.Vector3(
+      target.x + Math.sin(azimuth) * flat,
+      target.y + Math.sin(elevation) * distance,
+      target.z + Math.cos(azimuth) * flat,
+    ),
+  };
+}
+
 function CameraRig({
   view,
   room,
   zoomRequest,
+  controlsRef,
 }: {
   view: CameraView;
   room: RoomConfig;
   zoomRequest: ZoomRequest;
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
 }) {
-  const { camera, invalidate } = useThree();
+  const camera = useThree(state => state.camera);
+  const invalidate = useThree(state => state.invalidate);
   const { span, centerZ } = getOutdoorMetrics(room);
-  const height = room.height;
+  const roomHeight = room.height;
+  const goal = useRef<CameraPose>(viewPose("perspective", roomHeight, span, centerZ));
   const lastZoomRequest = useRef(zoomRequest.id);
 
   useEffect(() => {
-    const positions: Record<CameraView, [number, number, number]> = {
-      perspective: [span * 1.35, span, span * 1.35],
-      top: [0, span * 2.25, 0.01],
-      front: [0, span * 0.7, span * 2],
+    goal.current = viewPose(view, roomHeight, span, centerZ);
+  }, [view, roomHeight, span, centerZ]);
+
+  // A hand on the scene takes priority, so stop easing the moment they orbit or pinch.
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const takeOver = () => {
+      goal.current = { position: camera.position.clone(), target: controls.target.clone() };
     };
-    const position = positions[view];
-    camera.position.set(position[0], position[1], position[2] + centerZ);
-    camera.lookAt(0, height * 0.35, centerZ);
-    camera.updateProjectionMatrix();
-    invalidate();
-  }, [camera, invalidate, span, centerZ, height, view]);
+    controls.addEventListener("start", takeOver);
+    return () => controls.removeEventListener("start", takeOver);
+  }, [camera, controlsRef]);
 
   useEffect(() => {
     if (zoomRequest.id === lastZoomRequest.current) return;
     lastZoomRequest.current = zoomRequest.id;
 
-    const target = new THREE.Vector3(0, height * 0.3, centerZ);
-    const offset = camera.position.clone().sub(target);
-    const nextDistance = THREE.MathUtils.clamp(
-      offset.length() * (zoomRequest.direction === "in" ? 0.82 : 1.22),
-      span,
-      span * 3.5,
+    const base = viewPose(view, roomHeight, span, centerZ);
+    // Read immersion off the live camera so pinching and stepping never disagree.
+    const offset = camera.position.clone().sub(controlsRef.current?.target ?? base.target);
+    const spread = Math.max(base.position.distanceTo(base.target) - WALK_DISTANCE, 0.001);
+    const immersion = THREE.MathUtils.clamp(
+      (base.position.distanceTo(base.target) - offset.length()) / spread
+        + (zoomRequest.direction === "in" ? ZOOM_STEP : -ZOOM_STEP),
+      -MAX_ZOOM_BACK,
+      1,
     );
-    camera.position.copy(target.add(offset.setLength(nextDistance)));
-    camera.lookAt(0, height * 0.3, centerZ);
-    camera.updateProjectionMatrix();
+    goal.current = poseImmersion(base, centerZ, Math.atan2(offset.x, offset.z), immersion, view !== "top");
+  }, [camera, centerZ, controlsRef, roomHeight, span, view, zoomRequest]);
+
+  useFrame((_, delta) => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    if (goal.current.position.distanceTo(camera.position) < 0.005 && goal.current.target.distanceTo(controls.target) < 0.005) return;
+    const alpha = 1 - Math.exp(-5.5 * Math.min(delta, 0.1));
+    camera.position.lerp(goal.current.position, alpha);
+    controls.target.lerp(goal.current.target, alpha);
+    controls.update();
     invalidate();
-  }, [camera, invalidate, span, centerZ, height, zoomRequest]);
+  });
 
   return null;
 }
@@ -550,6 +639,7 @@ export function RoomScene({
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [dragging, setDragging] = useState(false);
   const [previewRoom, setPreviewRoom] = useState<RoomConfig | null>(null);
+  const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const visibleRoom = previewRoom ?? room;
 
   useEffect(() => {
@@ -603,7 +693,7 @@ export function RoomScene({
       <ambientLight intensity={1.4} />
       <directionalLight castShadow position={[4, 8, 5]} intensity={2.3} shadow-mapSize={[512, 512]} shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12} shadow-bias={-.001} />
       <directionalLight position={[-4, 4, -2]} intensity={0.6} color="#caecee" />
-      <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} />
+      <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} controlsRef={controlsRef} />
       <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={setDragging} />
       {editMode && (["width", "depth"] as const).flatMap((dimension) =>
         ([-1, 1] as const).map((side) => (
@@ -651,13 +741,13 @@ export function RoomScene({
         />
       )}
       <OrbitControls
+        ref={controlsRef}
         makeDefault
         enableDamping
         enabled={!dragging}
-        minDistance={getOutdoorMetrics(room).span}
+        minDistance={MIN_CAMERA_DISTANCE}
         maxDistance={getOutdoorMetrics(room).span * 3.5}
         maxPolarAngle={cameraView === "top" ? 0.15 : Math.PI / 2.02}
-        target={[0, room.height * 0.3, getOutdoorMetrics(room).centerZ]}
       />
     </Canvas>
   );
