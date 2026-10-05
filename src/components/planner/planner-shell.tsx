@@ -73,7 +73,7 @@ const RoomScene = dynamic(
   },
 );
 
-const categories: Array<"All" | ProductCategory> = ["All", "Seating", "Tables", "Storage", "Bedroom"];
+const categories: Array<"All" | ProductCategory> = ["All", "Seating", "Tables", "Storage", "Bedroom", "Décor"];
 
 const placementSpots: Array<[number, number, number]> = [
   [1.3, 0, 0.4],
@@ -504,7 +504,7 @@ export function PlannerShell() {
                       <h2>{product.name}</h2>
                       <span className="product-dimensions">{product.dimensions}</span>
                       <div className="product-card-footer">
-                        <strong>{formatKes(product.price)}</strong>
+                        <strong>{(product.decorative ? "Styling accessory" : formatKes(product.price))}</strong>
                         <button onClick={() => addProduct(product.id)} aria-label={`Add ${product.name} to room`}>
                           <PackagePlus size={18} />
                         </button>
@@ -689,7 +689,7 @@ export function PlannerShell() {
                   return (
                     <button key={item.id} className={selectedId === item.id ? "active" : ""} onClick={() => selectItem(item.id)}>
                       <Image src={product.image} alt="" width={56} height={56} />
-                      <span><strong>{product.name}</strong><small>{formatKes(product.price)}</small></span>
+                      <span><strong>{product.name}</strong><small>{(product.decorative ? "Styling accessory" : formatKes(product.price))}</small></span>
                       <ChevronDown size={16} />
                     </button>
                   );
@@ -791,10 +791,10 @@ export function PlannerShell() {
                     <Image src={product.image} alt="" width={64} height={64} />
                     <span><strong>{product.name}</strong><small>{product.dimensions}</small></span>
                     <span className="summary-product-commerce">
-                      <b>{formatKes(product.price)}</b>
-                      <a href={product.productUrl} target="_blank" rel="noreferrer" aria-label={`View ${product.name} on FurnitureRama`}>
+                      <b>{(product.decorative ? "Styling accessory" : formatKes(product.price))}</b>
+                      {!product.decorative && <a href={product.productUrl} target="_blank" rel="noreferrer" aria-label={`View ${product.name} on FurnitureRama`}>
                         View product <ExternalLink size={12} />
-                      </a>
+                      </a>}
                     </span>
                   </div>
                 ) : null;

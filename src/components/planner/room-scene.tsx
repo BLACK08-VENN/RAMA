@@ -12,6 +12,7 @@ import {
   type RoomConfig,
 } from "@/stores/planner-store";
 
+import { DecorModel } from "./decor-models";
 import { DiningSink } from "./dining-sink";
 import { BuiltInStorage } from "./built-in-storage";
 import { OutdoorSpaces } from "./outdoor-spaces";
@@ -326,6 +327,7 @@ function GlbModel({ model }: { model: ProductModel }) {
 }
 
 function Furniture({ item }: { item: PlacedItem }) {
+  if (["plant", "rug", "mirror", "vase"].includes(item.kind)) return <DecorModel item={item} />;
   const model = productModels[item.productId];
 
   if (model) {

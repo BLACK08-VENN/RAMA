@@ -1,6 +1,6 @@
-export type ProductCategory = "Seating" | "Tables" | "Storage" | "Bedroom";
+export type ProductCategory = "Seating" | "Tables" | "Storage" | "Bedroom" | "Décor";
 
-export type ProductKind = "sofa" | "table" | "chair" | "cabinet" | "bed";
+export type ProductKind = "sofa" | "table" | "chair" | "cabinet" | "bed" | "plant" | "rug" | "mirror" | "vase";
 
 export type ProductModel = {
   url: string;
@@ -16,6 +16,7 @@ export type PlannerProduct = {
   name: string;
   category: ProductCategory;
   kind: ProductKind;
+  decorative?: boolean;
   price: number;
   image: string;
   dimensions: string;
@@ -24,6 +25,12 @@ export type PlannerProduct = {
 };
 
 export const products: PlannerProduct[] = [
+  { id: "decor-tall-plant", name: "Sculptural leafy plant", category: "Décor", kind: "plant", decorative: true, price: 0, productUrl: "", image: "/decor/tall-plant.svg", dimensions: "W 75 × D 75 × H 170 cm", accent: "#4b7445" },
+  { id: "decor-small-plant", name: "Terracotta potted plant", category: "Décor", kind: "plant", decorative: true, price: 0, productUrl: "", image: "/decor/small-plant.svg", dimensions: "W 55 × D 55 × H 105 cm", accent: "#b77a5b" },
+  { id: "decor-woven-rug", name: "Ivory woven rug", category: "Décor", kind: "rug", decorative: true, price: 0, productUrl: "", image: "/decor/woven-rug.svg", dimensions: "W 240 × D 160 cm", accent: "#e5ded0" },
+  { id: "decor-round-rug", name: "Round natural rug", category: "Décor", kind: "rug", decorative: true, price: 0, productUrl: "", image: "/decor/round-rug.svg", dimensions: "Ø 200 cm", accent: "#c8ad82" },
+  { id: "decor-floor-mirror", name: "Brass floor mirror", category: "Décor", kind: "mirror", decorative: true, price: 0, productUrl: "", image: "/decor/floor-mirror.svg", dimensions: "W 80 × D 45 × H 185 cm", accent: "#a98b53" },
+  { id: "decor-ceramic-vase", name: "Ceramic vase & dried stems", category: "Décor", kind: "vase", decorative: true, price: 0, productUrl: "", image: "/decor/ceramic-vase.svg", dimensions: "W 40 × D 40 × H 155 cm", accent: "#d8c7ae" },
   {
     id: "delton-sofa",
     openCartProductId: 980,
@@ -387,3 +394,4 @@ export const formatKes = (price: number) =>
     currency: "KES",
     maximumFractionDigits: 0,
   }).format(price);
+

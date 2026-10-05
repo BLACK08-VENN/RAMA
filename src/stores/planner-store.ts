@@ -56,6 +56,10 @@ const itemClearance: Record<ProductKind, number> = {
   chair: 0.4,
   cabinet: 0.5,
   bed: 1.1,
+  plant: .4,
+  rug: 1.45,
+  mirror: .5,
+  vase: .25,
 };
 
 export const isBedroomRoom = (room: RoomConfig) => room.roomType === "bedroom" || (room.roomType === undefined && ["master-bedroom", "guest-bedroom", "kids-bedroom"].includes(room.presetId ?? ""));
@@ -224,7 +228,7 @@ const isValidOutdoorArea = (value: unknown) => value === undefined || (isRecord(
 
 const isValidSharedDesign = (design: DesignDocument) => {
   const { room } = design;
-  const validKinds: ProductKind[] = ["sofa", "table", "chair", "cabinet", "bed"];
+  const validKinds: ProductKind[] = ["sofa", "table", "chair", "cabinet", "bed", "plant", "rug", "mirror", "vase"];
   return (
     (room.spaceType === undefined || ["indoor", "balcony", "garden"].includes(room.spaceType)) &&
     (room.roomType === undefined || ["bedroom", "other"].includes(room.roomType)) &&
