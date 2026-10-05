@@ -645,6 +645,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     {!product.decorative && <button className="coming-soon-trigger" onClick={() => addProduct(product.id)} aria-label={`${product.name} — coming soon`} />}
                     <div className="product-image-wrap">
                       <Image src={product.image} width={500} height={500} sizes="(max-width: 640px) 42vw, 160px" alt={product.name} className="product-image" />
+                      {product.decorative && <button type="button" className="decor-image-add" onClick={() => addProduct(product.id)} aria-label={`Add ${product.name} to room`} />}
                       <button className="favorite-button" tabIndex={product.decorative ? 0 : -1} aria-label={`Save ${product.name}`}><Heart size={17} /></button>
                       <span className="model-ready">{product.decor ? product.decor.mount === "wall" ? "WALL" : product.decor.mount === "ceiling" ? "HANGING" : "3D DÉCOR" : "COMING SOON"}</span>
                     </div>
