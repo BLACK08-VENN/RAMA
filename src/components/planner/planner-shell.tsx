@@ -114,22 +114,26 @@ export function PlannerShell() {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [isPhone, setIsPhone] = useState(false);
-  const [sheetExpanded, setSheetExpanded] = useState(false);
   const [editMode, setEditMode] = useState(true);
   const [focusMode, setFocusMode] = useState(false);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 700px), (max-width: 1000px) and (max-height: 500px) and (pointer: coarse)");
-    const update = () => { setIsPhone(media.matches); setPanelOpen(!media.matches); setEditMode(!media.matches); setSheetExpanded(false); };
+    const update = () => { setIsPhone(media.matches); setPanelOpen(!media.matches); setEditMode(!media.matches); };
     update();
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
-  const openMobilePanel = (panel: "products" | "decor" | "room" | "design") => {
-    setPanelOpen(!(panelOpen && activePanel === panel));
-    setActivePanel(panel);
-    setSheetExpanded(false);
-    setQuery("");
-  };
+  useEffect(() => {
+    if (!isPhone || !panelOpen) return;
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPanelOpen(false);
+        document.querySelector<HTMLButtonElement>(".mobile-menu")?.focus();
+      }
+    };
+    window.addEventListener("keydown", dismiss);
+    return () => window.removeEventListener("keydown", dismiss);
+  }, [isPhone, panelOpen]);
   const [notice, setNotice] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
@@ -422,7 +426,7 @@ export function PlannerShell() {
 
       <header className="planner-header">
         <div className="header-brand-group">
-          <button className="icon-button mobile-menu" aria-label={panelOpen ? "Close catalogue" : "Open catalogue"} aria-expanded={panelOpen} onClick={() => setPanelOpen(value => !value)}>
+          <button className="icon-button mobile-menu" aria-label={panelOpen ? "Close menu" : "Open menu"} aria-controls="planner-menu" aria-expanded={panelOpen} onClick={() => setPanelOpen(value => !value)}>
             <Menu size={21} />
           </button>
           <Image
@@ -484,16 +488,11 @@ export function PlannerShell() {
       </header>
 
       <section className={`planner-workspace ${panelOpen ? "" : "panel-collapsed"}`}>
-        <nav className="mobile-tool-nav" aria-label="Mobile planner tools">
-          <button className={panelOpen && activePanel === "products" ? "active" : ""} aria-expanded={panelOpen && activePanel === "products"} onClick={() => openMobilePanel("products")}><PackagePlus size={20} /><span>Furniture</span></button>
-          <button className={panelOpen && activePanel === "decor" ? "active" : ""} aria-expanded={panelOpen && activePanel === "decor"} onClick={() => openMobilePanel("decor")}><Leaf size={20} /><span>Décor</span></button>
-          <button className={panelOpen && activePanel === "room" ? "active" : ""} aria-expanded={panelOpen && activePanel === "room"} onClick={() => openMobilePanel("room")}><Home size={20} /><span>Room</span></button>
-          <button className={panelOpen && activePanel === "design" ? "active" : ""} aria-expanded={panelOpen && activePanel === "design"} onClick={() => openMobilePanel("design")}><ListChecks size={20} /><span>My design</span></button>
-        </nav>
-        <aside className={`catalog-panel ${panelOpen ? "is-open" : ""} ${sheetExpanded ? "sheet-expanded" : ""}`} inert={!panelOpen}>
-          <div className="mobile-sheet-bar">
-            <button onClick={() => setSheetExpanded(value => !value)} aria-label={sheetExpanded ? "Reduce panel" : "Expand panel"} aria-expanded={sheetExpanded}><span className="sheet-grip" /><span>{sheetExpanded ? "Show more room" : "Expand panel"}</span></button>
-            <button onClick={() => setPanelOpen(false)} aria-label="Close panel"><X size={20} /></button>
+        {isPhone && panelOpen && <button className="mobile-menu-backdrop" aria-label="Close menu" onClick={() => setPanelOpen(false)} />}
+        <aside id="planner-menu" className={`catalog-panel ${panelOpen ? "is-open" : ""}`} inert={!panelOpen} aria-label="Planner menu">
+          <div className="mobile-drawer-header">
+            <strong>Design your room</strong>
+            <button onClick={() => setPanelOpen(false)} aria-label="Close menu"><X size={20} /></button>
           </div>
           <nav className="panel-tabs" aria-label="Planner tools">
             <button aria-label="Products" className={activePanel === "products" ? "active" : ""} onClick={() => setActivePanel("products")}>
@@ -798,7 +797,7 @@ export function PlannerShell() {
           </div>
 
           {selectedId && (
-            <div className={`selection-toolbar ${isPhone && panelOpen ? "behind-sheet" : ""}`}>
+            <div className={`selection-toolbar ${isPhone && panelOpen ? "behind-menu" : ""}`}>
               {selectedDecor?.mount !== "wall" && (design.room.balcony?.enabled || design.room.yard?.enabled) && <select aria-label="Place selected furniture in area" value={(() => { const z = placedItems.find(item => item.id === selectedId)?.position[2] ?? 0; return z <= design.room.depth / 2 ? "room" : design.room.balcony?.enabled && z < design.room.depth / 2 + design.room.balcony.depth ? "balcony" : "yard"; })()} onChange={event => {
                 const item = placedItems.find(item => item.id === selectedId); if (!item) return;
                 const area = event.currentTarget.value;
