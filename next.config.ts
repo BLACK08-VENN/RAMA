@@ -34,7 +34,10 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data:",
   "font-src 'self'",
-  `connect-src 'self' ${supabaseSources}`,
+  // GLTFLoader reads textures embedded in a .glb through object URLs, which are fetched
+  // rather than merely displayed, so those need blob: under connect-src and not just
+  // under img-src. Without it the imported models load untextured.
+  `connect-src 'self' blob: ${supabaseSources}`,
   // three.js decoders (DRACO, KTX2, meshopt) spin their workers up from blob URLs.
   "worker-src 'self' blob:",
   "object-src 'none'",
