@@ -26,7 +26,7 @@ export type RoomConfig = {
   spaceType?: "indoor" | "balcony" | "garden";
   roomType?: "bedroom" | "other";
   diningSink?: boolean;
-  builtInStorage?: { enabled: boolean; width: number; position?: [number, number] };
+  builtInStorage?: { enabled: boolean; width: number; position?: [number, number]; rotation?: number };
   balcony?: OutdoorArea;
   yard?: OutdoorArea;
   chandelier?: "none" | "rings" | "globes";
@@ -59,6 +59,18 @@ const itemClearance: Record<ProductKind, number> = {
 };
 
 export const isBedroomRoom = (room: RoomConfig) => room.roomType === "bedroom" || (room.roomType === undefined && ["master-bedroom", "guest-bedroom", "kids-bedroom"].includes(room.presetId ?? ""));
+
+// Rotation is in degrees; -90 preserves the original wardrobe orientation.
+export function getStoragePlacement(room: RoomConfig, requested?: [number, number]): [number, number] {
+  const width = Math.min(room.builtInStorage?.width ?? 2, room.depth - .4, room.width - .4);
+  const angle = (room.builtInStorage?.rotation ?? -90) * Math.PI / 180;
+  const halfX = Math.abs(Math.cos(angle)) * width / 2 + Math.abs(Math.sin(angle)) * .31;
+  const halfZ = Math.abs(Math.sin(angle)) * width / 2 + Math.abs(Math.cos(angle)) * .31;
+  const limitX = Math.max(0, room.width / 2 - halfX);
+  const limitZ = Math.max(0, room.depth / 2 - halfZ);
+  const [x, z] = requested ?? room.builtInStorage?.position ?? [limitX, -limitZ + .2];
+  return [Math.max(-limitX, Math.min(limitX, x)), Math.max(-limitZ, Math.min(limitZ, z))];
+}
 
 export const getOutdoorMetrics = (room: RoomConfig) => {
   if (room.spaceType && room.spaceType !== "indoor") return { balconyDepth: 0, yardDepth: 0, centerZ: 0, span: Math.max(room.width, room.depth) };
@@ -217,7 +229,7 @@ const isValidSharedDesign = (design: DesignDocument) => {
     (room.spaceType === undefined || ["indoor", "balcony", "garden"].includes(room.spaceType)) &&
     (room.roomType === undefined || ["bedroom", "other"].includes(room.roomType)) &&
     (room.diningSink === undefined || typeof room.diningSink === "boolean") &&
-    (room.builtInStorage === undefined || (isRecord(room.builtInStorage) && typeof room.builtInStorage.enabled === "boolean" && isFiniteNumber(room.builtInStorage.width) && room.builtInStorage.width >= 1 && room.builtInStorage.width <= 4 && (room.builtInStorage.position === undefined || (Array.isArray(room.builtInStorage.position) && room.builtInStorage.position.length === 2 && room.builtInStorage.position.every(isFiniteNumber))))) &&
+    (room.builtInStorage === undefined || (isRecord(room.builtInStorage) && typeof room.builtInStorage.enabled === "boolean" && isFiniteNumber(room.builtInStorage.width) && room.builtInStorage.width >= 1 && room.builtInStorage.width <= 4 && (room.builtInStorage.rotation === undefined || isFiniteNumber(room.builtInStorage.rotation)) && (room.builtInStorage.position === undefined || (Array.isArray(room.builtInStorage.position) && room.builtInStorage.position.length === 2 && room.builtInStorage.position.every(isFiniteNumber))))) &&
     isValidOutdoorArea(room.balcony) && isValidOutdoorArea(room.yard) &&
     design.version === 2 &&
     typeof design.title === "string" &&
