@@ -13,6 +13,7 @@ import {
   type RoomConfig,
 } from "@/stores/planner-store";
 
+import { useObjectDrag, pointerCaptureTarget } from "./use-object-drag";
 import { DecorModel } from "./decor-models";
 import { DiningSink } from "./dining-sink";
 import { BuiltInStorage } from "./built-in-storage";
@@ -129,19 +130,20 @@ function CameraRig({
   const invalidate = useThree(state => state.invalidate);
   const { span, centerZ } = getOutdoorMetrics(room);
   const roomHeight = room.height;
-  const goal = useRef<CameraPose>(viewPose("perspective", roomHeight, span, centerZ));
+  const goal = useRef<CameraPose | null>(viewPose("perspective", roomHeight, span, centerZ));
   const lastZoomRequest = useRef(zoomRequest.id);
 
   useEffect(() => {
     goal.current = viewPose(view, roomHeight, span, centerZ);
-  }, [view, roomHeight, span, centerZ]);
+    invalidate();
+  }, [view, roomHeight, span, centerZ, invalidate]);
 
   // A hand on the scene takes priority, so stop easing the moment they orbit or pinch.
   useEffect(() => {
     const controls = controlsRef.current;
     if (!controls) return;
     const takeOver = () => {
-      goal.current = { position: camera.position.clone(), target: controls.target.clone() };
+      goal.current = null;
     };
     controls.addEventListener("start", takeOver);
     return () => controls.removeEventListener("start", takeOver);
@@ -162,12 +164,13 @@ function CameraRig({
       1,
     );
     goal.current = poseImmersion(base, centerZ, Math.atan2(offset.x, offset.z), immersion, view !== "top");
-  }, [camera, centerZ, controlsRef, roomHeight, span, view, zoomRequest]);
+    invalidate();
+  }, [camera, centerZ, controlsRef, roomHeight, span, view, zoomRequest, invalidate]);
 
   useFrame((_, delta) => {
     const controls = controlsRef.current;
-    if (!controls) return;
-    if (goal.current.position.distanceTo(camera.position) < 0.005 && goal.current.target.distanceTo(controls.target) < 0.005) return;
+    if (!controls?.enabled || !goal.current) return;
+    if (goal.current.position.distanceTo(camera.position) < 0.005 && goal.current.target.distanceTo(controls.target) < 0.005) { goal.current = null; return; }
     const alpha = 1 - Math.exp(-5.5 * Math.min(delta, 0.1));
     camera.position.lerp(goal.current.position, alpha);
     controls.target.lerp(goal.current.target, alpha);
@@ -197,71 +200,25 @@ function DraggableFurniture({
   onDraggingChange: (dragging: boolean) => void;
   children: React.ReactNode;
 }) {
-  const invalidate = useThree(state => state.invalidate);
-  const groupRef = useRef<THREE.Group>(null);
-  const dragging = useRef(false);
-  const dragOffset = useRef(new THREE.Vector3());
-  const finalPosition = useRef<[number, number, number]>(item.position);
-  const startPosition = useRef<[number, number, number]>(item.position);
   const decor = productById[item.productId]?.decor;
   const mounted = decor?.mount === "wall";
   const wall = item.wall ?? "back";
-  const dragPlane = mounted
-    ? new THREE.Plane(wall === "left" || wall === "right" ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1), -(wall === "left" || wall === "right" ? item.position[0] : item.position[2]))
-    : new THREE.Plane(new THREE.Vector3(0, 1, 0), -(item.position[1] - (decor?.mount === "ceiling" ? decor.height * .45 : 0)));
-
-  const handlePointerDown = (event: ThreeEvent<PointerEvent>) => {
-    event.stopPropagation();
-    onSelect(item.id);
-    if (!dragEnabled) return;
-    const point = event.ray.intersectPlane(dragPlane, new THREE.Vector3());
-    if (!point) return;
-    dragging.current = true;
-    startPosition.current = [...item.position];
-    finalPosition.current = [...item.position];
-    dragOffset.current.set(item.position[0] - point.x, item.position[1] - point.y, item.position[2] - point.z);
-    const target = event.nativeEvent.target;
-    if (target instanceof Element) target.setPointerCapture(event.pointerId);
-    onDraggingChange(true);
-  };
-
-  const handlePointerMove = (event: ThreeEvent<PointerEvent>) => {
-    if (!dragging.current || !groupRef.current) return;
-    event.stopPropagation();
-    const point = event.ray.intersectPlane(dragPlane, new THREE.Vector3());
-    if (!point) return;
-    const position = clampItemPosition(room, item.kind, [point.x + dragOffset.current.x, point.y + dragOffset.current.y, point.z + dragOffset.current.z], item.productId, item.wall, item.rotation[1]);
-    groupRef.current.position.set(...position);
-    invalidate();
-    finalPosition.current = position;
-  };
-
-  const finishDrag = (event: ThreeEvent<PointerEvent>) => {
-    if (!dragging.current) return;
-    event.stopPropagation();
-    dragging.current = false;
-    const target = event.nativeEvent.target;
-    if (target instanceof Element && target.hasPointerCapture(event.pointerId)) {
-      target.releasePointerCapture(event.pointerId);
-    }
-    onDraggingChange(false);
-    const start = startPosition.current;
-    const next = finalPosition.current;
-    if (start.some((value, index) => value !== next[index])) {
-      onMove(item.id, next);
-    }
-  };
+  const drag = useObjectDrag({
+    enabled: dragEnabled,
+    position: item.position,
+    normal: mounted ? new THREE.Vector3(wall === "left" || wall === "right" ? 1 : 0, 0, wall === "left" || wall === "right" ? 0 : 1) : new THREE.Vector3(0, 1, 0),
+    clamp: position => clampItemPosition(room, item.kind, position, item.productId, item.wall, item.rotation[1]),
+    onSelect: () => onSelect(item.id),
+    onMove: position => onMove(item.id, position),
+    onDraggingChange,
+  });
 
   return (
     <group
-      ref={groupRef}
+      {...drag}
       position={item.position}
       rotation={item.rotation}
       scale={selected ? 1.035 : 1}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={finishDrag}
-      onPointerCancel={finishDrag}
     >
       {children}
       {selected && !mounted && (
@@ -560,8 +517,8 @@ function RoomResizeHandle({
     dragging.current = false;
     setActive(false);
     const target = event.nativeEvent.target;
-    if (target instanceof Element && target.hasPointerCapture(event.pointerId)) {
-      target.releasePointerCapture(event.pointerId);
+    if (pointerCaptureTarget(event).hasPointerCapture(event.pointerId)) {
+      pointerCaptureTarget(event).releasePointerCapture(event.pointerId);
     }
     if (target instanceof HTMLElement) target.style.cursor = "";
     onDraggingChange(false);
@@ -600,8 +557,7 @@ function RoomResizeHandle({
           nextValue.current = null;
           startValue.current = room[dimension];
           setStartMeasurement(room[dimension]);
-          const target = event.nativeEvent.target;
-          if (target instanceof Element) target.setPointerCapture(event.pointerId);
+          pointerCaptureTarget(event).setPointerCapture(event.pointerId);
           onDraggingChange(true);
         }}
         onPointerMove={pointerMove}
@@ -642,6 +598,14 @@ export function RoomScene({
   const [previewRoom, setPreviewRoom] = useState<RoomConfig | null>(null);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const visibleRoom = previewRoom ?? room;
+  const handleDraggingChange = (active: boolean) => {
+    const controls = controlsRef.current;
+    if (controls) {
+      if (active) controls.dispatchEvent({ type: "start", target: controls });
+      controls.enabled = !active;
+    }
+    setDragging(active);
+  };
 
   useEffect(() => {
     const probeId = window.requestAnimationFrame(() => {
@@ -695,7 +659,7 @@ export function RoomScene({
       <directionalLight castShadow position={[4, 8, 5]} intensity={2.3} shadow-mapSize={[512, 512]} shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12} shadow-bias={-.001} />
       <directionalLight position={[-4, 4, -2]} intensity={0.6} color="#caecee" />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} controlsRef={controlsRef} />
-      <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={setDragging} />
+      <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={handleDraggingChange} />
       {editMode && (["width", "depth"] as const).flatMap((dimension) =>
         ([-1, 1] as const).map((side) => (
           <RoomResizeHandle
@@ -705,7 +669,7 @@ export function RoomScene({
             side={side}
             onPreview={(key, value) => setPreviewRoom((current) => ({ ...(current ?? room), [key]: value }))}
             onResize={onResize}
-            onDraggingChange={(active) => { setDragging(active); if (!active) setPreviewRoom(null); }}
+            onDraggingChange={(active) => { handleDraggingChange(active); if (!active) setPreviewRoom(null); }}
           />
         )),
       )}
@@ -719,7 +683,7 @@ export function RoomScene({
           dragEnabled={editMode && cameraView !== "front"}
           onSelect={onSelect}
           onMove={onMove}
-          onDraggingChange={setDragging}
+          onDraggingChange={handleDraggingChange}
         >
           <Furniture item={item} />
         </DraggableFurniture>
@@ -753,5 +717,4 @@ export function RoomScene({
     </Canvas>
   );
 }
-
 
