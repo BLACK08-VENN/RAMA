@@ -1,6 +1,6 @@
 "use client";
 
-import { Grid, Html, OrbitControls, RoundedBox, useGLTF } from "@react-three/drei";
+import { Environment, Grid, Html, OrbitControls, PerformanceMonitor, RoundedBox, useGLTF } from "@react-three/drei";
 import { Canvas, ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -57,7 +57,56 @@ const ZOOM_STEP = 0.34;
 const MAX_ZOOM_BACK = 1;
 const TOP_VIEW_ZOOM = 0.28;
 
+// Renders at up to 2x device pixels. A phone at 3x would be sharper still, but the fragment
+// cost of MSAA plus a 2048 shadow map makes the orbit draggy long before the extra pixels
+// are visible, so 2x is the point where sharpness stops paying for itself.
+const MAX_PIXEL_RATIO = 2;
+const MIN_PIXEL_RATIO = 1;
+const SHADOW_MAP_SIZE = 2048;
+const ENVIRONMENT_INTENSITY = 0.4;
+
 type CameraPose = { position: THREE.Vector3; target: THREE.Vector3 };
+
+// Starts at the device ceiling and walks the pixel ratio down while frames run long, so a
+// strong phone keeps the full 2x and a weak one still gets smooth orbiting instead of a
+// frozen canvas. On demand rendering the monitor only samples frames that are actually
+// drawn, which means it reacts during orbiting and zooming rather than penalising idling.
+function AdaptiveResolution() {
+  const setDpr = useThree(state => state.setDpr);
+  const ceiling = useMemo(() => Math.min(window.devicePixelRatio || MIN_PIXEL_RATIO, MAX_PIXEL_RATIO), []);
+  useEffect(() => { setDpr(ceiling); }, [ceiling, setDpr]);
+  return (
+    <PerformanceMonitor
+      factor={1}
+      flipflops={4}
+      onChange={({ factor }) => setDpr(MIN_PIXEL_RATIO + factor * (ceiling - MIN_PIXEL_RATIO))}
+      onFallback={() => setDpr(MIN_PIXEL_RATIO)}
+    />
+  );
+}
+
+// A procedural light rig gives every standard material something to reflect, which is what
+// stops the floor and the sofa reading as flat matte colour. It is built from child geometry
+// and prefiltered once, so it costs no download and no bytes on the wire.
+const softboxes: { position: [number, number, number]; scale: [number, number, number]; tint: string }[] = [
+  { position: [-5, 4, 2], scale: [7, 5, 1], tint: "#ffffff" },
+  { position: [5, 3, -3], scale: [4, 3, 1], tint: "#dff2f4" },
+  { position: [0, 7, 0], scale: [9, 9, 1], tint: "#f6fafa" },
+];
+
+function StudioEnvironment() {
+  return (
+    <Environment frames={1} resolution={256} environmentIntensity={ENVIRONMENT_INTENSITY}>
+      <color attach="background" args={["#8f9a9b"]} />
+      {softboxes.map((box, index) => (
+        <mesh key={`softbox-${index}`} position={box.position} scale={box.scale}>
+          <planeGeometry />
+          <meshBasicMaterial color={box.tint} />
+        </mesh>
+      ))}
+    </Environment>
+  );
+}
 
 function viewPose(view: CameraView, roomHeight: number, span: number, centerZ: number): CameraPose {
   const offsets: Record<CameraView, [number, number, number]> = {
@@ -379,6 +428,7 @@ function Bed() {
 
 function GlbModel({ model }: { model: ProductModel }) {
   const gltf = useGLTF(model.url);
+  const maxAnisotropy = useThree(state => state.gl.capabilities.getMaxAnisotropy());
 
   const { object, scale, offset } = useMemo(() => {
     gltf.scene.updateMatrixWorld(true);
@@ -391,13 +441,22 @@ function GlbModel({ model }: { model: ProductModel }) {
       if (!(child instanceof THREE.Mesh)) return;
       child.castShadow = true;
       child.receiveShadow = true;
+      // The imported fabric maps are authored for a distant camera, so they blur out once
+      // you walk up to the sofa. Sharpening their filtering keeps the weave readable close in.
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach((material) => {
+        const textured = material as THREE.MeshStandardMaterial;
+        [textured.map, textured.normalMap, textured.roughnessMap].forEach((surface) => {
+          if (surface) surface.anisotropy = maxAnisotropy;
+        });
+      });
     });
     return {
       object: clone,
       scale: nextScale,
       offset: new THREE.Vector3(-center.x * nextScale.x, -bounds.min.y * nextScale.y, -center.z * nextScale.z),
     };
-  }, [gltf, model]);
+  }, [gltf, model, maxAnisotropy]);
 
   return (
     <group position={offset} scale={scale}>
@@ -630,6 +689,9 @@ export function RoomScene({
     }
     setDragging(active);
   };
+  // Fit the shadow frustum to the space instead of a fixed 24m box, so every one of the
+  // 2048 texels lands on the room and the contact shadows under the furniture stay crisp.
+  const shadowExtent = useMemo(() => getOutdoorMetrics(visibleRoom).span * 0.9 + 1.5, [visibleRoom]);
 
   useEffect(() => {
     const probeId = window.requestAnimationFrame(() => {
@@ -671,16 +733,36 @@ export function RoomScene({
   return (
     <Canvas
       frameloop="demand"
-      shadows
-      dpr={[1, 1.25]}
+      // "percentage" is PCFShadowMap. Both the bare boolean and "soft" resolve to
+      // PCFSoftShadowMap, which three deprecated in r186, so the renderer silently
+      // downgraded them. PCF still honours shadow-radius, which is where the softness
+      // on these shadows actually comes from.
+      shadows="percentage"
+      dpr={[MIN_PIXEL_RATIO, MAX_PIXEL_RATIO]}
       camera={{ position: initialCameraPosition, fov: 42 }}
       onPointerMissed={() => onSelect(null)}
-      gl={{ antialias: false, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
+      gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
     >
       <color attach="background" args={["#e9eeee"]} />
       <fog attach="fog" args={["#e9eeee", getOutdoorMetrics(room).span * 3, getOutdoorMetrics(room).span * 5]} />
+      <AdaptiveResolution />
+      <StudioEnvironment />
       <ambientLight intensity={1.4} />
-      <directionalLight castShadow position={[4, 8, 5]} intensity={2.3} shadow-mapSize={[512, 512]} shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12} shadow-bias={-.001} />
+      <directionalLight
+        castShadow
+        position={[4, 8, 5]}
+        intensity={2.3}
+        shadow-mapSize={[SHADOW_MAP_SIZE, SHADOW_MAP_SIZE]}
+        shadow-camera-left={-shadowExtent}
+        shadow-camera-right={shadowExtent}
+        shadow-camera-top={shadowExtent}
+        shadow-camera-bottom={-shadowExtent}
+        shadow-camera-near={0.5}
+        shadow-camera-far={26}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.02}
+        shadow-radius={3}
+      />
       <directionalLight position={[-4, 4, -2]} intensity={0.6} color="#caecee" />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} controlsRef={controlsRef} />
       <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={handleDraggingChange} />
