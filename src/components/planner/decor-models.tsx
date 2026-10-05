@@ -46,10 +46,57 @@ function useDecorTexture(spec: DecorSpec, art = false) {
 
 function Rug({ spec }: { spec: DecorSpec }) {
   const texture = useDecorTexture(spec);
-  return <mesh receiveShadow position={[0, .018, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-    {spec.shape === "round" ? <circleGeometry args={[spec.width / 2, 40]} /> : <planeGeometry args={[spec.width, spec.depth]} />}
-    <meshStandardMaterial map={texture} bumpMap={texture} bumpScale={.003} roughness={.98} side={THREE.DoubleSide} />
-  </mesh>;
+  const fibres = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 128;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#808080"; ctx.fillRect(0, 0, 128, 128);
+    // A seamless weave repeats at a fixed physical scale on every rug size.
+    for (let y = 0; y < 128; y += 8) for (let x = 0; x < 128; x += 8) {
+      const horizontal = (x / 8 + y / 8) % 2 === 0;
+      const shade = 145 + ((x * 17 + y * 13) % 45);
+      ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+      ctx.fillRect(x + 1, y + 1, horizontal ? 7 : 5, horizontal ? 5 : 7);
+      ctx.fillStyle = "#626262";
+      ctx.fillRect(x, y, 1, 8);
+    }
+    const map = new THREE.CanvasTexture(canvas);
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    map.repeat.set(spec.width * 3, (spec.shape === "round" ? spec.width : spec.depth) * 3);
+    map.anisotropy = 4;
+    return map;
+  }, [spec.width, spec.depth, spec.shape]);
+  const outline = useMemo(() => {
+    const shape = new THREE.Shape();
+    if (spec.shape === "round") {
+      shape.absarc(0, 0, spec.width / 2, 0, Math.PI * 2, false);
+    } else {
+      const x = spec.width / 2, y = spec.depth / 2, r = .025;
+      shape.moveTo(-x + r, -y); shape.lineTo(x - r, -y);
+      shape.quadraticCurveTo(x, -y, x, -y + r); shape.lineTo(x, y - r);
+      shape.quadraticCurveTo(x, y, x - r, y); shape.lineTo(-x + r, y);
+      shape.quadraticCurveTo(-x, y, -x, y - r); shape.lineTo(-x, -y + r);
+      shape.quadraticCurveTo(-x, -y, -x + r, -y);
+    }
+    return shape;
+  }, [spec.width, spec.depth, spec.shape]);
+  const surface = useMemo(() => {
+    const geometry = new THREE.ShapeGeometry(outline, 48);
+    const positions = geometry.getAttribute("position"), uv = geometry.getAttribute("uv");
+    const depth = spec.shape === "round" ? spec.width : spec.depth;
+    for (let i = 0; i < positions.count; i++) uv.setXY(i, positions.getX(i) / spec.width + .5, positions.getY(i) / depth + .5);
+    return geometry;
+  }, [outline, spec.width, spec.depth, spec.shape]);
+  useEffect(() => () => { fibres.dispose(); surface.dispose(); }, [fibres, surface]);
+  return <group rotation={[-Math.PI / 2, 0, 0]} position={[0, .008, 0]}>
+    <mesh receiveShadow castShadow>
+      <extrudeGeometry args={[outline, { depth: .009, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: .003, bevelThickness: .003, curveSegments: 48 }]} />
+      <meshStandardMaterial color={spec.color} roughness={1} />
+    </mesh>
+    <mesh receiveShadow position={[0, 0, .013]} geometry={surface}>
+      <meshPhysicalMaterial map={texture} bumpMap={fibres} bumpScale={.006} roughness={1} sheen={.65} sheenColor={spec.color} sheenRoughness={1} />
+    </mesh>
+  </group>;
 }
 
 function createLeafGeometry() {
