@@ -491,7 +491,7 @@ export function PlannerShell() {
         {isPhone && panelOpen && <button className="mobile-menu-backdrop" aria-label="Close menu" onClick={() => setPanelOpen(false)} />}
         <aside id="planner-menu" className={`catalog-panel ${panelOpen ? "is-open" : ""}`} inert={!panelOpen} aria-label="Planner menu">
           <div className="mobile-drawer-header">
-            <strong>Design your room</strong>
+            <strong>Menu</strong>
             <button onClick={() => setPanelOpen(false)} aria-label="Close menu"><X size={20} /></button>
           </div>
           <nav className="panel-tabs" aria-label="Planner tools">
