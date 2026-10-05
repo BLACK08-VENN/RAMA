@@ -2232,3 +2232,8 @@ input:focus-visible {
 .featured-offers .offers-track { animation-duration: 150s; }
 .featured-offers .offer-card { width: clamp(280px, 42vw, 480px); height: clamp(220px, 30vw, 360px); padding: 0; overflow: hidden; justify-content: center; background: #fff; }
 .featured-offers .offer-card > img { width: 100%; height: 100%; border-radius: 0; object-fit: contain; }
+
+/* Uploaded square exports contain white bands above and below the 3:2 artwork. */
+.featured-offers .offer-card { position: relative; height: auto; min-height: 0; aspect-ratio: 3 / 2; }
+.featured-offers .offer-card > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+.featured-offers .offer-artwork-padded > img { top: -25%; bottom: auto; height: 150%; }

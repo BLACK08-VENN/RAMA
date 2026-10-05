@@ -32,6 +32,11 @@ function useDecorTexture(spec: DecorSpec, art = false) {
       ctx.globalAlpha = 1;
       if (spec.shape !== "round") { ctx.strokeStyle = "#a3947c"; ctx.lineWidth = 2; ctx.strokeRect(12, 12, 232, 232); }
     }
+    // Fine crossed fibres and grain give fabric/canvas a tactile surface.
+    ctx.globalAlpha = .08;
+    for (let x = 0; x < 256; x += 3) { ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 256); ctx.stroke(); }
+    for (let i = 0; i < 1800; i++) { const x = (i * 73) % 256, y = (i * 137 + Math.floor(i / 256) * 19) % 256; ctx.fillStyle = i % 2 ? "#fff" : "#30281f"; ctx.fillRect(x, y, 1, 1); }
+    ctx.globalAlpha = 1;
     const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
     return map;
   }, [spec, art]);
@@ -43,29 +48,66 @@ function Rug({ spec }: { spec: DecorSpec }) {
   const texture = useDecorTexture(spec);
   return <mesh receiveShadow position={[0, .018, 0]} rotation={[-Math.PI / 2, 0, 0]}>
     {spec.shape === "round" ? <circleGeometry args={[spec.width / 2, 40]} /> : <planeGeometry args={[spec.width, spec.depth]} />}
-    <meshStandardMaterial map={texture} roughness={1} side={THREE.DoubleSide} />
+    <meshStandardMaterial map={texture} bumpMap={texture} bumpScale={.003} roughness={.98} side={THREE.DoubleSide} />
   </mesh>;
 }
 
+function createLeafGeometry() {
+  const geometry = new THREE.BufferGeometry();
+  const positions: number[] = [], uvs: number[] = [], indices: number[] = [];
+  for (let row = 0; row <= 10; row++) {
+    const t = row / 10, width = Math.sin(Math.PI * t) * (.9 - t * .25);
+    for (let column = 0; column < 3; column++) {
+      positions.push((column - 1) * width, t * 2 - 1, Math.sin(t * Math.PI) * .22 - Math.abs(column - 1) * .09);
+      uvs.push(column / 2, t);
+    }
+  }
+  for (let row = 0; row < 10; row++) for (let column = 0; column < 2; column++) {
+    const i = row * 3 + column; indices.push(i, i + 1, i + 3, i + 1, i + 4, i + 3);
+  }
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices); geometry.computeVertexNormals(); return geometry;
+}
+
 function Plant({ spec }: { spec: DecorSpec }) {
-  const hanging = spec.mount === "ceiling";
-  const potY = hanging ? -.45 : .15;
+  const hanging = spec.mount === "ceiling", potY = hanging ? -.45 : .15;
+  const leaf = useMemo(() => createLeafGeometry(), []);
+  const leafMap = useMemo(() => {
+    const canvas = document.createElement("canvas"); canvas.width = canvas.height = 128;
+    const ctx = canvas.getContext("2d")!;
+    const gradient = ctx.createLinearGradient(0, 0, 128, 0);
+    gradient.addColorStop(0, "#456a37"); gradient.addColorStop(.5, "#a3b87a"); gradient.addColorStop(1, "#4c753e");
+    ctx.fillStyle = gradient; ctx.fillRect(0, 0, 128, 128);
+    ctx.strokeStyle = "#c1ce91"; ctx.globalAlpha = .45; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(64, 0); ctx.lineTo(64, 128); ctx.stroke();
+    for (let y = 12; y < 128; y += 14) { ctx.beginPath(); ctx.moveTo(10, y - 12); ctx.lineTo(64, y); ctx.lineTo(118, y - 12); ctx.stroke(); }
+    const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace; return map;
+  }, []);
+  useEffect(() => () => { leaf.dispose(); leafMap.dispose(); }, [leaf, leafMap]);
+  const count = spec.style === "palm" || spec.style === "fern" ? 10 : 14;
   return <group scale={[spec.width, spec.height, spec.depth]}>
-    {hanging && [-1, 1].map(side => <mesh key={side} position={[side * .13, -.19, 0]} rotation={[0, 0, side * -.55]}>
-      <cylinderGeometry args={[.006, .006, .43, 6]} /><meshStandardMaterial color="#b5a082" roughness={1} />
+    {hanging && [0, 1, 2].map(i => <mesh key={i} position={[Math.cos(i * 2.094) * .1, -.18, Math.sin(i * 2.094) * .1]} rotation={[0, i * 2.094, -.35]}>
+      <cylinderGeometry args={[.004, .004, .5, 6]} /><meshStandardMaterial color="#b5a082" roughness={1} />
     </mesh>)}
-    <mesh castShadow position={[0, potY, 0]}><cylinderGeometry args={[.2, .15, hanging ? .24 : .3, 16]} /><meshStandardMaterial color={spec.style === "fern" ? "#b98564" : "#ddd1bf"} roughness={.9} /></mesh>
-    <mesh position={[0, potY + (hanging ? .125 : .155), 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[.18, 16]} /><meshStandardMaterial color="#44372b" side={THREE.DoubleSide} /></mesh>
-    {Array.from({ length: spec.style === "palm" ? 12 : 9 }, (_, i) => {
-      const angle = i * 2.399, trailing = hanging && spec.style === "trailing";
-      const y = hanging ? -.52 - (trailing ? i * .048 : -.12) : .42 + i * (spec.style === "palm" ? .02 : .046);
-      const snake = spec.style === "snake", succulent = spec.style === "succulent", palm = spec.style === "palm";
+    <mesh castShadow receiveShadow position={[0, potY, 0]}><cylinderGeometry args={[.2, .14, hanging ? .24 : .3, 24, 1, true]} /><meshStandardMaterial color={spec.style === "fern" ? "#b98564" : "#ddd1bf"} roughness={.68} side={THREE.DoubleSide} /></mesh>
+    <mesh castShadow position={[0, potY + (hanging ? .12 : .15), 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[.193, .012, 6, 24]} /><meshStandardMaterial color={spec.style === "fern" ? "#bb8969" : "#e5d9c7"} roughness={.7} /></mesh>
+    <mesh receiveShadow position={[0, potY + (hanging ? .105 : .135), 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[.18, 24]} /><meshStandardMaterial color="#33281d" roughness={1} /></mesh>
+    {Array.from({ length: count }, (_, i) => {
+      const angle = i * 2.399, snake = spec.style === "snake", succulent = spec.style === "succulent";
+      const frond = spec.style === "palm" || spec.style === "fern";
+      const length = .35 + (i % 5) * .06;
+      const y = hanging ? -.56 - i * .024 : succulent ? .32 : .42 + (i % 7) * .07;
       return <group key={i} rotation={[0, angle, 0]}>
-        {!succulent && !snake && <mesh position={[.1, hanging ? -.5 : .5, 0]} rotation={[0, 0, -.25]}><cylinderGeometry args={[.006, .008, hanging ? .2 : .42, 5]} /><meshStandardMaterial color="#506b3e" /></mesh>}
-        <mesh castShadow position={[snake ? .09 + i * .008 : succulent ? .13 : .23, snake ? .62 : succulent ? .63 : y, 0]}
-          rotation={[0, 0, snake ? -.08 : trailing ? .3 : -.65]} scale={[snake ? .035 : palm ? .055 : .13, snake ? .36 : succulent ? .28 : palm ? .32 : .19, .035]}>
-          <sphereGeometry args={[1, 10, 6]} /><meshStandardMaterial color={i % 3 ? spec.color : "#91a878"} roughness={.9} />
-        </mesh>
+        {!snake && !succulent && <mesh position={[.09, hanging ? -.5 : y / 2 + .15, 0]} rotation={[0, 0, hanging ? .2 : -.22]}><cylinderGeometry args={[.004, .007, hanging ? .22 : y - .22, 5]} /><meshStandardMaterial color="#61734a" roughness={.85} /></mesh>}
+        <group position={[snake ? .08 : succulent ? .08 : .16, snake ? .58 + (i % 3) * .035 : y, 0]} rotation={[.12 * Math.sin(i), 0, snake ? -.07 : hanging ? .55 : succulent ? -.8 : -.55]}>
+          <mesh geometry={leaf} castShadow scale={[snake ? .035 : frond ? .038 : succulent ? .11 : .12, snake ? .3 : succulent ? .14 : length / 2, succulent ? .55 : .3]}>
+            <meshPhysicalMaterial map={leafMap} color={i % 4 ? spec.color : "#9bad74"} roughness={.52} clearcoat={.12} clearcoatRoughness={.65} side={THREE.DoubleSide} />
+          </mesh>
+          {frond && Array.from({ length: 5 }, (_, j) => [-1, 1].map(side => <mesh key={`${j}-${side}`} geometry={leaf} castShadow position={[side * .07, (j / 5 - .45) * length, 0]} rotation={[0, 0, side * -.95]} scale={[.025, .1 * (1 - j * .08), .2]}>
+            <meshStandardMaterial map={leafMap} color={spec.color} roughness={.6} side={THREE.DoubleSide} />
+          </mesh>))}
+        </group>
       </group>;
     })}
   </group>;
@@ -88,27 +130,27 @@ function mirrorShape(spec: DecorSpec, inset = 0) {
 function Mirror({ spec }: { spec: DecorSpec }) {
   const shapes = useMemo(() => [mirrorShape(spec), mirrorShape(spec, .012)], [spec]);
   return <group>
-    <mesh><shapeGeometry args={[shapes[0], 24]} /><meshStandardMaterial color={spec.color} metalness={.6} roughness={.35} /></mesh>
-    <mesh position={[0, 0, .008]}><shapeGeometry args={[shapes[1], 24]} /><meshStandardMaterial color="#b4cbd0" metalness={.7} roughness={.16} /></mesh>
-    <mesh position={[spec.width * .15, 0, .01]} rotation={[0, 0, -.15]}><planeGeometry args={[spec.width * .05, spec.height * .55]} /><meshBasicMaterial color="#f2f6f1" transparent opacity={.4} /></mesh>
+    <mesh castShadow><extrudeGeometry args={[shapes[0], { depth: .012, bevelEnabled: true, bevelSize: .003, bevelThickness: .002, bevelSegments: 1, steps: 1, curveSegments: 24 }]} /><meshStandardMaterial color={spec.color} metalness={.85} roughness={.23} /></mesh>
+    <mesh position={[0, 0, .017]}><shapeGeometry args={[shapes[1], 24]} /><meshStandardMaterial color="#e6eeec" metalness={1} roughness={.045} envMapIntensity={1.25} /></mesh>
   </group>;
 }
 
 function WallArt({ spec }: { spec: DecorSpec }) {
   const texture = useDecorTexture(spec, true);
   return <group>
-    <mesh><boxGeometry args={[spec.width, spec.height, .025]} /><meshStandardMaterial color={spec.style === "woven" ? "#b49976" : "#695340"} roughness={.8} /></mesh>
-    <mesh position={[0, 0, .014]}><planeGeometry args={[spec.width - .025, spec.height - .025]} /><meshStandardMaterial map={texture} roughness={1} /></mesh>
+    <mesh castShadow><boxGeometry args={[spec.width, spec.height, .035]} /><meshStandardMaterial color={spec.style === "woven" ? "#b49976" : "#695340"} roughness={.8} /></mesh>
+    <mesh position={[0, 0, .019]}><planeGeometry args={[spec.width - .045, spec.height - .045]} /><meshStandardMaterial color="#f4eee3" roughness={.9} /></mesh>
+    <mesh position={[0, 0, .021]}><planeGeometry args={[spec.width - .085, spec.height - .085]} /><meshStandardMaterial map={texture} bumpMap={texture} bumpScale={.001} roughness={.95} /></mesh>
   </group>;
 }
 
-function Vase() {
-  return <group>
-    <mesh castShadow position={[0, .3, 0]} scale={[1, 1.45, 1]}><sphereGeometry args={[.2, 16, 12]} /><meshStandardMaterial color="#d8c7ae" roughness={.8} /></mesh>
-    <mesh position={[0, .58, 0]}><cylinderGeometry args={[.07, .09, .18, 12, 1, true]} /><meshStandardMaterial color="#d8c7ae" side={THREE.DoubleSide} roughness={.8} /></mesh>
-    {[-.18, 0, .18].map((x, i) => <group key={x} position={[x / 2, .6, 0]} rotation={[0, i, -x]}>
-      <mesh position={[0, .35, 0]}><cylinderGeometry args={[.004, .005, .7, 5]} /><meshStandardMaterial color="#b29260" /></mesh>
-      <mesh position={[0, .7, 0]} scale={[.045, .22, .045]}><sphereGeometry args={[1, 8, 6]} /><meshStandardMaterial color="#c9b18a" roughness={1} /></mesh>
+function Vase({ spec }: { spec: DecorSpec }) {
+  const profile = useMemo(() => [[.07, 0], [.14, .015], [.19, .13], [.2, .26], [.17, .4], [.085, .51], [.068, .6], [.065, .64], [.053, .64], [.057, .6], [.074, .51], [.15, .39], [.18, .26], [.17, .13], [.12, .025]].map(([x, y]) => new THREE.Vector2(x, y)), []);
+  return <group scale={[spec.width / .4, spec.height / 1.3, spec.depth / .4]}>
+    <mesh castShadow receiveShadow><latheGeometry args={[profile, 28]} /><meshPhysicalMaterial color={spec.color} roughness={.48} clearcoat={.2} clearcoatRoughness={.5} side={THREE.DoubleSide} /></mesh>
+    {[-.18, 0, .18, .3, -.3].map((x, i) => <group key={x} position={[x / 8, .6, 0]} rotation={[.1 * Math.sin(i), i, -x]}>
+      <mesh position={[0, .3, 0]}><cylinderGeometry args={[.003, .004, .6, 5]} /><meshStandardMaterial color="#a48656" roughness={.9} /></mesh>
+      {Array.from({ length: 7 }, (_, j) => <mesh key={j} position={[Math.sin(j * 2.4) * .02, .5 + j * .025, Math.cos(j * 2.4) * .02]} rotation={[.15, j, .2]} scale={[.018, .09, .012]}><sphereGeometry args={[1, 6, 4]} /><meshStandardMaterial color={j % 2 ? "#c9b18a" : "#d7c3a1"} roughness={1} /></mesh>)}
     </group>)}
   </group>;
 }
@@ -120,5 +162,5 @@ export function DecorModel({ item }: { item: PlacedItem }) {
   if (item.kind === "rug") return <Rug spec={spec} />;
   if (item.kind === "mirror") return <Mirror spec={spec} />;
   if (item.kind === "wall-art") return <WallArt spec={spec} />;
-  return <Vase />;
+  return <Vase spec={spec} />;
 }

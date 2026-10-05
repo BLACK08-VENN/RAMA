@@ -29,7 +29,7 @@ export function FeaturedOffers() {
     <div className="offers-viewport" onPointerDown={() => setTouching(true)} onPointerUp={() => setTouching(false)} onPointerCancel={() => setTouching(false)} onPointerLeave={() => setTouching(false)}>
       <div className={`offers-track ${paused || touching ? "is-paused" : ""}`}>
         {[0, 1].map(copy => <div className="offers-group" key={copy} aria-hidden={copy === 1 ? true : undefined}>
-          {offers.map(offer => <a className="offer-card" key={offer.name} href={offersUrl} aria-label={`${offer.name}. View FurnitureRama offers`} target="_blank" rel="noreferrer" tabIndex={copy === 1 ? -1 : undefined}>
+          {offers.map(offer => <a className={`offer-card ${offer.image.includes("office-chair") ? "" : "offer-artwork-padded"}`} key={offer.name} href={offersUrl} aria-label={`${offer.name}. View FurnitureRama offers`} target="_blank" rel="noreferrer" tabIndex={copy === 1 ? -1 : undefined}>
             <Image src={offer.image} alt={offer.name + ". Artwork advertises 50% off selected items; call 0733 612 782."} width={offer.width} height={offer.height} sizes="(max-width: 540px) 86vw, 480px" />
           </a>)}
         </div>)}
