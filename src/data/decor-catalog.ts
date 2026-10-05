@@ -18,6 +18,17 @@ function entry(id: string, name: string, kind: PlannerProduct["kind"], spec: Dec
   return { id, name, kind, category: "Décor", decorative: true, price: 0, productUrl: "", image: "/decor/" + id + ".svg", dimensions, accent: spec.color, decor: spec };
 }
 export const decorProducts: PlannerProduct[] = [
+  entry("decor-floor-olive", "Olive green floor plant", "plant", {group:"Floor plants",mount:"floor",width:.65,depth:.65,height:1.5,style:"leafy",color:"#71805a"}),
+  entry("decor-floor-palm-compact", "Compact palm", "plant", {group:"Floor plants",mount:"floor",width:.8,depth:.8,height:1.25,style:"palm",color:"#3e735d"}),
+  entry("decor-hanging-pothos-large", "Full trailing basket", "plant", {group:"Hanging plants",mount:"ceiling",width:.85,depth:.85,height:1.35,style:"trailing",color:"#3c7457"}),
+  entry("decor-table-fern", "Mini fern planter", "plant", {group:"Table plants",mount:"table",width:.35,depth:.35,height:.4,style:"fern",color:"#69915a"}),
+  entry("decor-art-sunset", "Warm sunset horizon", "wall-art", {group:"Wall art",mount:"wall",width:1.2,depth:.025,height:.75,style:"landscape",color:"#cb9776"}),
+  entry("decor-art-blue", "Indigo geometric canvas", "wall-art", {group:"Wall art",mount:"wall",width:.6,depth:.025,height:.8,style:"geometric",color:"#55758a"}),
+  entry("decor-mirror-oval-large", "Tall bronze oval mirror", "mirror", {group:"Mirrors",mount:"wall",width:.9,depth:.018,height:1.4,shape:"oval",color:"#92765a"}),
+  entry("decor-mirror-round-small", "Petite black round mirror", "mirror", {group:"Mirrors",mount:"wall",width:.5,depth:.018,height:.5,shape:"round",color:"#3c4340"}),
+  entry("decor-rug-charcoal", "Charcoal geometric rug · 300 × 200", "rug", {group:"Rugs",mount:"floor",width:3,depth:2,height:.015,shape:"rectangle",style:"geometric",color:"#737c7b"}),
+  entry("decor-rug-ochre-round", "Ochre round rug · Ø 250", "rug", {group:"Rugs",mount:"floor",width:2.5,depth:2.5,height:.015,shape:"round",style:"woven",color:"#c3a368"}),
+
   entry("decor-tall-plant", "Fiddle leaf floor plant", "plant", {group:"Floor plants",mount:"floor",width:.8,depth:.8,height:1.7,style:"leafy",color:"#426b43"}),
   entry("decor-small-plant", "Terracotta fern", "plant", {group:"Floor plants",mount:"floor",width:.7,depth:.7,height:1.05,style:"fern",color:"#61814b"}),
   entry("decor-floor-palm", "Areca palm", "plant", {group:"Floor plants",mount:"floor",width:1.1,depth:1.1,height:1.85,style:"palm",color:"#587c44"}),

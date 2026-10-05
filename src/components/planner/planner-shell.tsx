@@ -60,6 +60,7 @@ import {
 import type { DecorGroup } from "@/data/decor-catalog";
 import { useAuth } from "@/components/auth-provider";
 import { AuthModal } from "@/components/auth-modal";
+import { readSavedRooms, saveRoomSnapshot, deleteRoomSnapshot, type SavedRoom } from "@/lib/saved-rooms";
 import { saveDesignToCloud } from "@/lib/design-storage";
 
 const RoomScene = dynamic(
@@ -100,7 +101,7 @@ const floorFinishes = [
 ];
 
 export function PlannerShell() {
-  const [activePanel, setActivePanel] = useState<"products" | "decor" | "room" | "design">("products");
+  const [activePanel, setActivePanel] = useState<"products" | "decor" | "room" | "design">("decor");
   const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>("All");
   const [activeDecorGroup, setActiveDecorGroup] = useState<(typeof decorGroups)[number]>("All");
   const [query, setQuery] = useState("");
@@ -139,6 +140,13 @@ export function PlannerShell() {
   const [titleInput, setTitleInput] = useState("");
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [savingToCloud, setSavingToCloud] = useState(false);
+  const [savedRooms, setSavedRooms] = useState<SavedRoom[]>([]);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      try { setSavedRooms(readSavedRooms(window.localStorage)); } catch { /* Saving remains available if storage becomes accessible later. */ }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const { user, isConfigured: isAuthConfigured } = useAuth();
   const {
     design,
@@ -241,6 +249,28 @@ export function PlannerShell() {
     }
   };
 
+  const saveDecoratedRoom = () => {
+    try {
+      setSavedRooms(saveRoomSnapshot(window.localStorage, design));
+      notify("Room saved on this device. Open My design to return to it.");
+    } catch {
+      notify("Could not save. Your browser storage may be full or unavailable.");
+    }
+  };
+
+  const openSavedRoom = (saved: SavedRoom) => {
+    const room = decodeSharedDesign(saved.payload);
+    if (!room) { notify("This saved room could not be opened"); return; }
+    loadDesign(room);
+    if (isPhone) setPanelOpen(false);
+    notify(`${saved.title} opened`);
+  };
+
+  const deleteSavedRoom = (id: string) => {
+    try { setSavedRooms(deleteRoomSnapshot(window.localStorage, id)); notify("Saved copy removed"); }
+    catch { notify("Could not remove this saved copy"); }
+  };
+
   const handleSaveToCloud = async () => {
     if (!isAuthConfigured) {
       notify("Cloud saves are not configured");
@@ -267,6 +297,7 @@ export function PlannerShell() {
   const addProduct = (productId: string) => {
     const product = products.find((candidate) => candidate.id === productId);
     if (!product) return;
+    if (!product.decorative) { notify("Furniture coming soon. Explore Décor to style your room now."); return; }
     const spec = product.decor;
     if (spec && (spec.mount === "wall" || spec.mount === "ceiling") && design.room.spaceType && design.room.spaceType !== "indoor") {
       notify("Choose an indoor room for wall and ceiling décor"); return;
@@ -477,8 +508,8 @@ export function PlannerShell() {
           <button className="header-text-button" onClick={shareDesign} aria-label="Share design">
             <Share2 size={17} /> <span>Share</span>
           </button>
-          <button className="header-text-button" aria-label="Save design" onClick={handleSaveToCloud} disabled={savingToCloud}>
-            <Box size={17} /> <span>{savingToCloud ? "Saving..." : "Save"}</span>
+          <button className="header-text-button" aria-label="Save design" onClick={saveDecoratedRoom}>
+            <Box size={17} /> <span>Save</span>
           </button>
           <button className="icon-button" aria-label="Help"><CircleHelp size={20} /></button>
           <button className="icon-button" aria-label="Account" onClick={() => setAuthModalOpen(true)}>
@@ -514,7 +545,7 @@ export function PlannerShell() {
               <div className="panel-heading">
                 <div>
                   <span className="eyebrow">FurnitureRama collection</span>
-                  <h1>{activePanel === "decor" ? "Style your room" : "Add products"}</h1>
+                  <h1>{activePanel === "decor" ? "Style your room" : "Furniture coming soon"}</h1>
                 </div>
                 <button className="icon-button close-panel" onClick={() => setPanelOpen(false)} aria-label="Close products panel"><X size={19} /></button>
               </div>
@@ -538,17 +569,18 @@ export function PlannerShell() {
               </div>
 
               <div className="catalog-result-heading">
-                <span>{filteredProducts.length} {activePanel === "decor" ? "styling accessories" : "planner-ready products"}</span>
+                <span>{filteredProducts.length} {activePanel === "decor" ? "styling accessories" : "products · coming soon"}</span>
                 <button><LayoutGrid size={16} /> Grid</button>
               </div>
 
               <div className="product-grid">
                 {filteredProducts.map((product) => (
-                  <article className="product-card" key={product.id}>
+                  <article className={`product-card ${product.decorative ? "" : "coming-soon-card"}`} key={product.id}>
+                    {!product.decorative && <button className="coming-soon-trigger" onClick={() => addProduct(product.id)} aria-label={`${product.name} — coming soon`} />}
                     <div className="product-image-wrap">
                       <Image src={product.image} width={500} height={500} sizes="(max-width: 640px) 42vw, 160px" alt={product.name} className="product-image" />
-                      <button className="favorite-button" aria-label={`Save ${product.name}`}><Heart size={17} /></button>
-                      <span className="model-ready">{product.decor ? product.decor.mount === "wall" ? "WALL" : product.decor.mount === "ceiling" ? "HANGING" : "3D DÉCOR" : "3D READY"}</span>
+                      <button className="favorite-button" tabIndex={product.decorative ? 0 : -1} aria-label={`Save ${product.name}`}><Heart size={17} /></button>
+                      <span className="model-ready">{product.decor ? product.decor.mount === "wall" ? "WALL" : product.decor.mount === "ceiling" ? "HANGING" : "3D DÉCOR" : "COMING SOON"}</span>
                     </div>
                     <div className="product-card-body">
                       <span className="product-category">{product.decor?.group ?? product.category}</span>
@@ -556,7 +588,7 @@ export function PlannerShell() {
                       <span className="product-dimensions">{product.dimensions}</span>
                       <div className="product-card-footer">
                         <strong>{(product.decorative ? "Styling accessory" : formatKes(product.price))}</strong>
-                        <button onClick={() => addProduct(product.id)} aria-label={`Add ${product.name} to room`}>
+                        <button tabIndex={product.decorative ? 0 : -1} onClick={() => addProduct(product.id)} aria-label={product.decorative ? `Add ${product.name} to room` : `${product.name} — coming soon`}>
                           <PackagePlus size={18} />
                         </button>
                       </div>
@@ -733,6 +765,19 @@ export function PlannerShell() {
           {activePanel === "design" && (
             <div className="panel-content">
               <div className="panel-heading"><div><span className="eyebrow">Project overview</span><h1>My design</h1></div></div>
+              <section className="saved-rooms-section" aria-label="Saved rooms">
+                <strong>Save your decorated room</strong>
+                <p>Saved rooms stay in this browser on this device. Rename your room to save another version.</p>
+                <button className="saved-room-save" onClick={saveDecoratedRoom}><Box size={17} /> Save this room</button>
+                {isAuthConfigured && <button className="saved-room-account" onClick={handleSaveToCloud} disabled={savingToCloud}>{savingToCloud ? "Saving…" : user ? "Save to my account" : "Sign in to save to my account"}</button>}
+                {savedRooms.length > 0 && <div className="saved-room-list">
+                  <strong>Your saved rooms</strong>
+                  {savedRooms.map(saved => <div className="saved-room-row" key={saved.id}>
+                    <button onClick={() => openSavedRoom(saved)} aria-label={`Open saved room ${saved.title}`}><span>{saved.title}</span><small>{new Date(saved.updatedAt).toLocaleDateString()}</small></button>
+                    <button onClick={() => deleteSavedRoom(saved.id)} aria-label={`Delete saved copy of ${saved.title}`}><Trash2 size={16} /></button>
+                  </div>)}
+                </div>}
+              </section>
               {selectedItem && selectedDecor && <div className="opening-card decor-placement">
                 <strong>{products.find(product => product.id === selectedItem.productId)?.name}</strong>
                 {selectedDecor.mount === "wall" && <label>Wall<select aria-label="Décor wall" value={selectedItem.wall ?? "back"} onChange={event => setItemWall(selectedItem.id, event.currentTarget.value as WallSide)}>

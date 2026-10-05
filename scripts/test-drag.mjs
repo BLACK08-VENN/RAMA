@@ -105,3 +105,25 @@ store.getState().redo(); assert.equal(store.getState().design.items[0].wall, 'ri
 const encoded = storeModule.encodeSharedDesign(store.getState().design);
 assert.equal(storeModule.decodeSharedDesign(encoded).items[0].wall, 'right');
 console.log('Wall checks passed: all 16 wall pairs, cutaway visibility, atomic save, undo/redo and sharing.');
+
+const snapshots = load('src/lib/saved-rooms.ts', { '@/stores/planner-store': storeModule });
+const stored = new Map();
+const storage = { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) };
+assert.deepEqual(snapshots.readSavedRooms(storage), []);
+let saved = snapshots.saveRoomSnapshot(storage, store.getState().design);
+assert.equal(saved.length, 1);
+assert.equal(storeModule.decodeSharedDesign(saved[0].payload).items[0].wall, 'right');
+store.getState().moveItem('mirror', [2.975, 1.7, 0.6], 'right');
+saved = snapshots.saveRoomSnapshot(storage, store.getState().design);
+assert.equal(saved.length, 1); assert.equal(storeModule.decodeSharedDesign(saved[0].payload).items[0].position[1], 1.7);
+saved = snapshots.saveRoomSnapshot(storage, { ...store.getState().design, title: 'Another room' });
+assert.equal(saved.length, 2);
+const restored = snapshots.readSavedRooms(storage);
+assert.equal(restored.length, 2); assert.equal(restored[0].title, 'Another room');
+assert.equal(snapshots.deleteRoomSnapshot(storage, restored[0].id).length, 1);
+assert.throws(() => snapshots.saveRoomSnapshot({ getItem: () => null, setItem: () => { throw Error('Quota exceeded'); } }, store.getState().design));
+assert.deepEqual(snapshots.readSavedRooms({ getItem: () => '{broken', setItem() {} }), []);
+const { decorProducts } = load('src/data/decor-catalog.ts');
+assert.equal(decorProducts.length, 38); assert.equal(new Set(decorProducts.map(p => p.id)).size, 38);
+for (const product of decorProducts) { assert(product.decorative && product.decor); assert(fs.existsSync(path.join(root, 'public', product.image))); }
+console.log('Save checks passed: restore, update, separate named rooms, deletion and storage failures. All 38 décor items have thumbnails.');

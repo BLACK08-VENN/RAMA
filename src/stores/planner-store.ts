@@ -176,29 +176,7 @@ const initialDesign: DesignDocument = {
       position: 0.2,
     },
   },
-  items: [
-    {
-      id: "delton-sofa-1",
-      productId: "delton-sofa",
-      kind: "sofa",
-      position: [-1.2, 0, -0.8],
-      rotation: [0, 0.18, 0],
-    },
-    {
-      id: "austin-dining-1",
-      productId: "austin-dining",
-      kind: "table",
-      position: [-1.05, 0, 0.6],
-      rotation: [0, -0.08, 0],
-    },
-    {
-      id: "file-cabinet-1",
-      productId: "file-cabinet",
-      kind: "cabinet",
-      position: [1.85, 0, -1.18],
-      rotation: [0, -0.05, 0],
-    },
-  ],
+  items: [],
   updatedAt: "2026-09-25T00:00:00.000Z",
 };
 
@@ -346,7 +324,7 @@ export const usePlannerStore = create<PlannerState>()(
 
       return {
         design: initialDesign,
-        selectedId: initialDesign.items[0].id,
+        selectedId: initialDesign.items[0]?.id ?? null,
         history: [],
         future: [],
         hydrated: false,
