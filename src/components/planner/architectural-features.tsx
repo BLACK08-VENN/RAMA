@@ -113,12 +113,12 @@ export function DesignerWindow({ room }: { room: RoomConfig }) {
   const radius = Math.min(width / 2, height * .4);
   if (!room.window.enabled) return null;
   return <group position={[room.window.position * (room.width - width), room.window.sillHeight, -room.depth / 2 + .01]}>
-    <mesh><shapeGeometry args={[shape, 48]} /><meshStandardMaterial color="#c1e2e4" metalness={.18} roughness={.15} transparent opacity={.58} side={THREE.DoubleSide} /></mesh>
+    <mesh><shapeGeometry args={[shape, 48]} /><meshStandardMaterial color="#e6eff0" metalness={.08} roughness={.12} transparent opacity={.18} depthWrite={false} side={THREE.DoubleSide} /></mesh>
     {[-width / 2, width / 2].map(x => <mesh key={x} position={[x, (height - (arched ? radius : 0)) / 2, .025]}><boxGeometry args={[.045, height - (arched ? radius : 0), .07]} /><meshStandardMaterial color="#343d3b" metalness={.5} roughness={.35} /></mesh>)}
     <mesh position={[0, 0, .025]}><boxGeometry args={[width + .09, .05, .08]} /><meshStandardMaterial color="#343d3b" /></mesh>
     {arched ? <group position={[0, height - radius, .025]} scale={[1, radius / (width / 2), 1]}><mesh><torusGeometry args={[width / 2, .025, 8, 48, Math.PI]} /><meshStandardMaterial color="#b39762" metalness={.65} roughness={.3} /></mesh></group> : <mesh position={[0, height, .025]}><boxGeometry args={[width + .09, .045, .07]} /><meshStandardMaterial color="#343d3b" /></mesh>}
     {(room.window.style === "panoramic" ? [-width / 6, width / 6] : [0]).map(x => <mesh key={x} position={[x, (height - (arched ? radius : 0)) / 2, .025]}><boxGeometry args={[.035, height - (arched ? radius : 0), .065]} /><meshStandardMaterial color="#343d3b" /></mesh>)}
-    <mesh position={[width * .2, height * .46, .03]} rotation={[0, 0, -.3]}><planeGeometry args={[width * .12, height * .7]} /><meshBasicMaterial color="#ffffff" transparent opacity={.16} side={THREE.DoubleSide} /></mesh>
+    <mesh position={[width * .2, height * .46, .03]} rotation={[0, 0, -.3]}><planeGeometry args={[width * .12, height * .7]} /><meshBasicMaterial color="#ffffff" transparent opacity={.08} depthWrite={false} side={THREE.DoubleSide} /></mesh>
   </group>;
 }
 
@@ -127,7 +127,7 @@ export function SlidingDoor({ room }: { room: RoomConfig }) {
   const width = Math.min(room.door.width, room.depth - .7), height = Math.min(room.door.height, room.height - .08);
   return <group position={[-room.width / 2 + .02, 0, room.door.position * (room.depth - width)]} rotation={[0, Math.PI / 2, 0]}>
     {[-1, 1].map(side => <group key={side} position={[side * width / 4, height / 2, side === 1 ? .03 : 0]}>
-      <mesh><boxGeometry args={[width / 2, height, .025]} /><meshStandardMaterial color="#b8dadb" transparent opacity={.5} metalness={.2} roughness={.14} /></mesh>
+      <mesh><boxGeometry args={[width / 2, height, .025]} /><meshStandardMaterial color="#e6eff0" transparent opacity={.2} depthWrite={false} metalness={.08} roughness={.12} /></mesh>
       {[-width / 4, width / 4].map(x => <mesh key={x} position={[x, 0, .025]}><boxGeometry args={[.045, height, .07]} /><meshStandardMaterial color="#303b39" metalness={.6} roughness={.3} /></mesh>)}
       <mesh position={[-side * width / 4 + side * .09, 0, .08]}><boxGeometry args={[.025, .28, .03]} /><meshStandardMaterial color="#c1a46f" metalness={.7} roughness={.25} /></mesh>
     </group>)}
