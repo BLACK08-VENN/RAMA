@@ -52,12 +52,31 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
   }, [room.depth, room.height, room.door]);
   return <group>
     <CutawayWall room={room} wall="back">
-      <mesh receiveShadow position={[0, 0, -room.depth / 2]}><shapeGeometry args={[back, 48]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh>
+      <mesh receiveShadow position={[0, 0, -room.depth / 2]}><shapeGeometry args={[back, 48]} /><meshStandardMaterial color={room.wallColor} roughness={.92} metalness={0} side={THREE.DoubleSide} /></mesh>
       <mesh position={[0, .045, -room.depth / 2 + .04]}><boxGeometry args={[room.width, .09, .05]} /><meshStandardMaterial color="#f8f5ef" /></mesh>
     </CutawayWall>
-    <CutawayWall room={room} wall="left"><mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><shapeGeometry args={[left]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh></CutawayWall>
-    <CutawayWall room={room} wall="right"><mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh></CutawayWall>
-    <CutawayWall room={room} wall="front"><mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><meshStandardMaterial color={room.wallColor} roughness={.85} side={THREE.DoubleSide} /></mesh></CutawayWall>
+    {/* Thin painted skirting gives walls a believable floor junction without changing openings. */}
+    <CutawayWall room={room} wall="back">
+      <mesh position={[0, .055, -room.depth / 2 + .055]} receiveShadow>
+        <boxGeometry args={[room.width, .11, .035]} />
+        <meshStandardMaterial color="#f5f3ee" roughness={.7} />
+      </mesh>
+    </CutawayWall>
+    <CutawayWall room={room} wall="right">
+      <mesh position={[room.width / 2 - .055, .055, 0]} receiveShadow>
+        <boxGeometry args={[.035, .11, room.depth]} />
+        <meshStandardMaterial color="#f5f3ee" roughness={.7} />
+      </mesh>
+    </CutawayWall>
+    <CutawayWall room={room} wall="front">
+      <mesh position={[0, .055, room.depth / 2 - .055]} receiveShadow>
+        <boxGeometry args={[room.width, .11, .035]} />
+        <meshStandardMaterial color="#f5f3ee" roughness={.7} />
+      </mesh>
+    </CutawayWall>
+    <CutawayWall room={room} wall="left"><mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><shapeGeometry args={[left]} /><meshStandardMaterial color={room.wallColor} roughness={.92} metalness={0} side={THREE.DoubleSide} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="right"><mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><meshStandardMaterial color={room.wallColor} roughness={.92} metalness={0} side={THREE.DoubleSide} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="front"><mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><meshStandardMaterial color={room.wallColor} roughness={.92} metalness={0} side={THREE.DoubleSide} /></mesh></CutawayWall>
   </group>;
 }
 
