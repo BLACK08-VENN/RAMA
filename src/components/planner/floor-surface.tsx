@@ -12,7 +12,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
   const large = room.floorName.startsWith("Large ");
   const texture = useMemo(() => {
     if ((!tiled && !wooden) || typeof document === "undefined") return null;
-    const size = 512;
+    const size = 1024;
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = size;
     const context = canvas.getContext("2d");
@@ -22,7 +22,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
     // Seeded surface detail keeps the finish stable as room dimensions change.
     let seed = 17;
     const random = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-    for (let i = 0; i < 4800; i++) {
+    for (let i = 0; i < 9000; i++) {
       context.fillStyle = i % 2 ? "rgba(255,255,255,.045)" : "rgba(30,35,35,.035)";
       context.fillRect(random() * size, random() * size, 2, 2);
     }
@@ -84,6 +84,6 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
   const polished = large || room.floorName === "Marble white tiles";
   return <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
     <planeGeometry args={[room.width, room.depth]} />
-    <meshStandardMaterial key={room.floorName} map={texture} color={texture ? "#ffffff" : room.floorColor} roughness={polished ? .3 : tiled || wooden ? .65 : .92} metalness={polished ? .06 : 0} />
+    <meshStandardMaterial key={room.floorName} map={texture} bumpMap={texture ?? undefined} bumpScale={texture ? (wooden ? 0.012 : 0.006) : 0} color={texture ? "#ffffff" : room.floorColor} roughness={polished ? .36 : tiled || wooden ? .72 : .92} metalness={polished ? .04 : 0} />
   </mesh>;
 }
