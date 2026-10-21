@@ -81,9 +81,14 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
   useEffect(() => {
     texture?.repeat.set(room.width / (wooden ? 1.8 : large ? 1.2 : .6), room.depth / (wooden ? .72 : large ? 1.2 : .6));
   }, [texture, room.width, room.depth, wooden, large]);
-  const polished = large || room.floorName === "Marble white tiles";
+  // Material-specific finishes: soft porcelain gloss, tactile stone and satin wood.
+  const marble = room.floorName === "Marble white tiles";
+  const slate = room.floorName === "Charcoal slate tiles";
+  const polished = large || marble;
+  const finishRoughness = polished ? 0.30 : wooden ? 0.56 : slate ? 0.82 : tiled ? 0.68 : 0.92;
+  const relief = wooden ? 0.012 : polished ? 0.004 : slate ? 0.010 : 0.006;
   return <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
     <planeGeometry args={[room.width, room.depth]} />
-    <meshStandardMaterial key={room.floorName} map={texture} bumpMap={texture ?? undefined} bumpScale={texture ? (wooden ? 0.012 : 0.006) : 0} color={texture ? "#ffffff" : room.floorColor} roughness={polished ? .36 : tiled || wooden ? .72 : .92} metalness={polished ? .04 : 0} />
+    <meshStandardMaterial key={room.floorName} map={texture} bumpMap={texture ?? undefined} bumpScale={texture ? relief : 0} color={texture ? "#ffffff" : room.floorColor} roughness={finishRoughness} metalness={polished ? .04 : 0} />
   </mesh>;
 }
