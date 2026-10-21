@@ -12,7 +12,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
   const large = room.floorName.startsWith("Large ");
   const texture = useMemo(() => {
     if ((!tiled && !wooden) || typeof document === "undefined") return null;
-    const size = 512;
+    const size = 1024;
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = size;
     const context = canvas.getContext("2d");
@@ -22,7 +22,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
     // Seeded surface detail keeps the finish stable as room dimensions change.
     let seed = 17;
     const random = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-    for (let i = 0; i < 4800; i++) {
+    for (let i = 0; i < 7200; i++) {
       context.fillStyle = i % 2 ? "rgba(255,255,255,.045)" : "rgba(30,35,35,.035)";
       context.fillRect(random() * size, random() * size, 2, 2);
     }
@@ -58,14 +58,14 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
           context.strokeStyle = grain % 3 ? "rgba(70,39,18,.09)" : "rgba(255,240,211,.16)";
           context.lineWidth = random() * .6 + .25; context.stroke();
         }
-        context.strokeStyle = "rgba(49,33,20,.3)"; context.lineWidth = 1;
+        context.strokeStyle = "rgba(49,33,20,.17)"; context.lineWidth = 1;
         context.beginPath(); context.moveTo(0, top); context.lineTo(size, top);
         const joint = row % 2 ? size / 2 : 0;
         context.moveTo(joint, top); context.lineTo(joint, top + plank); context.stroke();
       }
     } else {
-      context.strokeStyle = room.floorName === "Charcoal slate tiles" ? "#676865" : large ? "#c6c0b5" : "#b5afa5";
-      context.lineWidth = large ? 1 : 3;
+      context.strokeStyle = room.floorName === "Charcoal slate tiles" ? "#636663" : large ? "rgba(123,113,99,.24)" : "rgba(106,100,92,.3)";
+      context.lineWidth = large ? 1.2 : 2;
       context.strokeRect(0, 0, size, size);
     }
     const map = new THREE.CanvasTexture(canvas);
@@ -84,6 +84,6 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
   const polished = large || room.floorName === "Marble white tiles";
   return <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
     <planeGeometry args={[room.width, room.depth]} />
-    <meshStandardMaterial key={room.floorName} map={texture} color={texture ? "#ffffff" : room.floorColor} roughness={polished ? .3 : tiled || wooden ? .65 : .92} metalness={polished ? .06 : 0} />
+    <meshStandardMaterial key={room.floorName} map={texture} color={texture ? "#ffffff" : room.floorColor} roughness={polished ? .26 : tiled ? .43 : wooden ? .53 : .88} metalness={polished ? .04 : 0} />
   </mesh>;
 }
