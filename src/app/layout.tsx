@@ -11,6 +11,7 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, view
 export const metadata: Metadata = {
   title: "Room Planner | FurnitureRama",
   description: "Design your space with FurnitureRama furniture in an interactive 3D room planner.",
+  icons: { icon: "/icon.svg", shortcut: "/icon.svg", apple: "/icon.svg" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
