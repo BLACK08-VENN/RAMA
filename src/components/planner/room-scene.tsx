@@ -63,7 +63,7 @@ const TOP_VIEW_ZOOM = 0.28;
 const MAX_PIXEL_RATIO = 2;
 const MIN_PIXEL_RATIO = 1;
 const SHADOW_MAP_SIZE = 2048;
-const ENVIRONMENT_INTENSITY = 0.4;
+const ENVIRONMENT_INTENSITY = 0.65;
 
 type CameraPose = { position: THREE.Vector3; target: THREE.Vector3 };
 
@@ -97,7 +97,7 @@ const softboxes: { position: [number, number, number]; scale: [number, number, n
 function StudioEnvironment() {
   return (
     <Environment frames={1} resolution={256} environmentIntensity={ENVIRONMENT_INTENSITY}>
-      <color attach="background" args={["#8f9a9b"]} />
+      <color attach="background" args={["#c4c4be"]} />
       {softboxes.map((box, index) => (
         <mesh key={`softbox-${index}`} position={box.position} scale={box.scale}>
           <planeGeometry />
@@ -775,16 +775,18 @@ export function RoomScene({
       onPointerMissed={() => onSelect(null)}
       gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
     >
-      <color attach="background" args={["#e9eeee"]} />
-      <fog attach="fog" args={["#e9eeee", getOutdoorMetrics(room).span * 3, getOutdoorMetrics(room).span * 5]} />
+      <color attach="background" args={["#ecece7"]} />
+      <fog attach="fog" args={["#ecece7", getOutdoorMetrics(room).span * 3, getOutdoorMetrics(room).span * 5]} />
       <ContextRecovery onLost={() => setContextLost(true)} />
       <AdaptiveResolution />
       <StudioEnvironment />
-      <ambientLight intensity={1.4} />
+      {/* Softer ambient fill keeps wall corners and floor edges dimensional. */}
+      <ambientLight intensity={0.85} color="#fff9f0" />
       <directionalLight
         castShadow
         position={[4, 8, 5]}
-        intensity={2.3}
+        intensity={2.15}
+        color="#fff5e7"
         shadow-mapSize={[SHADOW_MAP_SIZE, SHADOW_MAP_SIZE]}
         shadow-camera-left={-shadowExtent}
         shadow-camera-right={shadowExtent}
@@ -796,7 +798,7 @@ export function RoomScene({
         shadow-normalBias={0.02}
         shadow-radius={3}
       />
-      <directionalLight position={[-4, 4, -2]} intensity={0.6} color="#caecee" />
+      <directionalLight position={[-4, 4, -2]} intensity={0.42} color="#dbe6f0" />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} controlsRef={controlsRef} />
       <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={handleDraggingChange} />
       {editMode && (["width", "depth"] as const).flatMap((dimension) =>
