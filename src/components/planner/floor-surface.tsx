@@ -7,7 +7,7 @@ import type { RoomConfig } from "@/stores/planner-store";
 
 export function FloorSurface({ room }: { room: RoomConfig }) {
   const maxAnisotropy = useThree(state => state.gl.capabilities.getMaxAnisotropy());
-  const tiled = room.floorName.endsWith(" tiles");
+  const tiled = room.floorName.endsWith(" tiles") || room.floorName === "Marble white tiles";
   const wooden = ["Natural oak", "Light ash", "Warm walnut"].includes(room.floorName);
   const large = room.floorName.startsWith("Large ");
   const texture = useMemo(() => {
@@ -69,6 +69,9 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
       context.strokeRect(0, 0, size, size);
     }
     const map = new THREE.CanvasTexture(canvas);
+    map.generateMipmaps = true;
+    map.minFilter = THREE.LinearMipmapLinearFilter;
+    map.magFilter = THREE.LinearFilter;
     map.colorSpace = THREE.SRGBColorSpace;
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
     // The floor is nearly always seen at a grazing angle, where trilinear filtering alone
@@ -82,8 +85,9 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
     texture?.repeat.set(room.width / (wooden ? 1.8 : large ? 1.2 : .6), room.depth / (wooden ? .72 : large ? 1.2 : .6));
   }, [texture, room.width, room.depth, wooden, large]);
   const polished = large || room.floorName === "Marble white tiles";
+  const marble = room.floorName === "Marble white tiles";
   return <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
     <planeGeometry args={[room.width, room.depth]} />
-    <meshStandardMaterial key={room.floorName} map={texture} color={texture ? "#ffffff" : room.floorColor} roughness={polished ? .26 : tiled ? .43 : wooden ? .53 : .88} metalness={polished ? .04 : 0} />
+    <meshStandardMaterial key={room.floorName} map={texture} color={texture ? "#ffffff" : room.floorColor} roughness={marble ? .22 : polished ? .29 : tiled ? .43 : wooden ? .53 : .88} metalness={polished ? .025 : 0} envMapIntensity={polished ? 0.85 : wooden ? 0.48 : 0.6} />
   </mesh>;
 }
