@@ -63,7 +63,7 @@ const TOP_VIEW_ZOOM = 0.28;
 const MAX_PIXEL_RATIO = 2;
 const MIN_PIXEL_RATIO = 1;
 const SHADOW_MAP_SIZE = 2048;
-const ENVIRONMENT_INTENSITY = 0.4;
+const ENVIRONMENT_INTENSITY = 0.55;
 
 type CameraPose = { position: THREE.Vector3; target: THREE.Vector3 };
 
@@ -780,11 +780,12 @@ export function RoomScene({
       <ContextRecovery onLost={() => setContextLost(true)} />
       <AdaptiveResolution />
       <StudioEnvironment />
-      <ambientLight intensity={1.4} />
+      <ambientLight intensity={1.05} color="#fff7ed" />
       <directionalLight
         castShadow
         position={[4, 8, 5]}
-        intensity={2.3}
+        intensity={2.0}
+        color="#fff5e9"
         shadow-mapSize={[SHADOW_MAP_SIZE, SHADOW_MAP_SIZE]}
         shadow-camera-left={-shadowExtent}
         shadow-camera-right={shadowExtent}
@@ -796,7 +797,7 @@ export function RoomScene({
         shadow-normalBias={0.02}
         shadow-radius={3}
       />
-      <directionalLight position={[-4, 4, -2]} intensity={0.6} color="#caecee" />
+      <directionalLight position={[-4, 4, -2]} intensity={0.55} color="#e1edf0" />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} controlsRef={controlsRef} />
       <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={handleDraggingChange} />
       {editMode && (["width", "depth"] as const).flatMap((dimension) =>
