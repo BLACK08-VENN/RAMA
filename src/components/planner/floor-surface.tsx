@@ -72,6 +72,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
   return <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
     <planeGeometry args={[room.width, room.depth]} />
     <meshStandardMaterial
+      key={`${id}-${maps?.color ? "textured" : "fallback"}`}
       map={maps?.color ?? null}
       normalMap={maps?.normal ?? null}
       roughnessMap={maps?.roughness ?? null}
