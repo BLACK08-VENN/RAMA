@@ -13,6 +13,7 @@ const materialForName: Record<string, string> = {
   "Warm walnut": "WoodFloor052",
   "Charcoal slate tiles": "Tiles140",
   "Black onyx": "Onyx010",
+  "Fabric floor": "Fabric081C",
 };
 type Maps = { color: THREE.Texture; normal: THREE.Texture; roughness: THREE.Texture };
 
