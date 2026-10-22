@@ -20,8 +20,8 @@ const categoryPhotos: Record<DecorGroup, string[]> = {
   "Hanging plants": [photo(11018345)],
   "Table plants": [photo(12897981), photo(12897987)],
   "Wall art": [photo(3705846), photo(1488378), photo(1249532), photo(7245073), photo(3705846)],
-  "Mirrors": [photo(12897981), photo(12897987), photo(11018345)],
-  "Rugs": [photo(7245073), photo(1488378), photo(3705846)],
+  "Mirrors": [photo(6186523), photo(20604665), photo(12987345), photo(7739817), photo(7614528)],
+  "Rugs": [photo(19367517), photo(5551824), photo(16501695), photo(6487966), photo(10168692), photo(6129394)],
   "Vases": [photo(8767273), photo(10995881)],
 };
 const photoCounts: Partial<Record<DecorGroup, number>> = {};
