@@ -46,33 +46,46 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
       }
     }
     if (wooden) {
-      // Fine-scale timber figure and subtle tonal streaks, under the plank joints.
-      for (let line = 0; line < 900; line++) {
-        const y = random() * size;
-        const x = random() * size;
-        context.beginPath();
-        context.moveTo(x, y);
-        context.bezierCurveTo(x + 80, y + random() * 2 - 1, x + 160, y + random() * 3 - 1.5, Math.min(size, x + 250), y);
-        context.strokeStyle = line % 3 ? "rgba(45,31,20,.035)" : "rgba(250,231,197,.065)";
-        context.lineWidth = .35 + random() * .45;
-        context.stroke();
-      }
-      const plank = size / 4;
-      for (let row = 0; row < 4; row++) {
-        const top = row * plank;
-        context.fillStyle = row % 2 ? "rgba(62,35,13,.065)" : "rgba(255,241,203,.055)";
-        context.fillRect(0, top, size, plank);
-        for (let grain = 0; grain < 170; grain++) {
-          const y = top + random() * (plank - 3) + 1.5;
-          context.beginPath(); context.moveTo(0, y);
-          context.bezierCurveTo(85, y + random() * 4 - 2, 175, y + random() * 4 - 2, size, y);
-          context.strokeStyle = grain % 3 ? "rgba(70,39,18,.09)" : "rgba(255,240,211,.16)";
-          context.lineWidth = random() * .6 + .25; context.stroke();
+      // Continuous timber boards at an architectural scale rather than repeating
+      // thick horizontal bands. The tile is 3.2m wide x 2.4m deep and includes
+      // staggered end joints; each plank is ~20cm wide.
+      const boards = 12;
+      const boardHeight = size / boards;
+      const finish = room.floorName === "Warm walnut" ? 0.66 : room.floorName === "Light ash" ? 1.13 : 1;
+      for (let row = 0; row < boards; row++) {
+        const y0 = row * boardHeight;
+        const shade = Math.floor((random() - .5) * 20);
+        context.fillStyle = `rgba(115,83,54,${Math.max(.008,(.035 + shade / 900) / finish)})`;
+        context.fillRect(0, y0 + 1.2, size, boardHeight - 2.4);
+        // Hundreds of delicate, irregular fibres follow the board length, while
+        // the base colour stays natural without contrasting stripes.
+        for (let line = 0; line < 155; line++) {
+          const y = y0 + 2 + random() * (boardHeight - 4);
+          const x = random() * size;
+          const length = 90 + random() * 440;
+          context.beginPath();
+          context.moveTo(x, y);
+          context.bezierCurveTo(x + length * .25, y - 1.7 + random() * 3.4,
+            x + length * .65, y - 1.4 + random() * 2.8,
+            Math.min(size, x + length), y + random() * 2 - 1);
+          context.strokeStyle = line % 3
+            ? "rgba(74,52,35,.055)"
+            : "rgba(255,248,227,.075)";
+          context.lineWidth = .35 + random() * .65;
+          context.stroke();
         }
-        context.strokeStyle = "rgba(49,33,20,.17)"; context.lineWidth = 1;
-        context.beginPath(); context.moveTo(0, top); context.lineTo(size, top);
-        const joint = row % 2 ? size / 2 : 0;
-        context.moveTo(joint, top); context.lineTo(joint, top + plank); context.stroke();
+        // Subtle seams and regularly staggered but unequal plank lengths.
+        context.strokeStyle = "rgba(60,48,36,.24)";
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.moveTo(0, y0 + .7);context.lineTo(size, y0 + .7);
+        const offset = (row * 239 + 121) % size;
+        const joint = 350 + (row * 173 % 260);
+        for (let x = offset % joint; x < size; x += joint) {
+          context.moveTo(x, y0 + 1);
+          context.lineTo(x + (random() - .5) * 1.2, y0 + boardHeight - 1);
+        }
+        context.stroke();
       }
     } else {
       context.strokeStyle = room.floorName === "Charcoal slate tiles" ? "#636663" : large ? "rgba(123,113,99,.24)" : "rgba(106,100,92,.3)";
@@ -95,7 +108,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
 
   useEffect(() => () => { texture?.dispose(); }, [texture]);
   useEffect(() => {
-    texture?.repeat.set(room.width / (wooden ? 1.8 : large ? 1.2 : .6), room.depth / (wooden ? .72 : large ? 1.2 : .6));
+    texture?.repeat.set(room.width / (wooden ? 3.2 : large ? 1.2 : .6), room.depth / (wooden ? 2.4 : large ? 1.2 : .6));
   }, [texture, room.width, room.depth, wooden, large]);
   const polished = large || room.floorName === "Marble white tiles";
   const marble = room.floorName === "Marble white tiles";
