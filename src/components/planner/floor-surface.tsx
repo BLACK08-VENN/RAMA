@@ -46,6 +46,17 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
       }
     }
     if (wooden) {
+      // Fine-scale timber figure and subtle tonal streaks, under the plank joints.
+      for (let line = 0; line < 900; line++) {
+        const y = random() * size;
+        const x = random() * size;
+        context.beginPath();
+        context.moveTo(x, y);
+        context.bezierCurveTo(x + 80, y + random() * 2 - 1, x + 160, y + random() * 3 - 1.5, Math.min(size, x + 250), y);
+        context.strokeStyle = line % 3 ? "rgba(45,31,20,.035)" : "rgba(250,231,197,.065)";
+        context.lineWidth = .35 + random() * .45;
+        context.stroke();
+      }
       const plank = size / 4;
       for (let row = 0; row < 4; row++) {
         const top = row * plank;
@@ -68,6 +79,8 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
       context.lineWidth = large ? 1.2 : 2;
       context.strokeRect(0, 0, size, size);
     }
+    // Surface normal/bump comes from the same stable texture coordinate system,
+    // avoiding seams, independent UV drift or additional network textures.
     const map = new THREE.CanvasTexture(canvas);
     map.generateMipmaps = true;
     map.minFilter = THREE.LinearMipmapLinearFilter;
@@ -88,6 +101,15 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
   const marble = room.floorName === "Marble white tiles";
   return <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
     <planeGeometry args={[room.width, room.depth]} />
-    <meshStandardMaterial key={room.floorName} map={texture} color={texture ? "#ffffff" : room.floorColor} roughness={marble ? .22 : polished ? .29 : tiled ? .43 : wooden ? .53 : .88} metalness={polished ? .025 : 0} envMapIntensity={polished ? 0.85 : wooden ? 0.48 : 0.6} />
+    <meshStandardMaterial
+      key={room.floorName}
+      map={texture}
+      bumpMap={texture}
+      bumpScale={wooden ? .0035 : marble ? .0009 : tiled ? .0017 : 0}
+      color={texture ? "#ffffff" : room.floorColor}
+      roughness={marble ? .26 : polished ? .33 : tiled ? .46 : wooden ? .59 : .88}
+      metalness={polished ? .015 : 0}
+      envMapIntensity={polished ? 0.9 : wooden ? .55 : 0.6}
+    />
   </mesh>;
 }
