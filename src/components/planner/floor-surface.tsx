@@ -76,7 +76,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
       normalMap={maps?.normal ?? null}
       roughnessMap={maps?.roughness ?? null}
       normalScale={new THREE.Vector2(0.45, 0.45)}
-      color={maps ? "#ffffff" : "#c5b8a4"}
+      color={maps?.color ? "#ffffff" : room.floorColor}
       roughness={maps ? 1 : 0.75}
       metalness={0}
     />
