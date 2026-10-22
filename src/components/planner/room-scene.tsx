@@ -780,12 +780,14 @@ export function RoomScene({
       <ContextRecovery onLost={() => setContextLost(true)} />
       <AdaptiveResolution />
       <StudioEnvironment />
-      {/* Softer ambient fill keeps wall corners and floor edges dimensional. */}
-      <ambientLight intensity={0.85} color="#fff9f0" />
+      {/* Lower flat ambient light; broad bounced daylight shapes the room
+          without bleaching wall paint or washing texture out of wood. */}
+      <ambientLight intensity={0.48} color="#f7f5f0" />
+      <hemisphereLight args={["#e5edee", "#b6a69a", 0.55]} />
       <directionalLight
         castShadow
         position={[4, 8, 5]}
-        intensity={2.15}
+        intensity={1.9}
         color="#fff5e7"
         shadow-mapSize={[SHADOW_MAP_SIZE, SHADOW_MAP_SIZE]}
         shadow-camera-left={-shadowExtent}
@@ -798,7 +800,8 @@ export function RoomScene({
         shadow-normalBias={0.02}
         shadow-radius={3}
       />
-      <directionalLight position={[-4, 4, -2]} intensity={0.42} color="#dbe6f0" />
+      <directionalLight position={[-4, 4, -2]} intensity={0.32} color="#dbe6f0" />
+      <directionalLight position={[0.5, 3, -6]} intensity={0.32} color="#f2e6d4" />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} controlsRef={controlsRef} />
       <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={handleDraggingChange} />
       {editMode && (["width", "depth"] as const).flatMap((dimension) =>
