@@ -133,6 +133,43 @@ export function Ceiling({ room }: { room: RoomConfig }) {
   </CutawayWall>;
 }
 
+// A softly defocused exterior beyond the glass restores depth to a window.
+// Kept deliberately low-frequency to avoid obvious game-like illustrated scenery.
+function WindowExterior({ width, height }: { width: number; height: number }) {
+  const texture = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 512; canvas.height = 384;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const sky = ctx.createLinearGradient(0, 0, 0, 384);
+    sky.addColorStop(0, "#c4d2d5");
+    sky.addColorStop(.52, "#e7e8e2");
+    sky.addColorStop(.71, "#b9c5b9");
+    sky.addColorStop(1, "#849685");
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, 512, 384);
+    ctx.filter = "blur(28px)";
+    const forms = [
+      [58, 280, 110, 130, "#7f967a"],
+      [193, 300, 145, 175, "#9eaf99"],
+      [372, 260, 140, 160, "#879e87"],
+      [478, 314, 95, 150, "#718d76"],
+    ] as const;
+    for (const [x,y,rx,ry,col] of forms) {
+      ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+    }
+    ctx.filter = "none";
+    const map = new THREE.CanvasTexture(canvas);
+    map.colorSpace = THREE.SRGBColorSpace;
+    return map;
+  }, []);
+  useEffect(() => () => texture?.dispose(), [texture]);
+  return <mesh position={[0, height / 2, -.10]}>
+    <planeGeometry args={[width * 1.005, height * 1.005]} />
+    <meshBasicMaterial map={texture} color={texture ? "#ffffff" : "#dbe0dc"} side={THREE.DoubleSide} toneMapped={false} />
+  </mesh>;
+}
+
 export function DesignerWindow({ room }: { room: RoomConfig }) {
   const width = Math.min(room.window.width, room.width - .7);
   const height = Math.max(.6, Math.min(room.window.height, room.height - room.window.sillHeight - .15));
@@ -141,6 +178,7 @@ export function DesignerWindow({ room }: { room: RoomConfig }) {
   const radius = Math.min(width / 2, height * .4);
   if (!room.window.enabled) return null;
   return <group position={[room.window.position * (room.width - width), room.window.sillHeight, -room.depth / 2 + .01]}>
+    <WindowExterior width={width} height={height} />
     <mesh><shapeGeometry args={[shape, 48]} /><meshStandardMaterial color="#e6eff0" metalness={.08} roughness={.12} transparent opacity={.18} depthWrite={false} side={THREE.DoubleSide} /></mesh>
     {[-width / 2, width / 2].map(x => <mesh key={x} position={[x, (height - (arched ? radius : 0)) / 2, .025]}><boxGeometry args={[.045, height - (arched ? radius : 0), .07]} /><meshStandardMaterial color="#343d3b" metalness={.5} roughness={.35} /></mesh>)}
     <mesh position={[0, 0, .025]}><boxGeometry args={[width + .09, .05, .08]} /><meshStandardMaterial color="#343d3b" /></mesh>
