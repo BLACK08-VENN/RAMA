@@ -11,11 +11,28 @@ export type DecorSpec = {
   style?: "leafy" | "palm" | "snake" | "trailing" | "succulent" | "fern" | "abstract" | "botanical" | "landscape" | "woven" | "geometric";
   color: string;
 };
+// Representative real photographs for the styling catalogue. These are editorial
+// previews, not verified photographs of FurnitureRama inventory or 3D meshes.
+// Keep the original SVG as a fallback if a photo is unavailable.
+const photo = (id: number) => `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=640`;
+const categoryPhotos: Record<DecorGroup, string[]> = {
+  "Floor plants": [photo(1084199), photo(1005058), photo(3076899), photo(4503751)],
+  "Hanging plants": [photo(11018345), photo(15176015), photo(5607945)],
+  "Table plants": [photo(1084199), photo(1416875), photo(3076899)],
+  "Wall art": [photo(18224769), photo(1579708), photo(1643383), photo(2082087)],
+  "Mirrors": [photo(6186523), photo(5825578), photo(18224769)],
+  "Rugs": [photo(276583), photo(1454806), photo(1643383), photo(1866149)],
+  "Vases": [photo(7000101), photo(5793643), photo(9130691)],
+};
+const photoCounts: Partial<Record<DecorGroup, number>> = {};
 function entry(id: string, name: string, kind: PlannerProduct["kind"], spec: DecorSpec): PlannerProduct {
   const dimensions = kind === "rug"
     ? (spec.shape === "round" ? "Ø " + Math.round(spec.width * 100) + " cm" : Math.round(spec.width * 100) + " × " + Math.round(spec.depth * 100) + " cm")
     : Math.round(spec.width * 100) + " × " + Math.round(spec.height * 100) + " cm";
-  return { id, name, kind, category: "Décor", decorative: true, price: 0, productUrl: "", image: "/decor/" + id + ".svg", dimensions, accent: spec.color, decor: spec };
+  const index = photoCounts[spec.group] ?? 0;
+  photoCounts[spec.group] = index + 1;
+  const images = categoryPhotos[spec.group];
+  return { id, name, kind, category: "Décor", decorative: true, price: 0, productUrl: "", image: images[index % images.length], dimensions, accent: spec.color, decor: spec };
 }
 export const decorProducts: PlannerProduct[] = [
   entry("decor-floor-olive", "Olive green floor plant", "plant", {group:"Floor plants",mount:"floor",width:.65,depth:.65,height:1.5,style:"leafy",color:"#71805a"}),
