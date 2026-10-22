@@ -102,6 +102,21 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
         <meshStandardMaterial color="#f5f3ee" roughness={.7} />
       </mesh>
     </CutawayWall>
+    {/* Shallow ceiling crown moulding creates a real architectural junction.
+        Small profiles give highlights without creating floating decorative bars. */}
+    {[
+      { wall: "back" as const, position: [0, room.height - .045, -room.depth / 2 + .04] as [number,number,number], size: [room.width, .075, .07] as [number,number,number] },
+      { wall: "front" as const, position: [0, room.height - .045, room.depth / 2 - .04] as [number,number,number], size: [room.width, .075, .07] as [number,number,number] },
+      { wall: "left" as const, position: [-room.width / 2 + .04, room.height - .045, 0] as [number,number,number], size: [.07, .075, room.depth] as [number,number,number] },
+      { wall: "right" as const, position: [room.width / 2 - .04, room.height - .045, 0] as [number,number,number], size: [.07, .075, room.depth] as [number,number,number] },
+    ].map(({ wall, position, size }) => (
+      <CutawayWall key={wall} room={room} wall={wall}>
+        <mesh position={position} receiveShadow castShadow>
+          <boxGeometry args={size} />
+          <meshStandardMaterial color="#efede8" roughness={.79} />
+        </mesh>
+      </CutawayWall>
+    ))}
     <CutawayWall room={room} wall="left"><mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><shapeGeometry args={[left]} /><WallPaintMaterial color={room.wallColor} /></mesh></CutawayWall>
     <CutawayWall room={room} wall="right"><mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><WallPaintMaterial color={room.wallColor} /></mesh></CutawayWall>
     <CutawayWall room={room} wall="front"><mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><WallPaintMaterial color={room.wallColor} /></mesh></CutawayWall>
