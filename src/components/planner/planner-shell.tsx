@@ -45,6 +45,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CameraView } from "./room-scene";
 import { formatKes, products, type ProductCategory } from "@/data/products";
+import { ProductCardImage } from "./product-card-image";
 import { getRoomArea, matchRoomPreset, roomPresets } from "@/data/room-presets";
 import {
   decodeSharedDesign,
@@ -644,7 +645,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                   <article className={`product-card ${product.decorative ? "" : "coming-soon-card"}`} key={product.id}>
                     {!product.decorative && <button className="coming-soon-trigger" onClick={() => addProduct(product.id)} aria-label={`${product.name} — coming soon`} />}
                     <div className="product-image-wrap">
-                      <Image src={product.image} unoptimized={product.decorative && product.image.startsWith("https://")} width={500} height={500} sizes="(max-width: 640px) 42vw, 160px" alt={`${product.name} — representative styling photograph`} className="product-image" />
+                      <ProductCardImage src={product.image} fallback={product.decorative ? `/decor/${product.id}.svg` : product.image} alt={product.name} />
                       {product.decorative && <button type="button" className="decor-image-add" onClick={() => addProduct(product.id)} aria-label={`Add ${product.name} to room`} />}
                       <button className="favorite-button" tabIndex={product.decorative ? 0 : -1} aria-label={`Save ${product.name}`}><Heart size={17} /></button>
                       <span className="model-ready">{product.decor ? product.decor.mount === "wall" ? "WALL" : product.decor.mount === "ceiling" ? "HANGING" : "3D DÉCOR" : "COMING SOON"}</span>
