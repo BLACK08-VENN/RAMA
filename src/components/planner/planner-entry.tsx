@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { FeaturedOffers } from "./featured-offers";
+import { TroubleshootingFooter } from "./troubleshooting-footer";
 import "./editorial-home.css";
 
 const Planner = dynamic(() => import("./planner-shell").then(module => module.PlannerShell), {
@@ -52,5 +53,6 @@ export function PlannerEntry() {
         <li><span><strong>Save your creation</strong><small>Come back to your ideas later</small></span></li>
       </ol>
     </div>
+    <TroubleshootingFooter />
   </main>;
 }
