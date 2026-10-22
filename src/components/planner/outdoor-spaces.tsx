@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { getOutdoorMetrics, type RoomConfig } from "@/stores/planner-store";
 
@@ -9,28 +9,6 @@ export function OutdoorSpaces({ room }: { room: RoomConfig }) {
   const grassWidth = room.spaceType === "garden" ? room.width : room.yard?.width;
   const grassDepth = room.spaceType === "garden" ? room.depth : room.yard?.depth;
   const grassEnabled = room.spaceType === "garden" || Boolean(room.yard?.enabled);
-  const [pbr, setPbr] = useState<{ color: THREE.Texture; normal: THREE.Texture; roughness: THREE.Texture } | null>(null);
-  useEffect(() => {
-    if (!grassEnabled) return;
-    let active = true;
-    const loader = new THREE.TextureLoader();
-    const root = "/materials/ambientcg/Grass004/";
-    Promise.all(["Color", "NormalGL", "Roughness"].map(kind => loader.loadAsync(root + kind + ".jpg")))
-      .then(([color, normal, roughness]) => {
-        if (!active) { color.dispose(); normal.dispose(); roughness.dispose(); return; }
-        color.colorSpace = THREE.SRGBColorSpace;
-        for (const map of [color, normal, roughness]) {
-          map.wrapS = map.wrapT = THREE.RepeatWrapping;
-          map.minFilter = THREE.LinearMipmapLinearFilter;
-          map.anisotropy = 8;
-        }
-        setPbr({ color, normal, roughness });
-      }).catch(() => { if (active) setPbr(null); });
-    return () => { active = false; };
-  }, [grassEnabled]);
-  useEffect(() => () => {
-    pbr?.color.dispose(); pbr?.normal.dispose(); pbr?.roughness.dispose();
-  }, [pbr]);
   const grass = useMemo(() => {
     if (!grassEnabled || typeof document === "undefined") return null;
     const canvas = document.createElement("canvas"); canvas.width = canvas.height = 256;
@@ -43,13 +21,7 @@ export function OutdoorSpaces({ room }: { room: RoomConfig }) {
     map.anisotropy = 2; return map;
   }, [grassEnabled]);
   useEffect(() => () => { grass?.dispose(); }, [grass]);
-  useEffect(() => {
-    grass?.repeat.set(grassWidth ?? 1, grassDepth ?? 1);
-    if (pbr) for (const map of [pbr.color, pbr.normal, pbr.roughness]) {
-      map.repeat.set((grassWidth ?? 1) / 1.8, (grassDepth ?? 1) / 1.8);
-      map.needsUpdate = true;
-    }
-  }, [grass, pbr, grassWidth, grassDepth]);
+  useEffect(() => { grass?.repeat.set(grassWidth ?? 1, grassDepth ?? 1); }, [grass, grassWidth, grassDepth]);
   const { balconyDepth } = getOutdoorMetrics(room);
   const deck = room.spaceType === "balcony" ? { enabled: true, width: room.width, depth: room.depth } : room.balcony, yard = room.spaceType === "garden" ? { enabled: true, width: room.width, depth: room.depth } : room.yard;
   return <group>
@@ -63,7 +35,7 @@ export function OutdoorSpaces({ room }: { room: RoomConfig }) {
       </group>)}
     </group>}
     {yard?.enabled && <group position={[0, 0, standalone ? 0 : room.depth / 2 + balconyDepth + yard.depth / 2]}>
-      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[yard.width, yard.depth]} /><meshStandardMaterial color={(pbr || grass) ? "#ffffff" : "#749455"} map={pbr?.color ?? grass} normalMap={pbr?.normal ?? null} normalScale={new THREE.Vector2(.5,.5)} roughnessMap={pbr?.roughness ?? null} roughness={1} /></mesh>
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[yard.width, yard.depth]} /><meshStandardMaterial color={grass ? "#ffffff" : "#749455"} map={grass} roughness={1} /></mesh>
       <mesh position={[0, -.12, 0]}><boxGeometry args={[yard.width, .2, yard.depth]} /><meshStandardMaterial color="#796b50" roughness={1} /></mesh>
       {[-1, 1].map(side => <mesh key={side} position={[side * yard.width / 2, -.025, 0]}><boxGeometry args={[.07, .08, yard.depth]} /><meshStandardMaterial color="#d0c6b1" roughness={.9} /></mesh>)}
       <mesh position={[0, -.025, yard.depth / 2]}><boxGeometry args={[yard.width, .08, .07]} /><meshStandardMaterial color="#d0c6b1" roughness={.9} /></mesh>
