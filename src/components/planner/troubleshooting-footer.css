@@ -1,0 +1,33 @@
+/* Lightweight support footer at the bottom of Rama's homepage. */
+.rama-editorial .rama-support { margin-top: 18px; color: #f6f5f2; }
+.rama-editorial .rama-support-details { border: 1px solid rgba(255,255,255,.16); border-radius: 24px; background: #25272b; overflow: hidden; }
+.rama-editorial .rama-support-details > summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: clamp(18px,2.5vw,30px); cursor: pointer; list-style: none; }
+.rama-editorial .rama-support-details > summary::-webkit-details-marker { display: none; }
+.rama-editorial .rama-support-title { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: clamp(15px,1.4vw,20px); }
+.rama-editorial .rama-support-summary { display: inline-flex; align-items: center; gap: 12px; color: #c3c8c7; font-size: 13px; }
+.rama-editorial .rama-support-summary svg { transition: transform .2s ease; }
+.rama-editorial .rama-support-details[open] .rama-support-summary svg { transform: rotate(180deg); }
+.rama-editorial .rama-support-body { border-top: 1px solid rgba(255,255,255,.12); padding: clamp(18px,2.5vw,30px); }
+.rama-editorial .rama-support-intro { color: #c9d1cf; font-size: 14px; line-height: 1.6; margin: 0 0 20px; }
+.rama-editorial .rama-support-tips { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.rama-editorial .rama-support-tips article { background: #323539; border: 1px solid rgba(255,255,255,.08); border-radius: 16px; padding: 17px; }
+.rama-editorial .rama-support-tips h3 { font-size: 15px; margin: 0 0 9px; }
+.rama-editorial .rama-support-tips p { color: #d1d6d4; font-size: 13px; line-height: 1.65; margin: 0; }
+.rama-editorial .rama-support-tools { margin-top: 20px; }
+.rama-editorial .rama-support-tool-title { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.rama-editorial .rama-support-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 13px; }
+.rama-editorial .rama-support-actions button { border-radius: 99px; background: #f2f1ed; color: #1e2929; padding: 11px 17px; min-height: 44px; font-weight: 650; border: 0; display: inline-flex; gap: 8px; align-items: center; justify-content: center; cursor: pointer; }
+.rama-editorial .rama-support-actions button:disabled { opacity: .55; cursor: not-allowed; }
+.rama-editorial .rama-support-results { background: #1d2023; border-radius: 12px; padding: 15px; display: flex; flex-wrap: wrap; gap: 9px 25px; margin-top: 15px; }
+.rama-editorial .rama-support-results p { font-size: 12px; margin: 0; color: #e4e7e6; }
+.rama-editorial .rama-support-results strong { text-transform: capitalize; }
+.rama-editorial .rama-support-feedback { font-size: 13px; color: #fff; margin: 12px 0; }
+.rama-editorial .rama-support-note { display: flex; align-items: center; gap: 7px; color: #c2ceca; font-size: 12px; margin-top: 17px; }
+@media (max-width: 760px) {
+  .rama-editorial .rama-support-tips { grid-template-columns: 1fr; }
+  .rama-editorial .rama-support-summary { font-size: 12px; }
+  .rama-editorial .rama-support-details > summary { align-items: flex-start; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .rama-editorial .rama-support-summary svg { transition: none; }
+}
