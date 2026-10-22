@@ -92,15 +92,10 @@ const placementSpots: Array<[number, number, number]> = [
 const wallColors = ["#f3f0e9", "#e4ded2", "#cbdcdc", "#b7b2a8"];
 
 const floorFinishes = [
-  { name: "Natural oak", color: "#d8b78e" },
-  { name: "Light ash", color: "#c8b79f" },
-  { name: "Warm walnut", color: "#8d6746" },
-  { name: "Large ivory porcelain tiles", color: "#ece7dd" },
-  { name: "Large greige porcelain tiles", color: "#ccc5b9" },
-  { name: "Ivory porcelain tiles", color: "#e6e0d5" },
-  { name: "Marble white tiles", color: "#f1f0eb" },
-  { name: "Charcoal slate tiles", color: "#525653" },
-  { name: "Sand terrazzo tiles", color: "#d9cbbb" },
+  { name: "Natural oak", color: "#d8b78e", label: "WoodFloor051" },
+  { name: "Light ash", color: "#c8b79f", label: "WoodFloor070" },
+  { name: "Warm walnut", color: "#8d6746", label: "WoodFloor052" },
+  { name: "Charcoal slate tiles", color: "#525653", label: "Tiles140" },
 ];
 
 export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
@@ -810,7 +805,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                         onClick={() => updateRoom({ floorName: finish.name, floorColor: finish.color })}
                       >
                         <i style={{ background: finish.color }} />
-                        <span>{finish.name}</span>
+                        <span>{finish.label}</span>
                       </button>
                     ))}
                   </div>
