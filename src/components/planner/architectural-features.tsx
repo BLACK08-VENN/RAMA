@@ -98,6 +98,23 @@ function WallPaintMaterial({ color, finish = "paint", span = 4, height = 3 }: { 
   />;
 }
 
+// ShapeGeometry (walls with openings) uses metre-based UVs, unlike PlaneGeometry.
+// Normalise both so the same brick texture appears consistently on all four walls.
+function WallOpeningGeometry({ shape, span, height }: { shape: THREE.Shape; span: number; height: number }) {
+  const geometry = useMemo(() => {
+    const mesh = new THREE.ShapeGeometry(shape, 48);
+    const position = mesh.getAttribute("position");
+    const uv = mesh.getAttribute("uv");
+    for (let i = 0; i < position.count; i++) {
+      uv.setXY(i, position.getX(i) / span + 0.5, position.getY(i) / height);
+    }
+    uv.needsUpdate = true;
+    return mesh;
+  }, [shape, span, height]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return <primitive object={geometry} attach="geometry" />;
+}
+
 export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
   const back = useMemo(() => {
     const shape = new THREE.Shape();
@@ -122,7 +139,7 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
   }, [room.depth, room.height, room.door]);
   return <group>
     <CutawayWall room={room} wall="back">
-      <mesh receiveShadow position={[0, 0, -room.depth / 2]}><shapeGeometry args={[back, 48]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.width} height={room.height} /></mesh>
+      <mesh receiveShadow position={[0, 0, -room.depth / 2]}><WallOpeningGeometry shape={back} span={room.width} height={room.height} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.width} height={room.height} /></mesh>
       <mesh position={[0, .045, -room.depth / 2 + .04]}><boxGeometry args={[room.width, .09, .05]} /><meshStandardMaterial color="#f8f5ef" /></mesh>
     </CutawayWall>
     {/* Thin painted skirting gives walls a believable floor junction without changing openings. */}
@@ -159,7 +176,7 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
         </mesh>
       </CutawayWall>
     ))}
-    <CutawayWall room={room} wall="left"><mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><shapeGeometry args={[left]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.depth} height={room.height} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="left"><mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><WallOpeningGeometry shape={left} span={room.depth} height={room.height} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.depth} height={room.height} /></mesh></CutawayWall>
     <CutawayWall room={room} wall="right"><mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.depth} height={room.height} /></mesh></CutawayWall>
     <CutawayWall room={room} wall="front"><mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.width} height={room.height} /></mesh></CutawayWall>
   </group>;
