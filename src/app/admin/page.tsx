@@ -54,7 +54,7 @@ export default function RamaAdminPage() {
     requestAnimationFrame(measure);
   };
   if (loading) return <main className="rama-admin"><p>Checking access…</p></main>;
-  if (!isConfigured) return <main className="rama-admin"><h1>Rama administration</h1><p>Authentication is not configured for this deployment. Administrator access is unavailable.</p><Link href="/">Back to Rama</Link></main>;
+  if (!isConfigured) return <main className="rama-admin"><h1>Rama administration</h1><p>Authentication is not configured for this deployment. Administrator access is unavailable.</p><Link href="/admin/troubleshooting">Open troubleshooting</Link> · <Link href="/">Back to Rama</Link></main>;
   if (!user || !authorized) return <main className="rama-admin"><h1>Administrator access required</h1><p>This workspace is restricted to accounts authorized through secure administrator account metadata. Signing in as a regular user does not grant access.</p><Link href="/">Back to Rama</Link></main>;
   return <main className="rama-admin">
     <header className="rama-admin-head"><div><span>FurnitureRama / Operations</span><h1>Admin workspace</h1><p>Model review and quick performance troubleshooting</p></div><Link href="/">← Return to studio</Link></header>
