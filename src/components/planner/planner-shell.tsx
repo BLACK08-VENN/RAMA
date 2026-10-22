@@ -818,8 +818,9 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 <div className="finish-section">
                   <span>Wall colour</span>
                   <div className="swatches">
-                    {wallColors.map(color => (
-                      <button key={color} type="button"
+                    {wallColors.map((color) => (
+                      <button
+                        key={color}
                         className={design.room.wallColor === color ? "selected" : ""}
                         style={{ background: color }}
                         onClick={() => updateRoom({ wallColor: color })}
