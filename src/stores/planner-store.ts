@@ -36,7 +36,7 @@ export type RoomConfig = {
   depth: number;
   height: number;
   wallColor: string;
-  wallFinish?: "paint" | "Porcelain001" | "Marble025" | "Porcelain002";
+  wallFinish?: "paint" | "Porcelain001" | "Marble025" | "Porcelain002" | "plastered_wall_05" | "beige_wall_001" | "white_stucco";
   floorColor: string;
   floorName: string;
   door: DoorConfig;
