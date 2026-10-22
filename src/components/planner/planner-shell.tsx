@@ -816,6 +816,19 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                   </div>
                 </div>
                 <div className="finish-section">
+                  <span>Wall finish</span>
+                  <div className="floor-options">
+                    <button type="button"
+                      className={!design.room.wallFinish || design.room.wallFinish === "paint" ? "selected" : ""}
+                      aria-pressed={!design.room.wallFinish || design.room.wallFinish === "paint"}
+                      onClick={() => updateRoom({ wallFinish: "paint" })}>Painted wall</button>
+                    <button type="button"
+                      className={design.room.wallFinish === "Bricks025" ? "selected" : ""}
+                      aria-pressed={design.room.wallFinish === "Bricks025"}
+                      onClick={() => updateRoom({ wallFinish: "Bricks025" })}>Real brick · Bricks025</button>
+                  </div>
+                </div>
+                <div className="finish-section">
                   <span>Wall colour</span>
                   <div className="swatches">
                     {wallColors.map((color) => (
