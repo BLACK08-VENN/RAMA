@@ -765,11 +765,8 @@ export function RoomScene({
     <Canvas
       key={sceneGeneration}
       frameloop="demand"
-      // "percentage" is PCFShadowMap. Both the bare boolean and "soft" resolve to
-      // PCFSoftShadowMap, which three deprecated in r186, so the renderer silently
-      // downgraded them. PCF still honours shadow-radius, which is where the softness
-      // on these shadows actually comes from.
-      shadows="percentage"
+      // Disable cast shadows for a brighter, cleaner room presentation.
+      shadows={false}
       dpr={[MIN_PIXEL_RATIO, MAX_PIXEL_RATIO]}
       camera={{ position: initialCameraPosition, fov: 42 }}
       onPointerMissed={() => onSelect(null)}
@@ -785,7 +782,6 @@ export function RoomScene({
       <ambientLight intensity={0.48} color="#f7f5f0" />
       <hemisphereLight args={["#e5edee", "#b6a69a", 0.55]} />
       <directionalLight
-        castShadow
         position={[4, 8, 5]}
         intensity={1.9}
         color="#fff5e7"
