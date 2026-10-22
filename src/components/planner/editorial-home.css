@@ -26,3 +26,13 @@
 @media(max-width:900px){.rama-editorial .rama-nav-links{gap:12px;padding:12px 16px}.rama-editorial .rama-nav-links a,.rama-editorial .rama-nav-links button{font-size:12px}}
 @media(max-width:700px){.welcome-screen.rama-editorial{padding:10px}.rama-editorial .rama-hero{height:min(780px,calc(100dvh - 20px));min-height:580px;border-radius:26px}.rama-editorial .rama-navigation{padding:22px 19px;gap:8px;flex-wrap:wrap}.rama-editorial .rama-logo-wrap{padding:6px 9px}.rama-editorial .rama-logo-wrap img{width:135px}.rama-editorial .rama-nav-links{order:3;width:100%;justify-content:center;gap:18px;overflow:auto;padding:11px 12px}.rama-editorial .rama-nav-action{padding:11px 14px;font-size:12px}.rama-editorial .rama-hero-title{font-size:clamp(48px,12vw,82px)}.rama-editorial .rama-hero-subtitle{margin-top:22px}.rama-editorial .rama-hero-footer{padding:20px;align-items:flex-start;flex-direction:column;gap:20px}.rama-editorial .rama-below{padding:18px 14px}.rama-editorial .rama-below .welcome-steps{grid-template-columns:1fr;gap:15px}}
 @media(prefers-reduced-motion:reduce){.rama-editorial *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+/* Keep the offer marquee full-bleed within the editorial section.
+   The legacy featured-offers max-width constrained it to a narrow column. */
+.rama-editorial .rama-below .featured-offers { width:100%; max-width:none; min-width:0; }
+.rama-editorial .rama-below .offers-viewport { display:block; width:100%; max-width:none; overflow:hidden; }
+.rama-editorial .rama-below .offers-track { display:flex; width:max-content; min-width:100%; }
+.rama-editorial .rama-below .offers-group { flex:0 0 auto; }
+@media(prefers-reduced-motion:reduce) {
+  .rama-editorial .rama-below .offers-viewport { overflow-x:auto; }
+}
