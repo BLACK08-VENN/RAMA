@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { ReactNode } from "react";
 import * as THREE from "three";
@@ -29,7 +29,9 @@ function openingShape(width: number, height: number, arched: boolean) {
 }
 
 /** Fine-grain paint/plaster relief; a shared tiny tile rather than a flat solid wall. */
-function WallPaintMaterial({ color }: { color: string }) {
+type WallMaps = { color: THREE.Texture; normal: THREE.Texture; roughness: THREE.Texture };
+function WallPaintMaterial({ color, finish = "paint", span = 4, height = 3 }: { color: string; finish?: RoomConfig["wallFinish"]; span?: number; height?: number }) {
+  const [loaded, setLoaded] = useState<{ finish: string; maps: WallMaps } | null>(null);
   const texture = useMemo(() => {
     if (typeof document === "undefined") return null;
     const canvas = document.createElement("canvas");
@@ -53,7 +55,47 @@ function WallPaintMaterial({ color }: { color: string }) {
     return map;
   }, []);
   useEffect(() => () => texture?.dispose(), [texture]);
-  return <meshStandardMaterial color={color} bumpMap={texture} bumpScale={0.009} roughness={0.93} metalness={0} side={THREE.DoubleSide} />;
+  useEffect(() => {
+    if (!finish || finish === "paint") return;
+    let active = true;
+    const loader = new THREE.TextureLoader();
+    const root = `/materials/ambientcg/${finish}/`;
+    Promise.all(["Color", "NormalGL", "Roughness"].map(kind => loader.loadAsync(root + kind + ".jpg")))
+      .then(([albedo, normal, roughness]) => {
+        if (!active) {albedo.dispose();normal.dispose();roughness.dispose();return;}
+        albedo.colorSpace = THREE.SRGBColorSpace;
+        [albedo, normal, roughness].forEach(map => {
+          map.wrapS = map.wrapT = THREE.RepeatWrapping;
+          map.minFilter = THREE.LinearMipmapLinearFilter;
+          map.anisotropy = 8;
+        });
+        setLoaded({finish, maps:{color:albedo,normal,roughness}});
+      }).catch(() => { if(active)setLoaded(null); });
+    return () => { active = false; };
+  }, [finish]);
+  useEffect(() => () => {
+    loaded?.maps.color.dispose();
+    loaded?.maps.normal.dispose();
+    loaded?.maps.roughness.dispose();
+  }, [loaded]);
+  const maps = loaded?.finish === finish ? loaded.maps : null;
+  // Consistent metre-based UV scale on each architectural wall.
+  if (maps) for (const map of [maps.color, maps.normal, maps.roughness]) {
+    map.repeat.set(span / 1.5, height / 1.5);
+    map.needsUpdate = true;
+  }
+  return <meshStandardMaterial
+    color={maps ? "#ffffff" : color}
+    map={maps?.color ?? null}
+    normalMap={maps?.normal ?? null}
+    normalScale={new THREE.Vector2(.42,.42)}
+    roughnessMap={maps?.roughness ?? null}
+    roughness={maps ? 1 : .93}
+    bumpMap={maps ? null : texture}
+    bumpScale={maps ? 0 : .009}
+    metalness={0}
+    side={THREE.DoubleSide}
+  />;
 }
 
 export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
@@ -80,7 +122,7 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
   }, [room.depth, room.height, room.door]);
   return <group>
     <CutawayWall room={room} wall="back">
-      <mesh receiveShadow position={[0, 0, -room.depth / 2]}><shapeGeometry args={[back, 48]} /><WallPaintMaterial color={room.wallColor} /></mesh>
+      <mesh receiveShadow position={[0, 0, -room.depth / 2]}><shapeGeometry args={[back, 48]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.width} height={room.height} /></mesh>
       <mesh position={[0, .045, -room.depth / 2 + .04]}><boxGeometry args={[room.width, .09, .05]} /><meshStandardMaterial color="#f8f5ef" /></mesh>
     </CutawayWall>
     {/* Thin painted skirting gives walls a believable floor junction without changing openings. */}
@@ -117,9 +159,9 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
         </mesh>
       </CutawayWall>
     ))}
-    <CutawayWall room={room} wall="left"><mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><shapeGeometry args={[left]} /><WallPaintMaterial color={room.wallColor} /></mesh></CutawayWall>
-    <CutawayWall room={room} wall="right"><mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><WallPaintMaterial color={room.wallColor} /></mesh></CutawayWall>
-    <CutawayWall room={room} wall="front"><mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><WallPaintMaterial color={room.wallColor} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="left"><mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><shapeGeometry args={[left]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.depth} height={room.height} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="right"><mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.depth} height={room.height} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="front"><mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.width} height={room.height} /></mesh></CutawayWall>
   </group>;
 }
 
