@@ -540,7 +540,7 @@ function StyledRoom({ room, editMode, onStorageMove, onDraggingChange }: { room:
   if (room.spaceType === "balcony" || room.spaceType === "garden") return <OutdoorSpaces room={room} />;
   return (
     <group>
-      <FloorSurface room={room} />
+      <FloorSurface key={room.floorName} room={room} />
       <OutdoorSpaces room={room} />
       <ArchitecturalWalls room={room} />
       <Ceiling room={room} />
