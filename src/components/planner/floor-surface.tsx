@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import * as THREE from "three";
+import { useThree } from "@react-three/fiber";
 import type { RoomConfig } from "@/stores/planner-store";
 
 // The only permitted indoor floor materials. Legacy saved floor names fall
@@ -16,32 +17,45 @@ type Maps = { color: THREE.Texture; normal: THREE.Texture; roughness: THREE.Text
 
 export function FloorSurface({ room }: { room: RoomConfig }) {
   const id = materialForName[room.floorName] ?? "WoodFloor051";
-  const [loaded, setLoaded] = useState<{ id: string; maps: Maps } | null>(null);
+  const [loaded, setLoaded] = useState<{ id: string; maps: Partial<Maps> } | null>(null);
+  const invalidate = useThree(state => state.invalidate);
 
   useEffect(() => {
     let active = true;
     const loader = new THREE.TextureLoader();
     const root = `/materials/ambientcg/${id}/`;
-    Promise.all(["Color", "NormalGL", "Roughness"].map(name => loader.loadAsync(root + name + ".jpg")))
-      .then(([color, normal, roughness]) => {
-        if (!active) { color.dispose(); normal.dispose(); roughness.dispose(); return; }
+    // Load the visible colour texture first. A missing optional PBR map must
+    // never prevent a chosen floor from appearing.
+    loader.loadAsync(root + "Color.jpg")
+      .then(async color => {
+        if (!active) { color.dispose(); return; }
         color.colorSpace = THREE.SRGBColorSpace;
-        [color, normal, roughness].forEach(map => {
+        color.wrapS = color.wrapT = THREE.RepeatWrapping;
+        color.minFilter = THREE.LinearMipmapLinearFilter;
+        color.anisotropy = 8;
+        setLoaded({ id, maps: { color } });
+        invalidate();
+        const optional = await Promise.all(
+          ["NormalGL", "Roughness"].map(name => loader.loadAsync(root + name + ".jpg").catch(() => null))
+        );
+        const [normal, roughness] = optional;
+        if (!active) { normal?.dispose(); roughness?.dispose(); return; }
+        [normal, roughness].forEach(map => {
+          if (!map) return;
           map.wrapS = map.wrapT = THREE.RepeatWrapping;
           map.minFilter = THREE.LinearMipmapLinearFilter;
-          map.magFilter = THREE.LinearFilter;
           map.anisotropy = 8;
         });
-        setLoaded({ id, maps: { color, normal, roughness } });
+        setLoaded({ id, maps: { color, normal: normal ?? undefined, roughness: roughness ?? undefined } });
+        invalidate();
       })
-      .catch(() => { if (active) setLoaded(null); });
+      .catch(error => console.warn("Floor colour image not available", id, error));
     return () => { active = false; };
   }, [id]);
 
   useEffect(() => () => {
-    loaded?.maps.color.dispose();
-    loaded?.maps.normal.dispose();
-    loaded?.maps.roughness.dispose();
+    // TextureLoader resources may be reused between the two stages; do not
+    // dispose a map still referenced by the active material.
   }, [loaded]);
 
   const maps = loaded?.id === id ? loaded.maps : null;
@@ -49,6 +63,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
   useEffect(() => {
     if (!maps) return;
     for (const map of [maps.color, maps.normal, maps.roughness]) {
+      if (!map) continue;
       map.repeat.set(room.width / textureSize, room.depth / textureSize);
       map.needsUpdate = true;
     }
