@@ -96,6 +96,7 @@ const floorFinishes = [
   { name: "Light ash", color: "#c8b79f", label: "WoodFloor070" },
   { name: "Warm walnut", color: "#8d6746", label: "WoodFloor052" },
   { name: "Charcoal slate tiles", color: "#525653", label: "Tiles140" },
+  { name: "Black onyx", color: "#292a2c", label: "Onyx010" },
 ];
 
 export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
