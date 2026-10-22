@@ -1,11 +1,43 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { RoomConfig } from "@/stores/planner-store";
 
+type PbrMaps = { color: THREE.Texture; normal: THREE.Texture; roughness: THREE.Texture };
+const MATERIAL_BY_FINISH: Record<string,string> = {
+  "Natural oak": "WoodFloor051",
+  "Light ash": "WoodFloor070",
+  "Warm walnut": "WoodFloor052",
+  "Charcoal slate tiles": "Tiles140",
+};
 export function FloorSurface({ room }: { room: RoomConfig }) {
+  const materialId = MATERIAL_BY_FINISH[room.floorName];
+  const [loaded, setLoaded] = useState<{ id: string; maps: PbrMaps } | null>(null);
+  useEffect(() => {
+    if (!materialId) return;
+    let active = true;
+    const loader = new THREE.TextureLoader();
+    const root = `/materials/ambientcg/${materialId}/`;
+    Promise.all(["Color","NormalGL","Roughness"].map(name => loader.loadAsync(root + name + ".jpg")))
+      .then(([color, normal, roughness]) => {
+        if (!active) { color.dispose();normal.dispose();roughness.dispose();return; }
+        color.colorSpace = THREE.SRGBColorSpace;
+        for (const map of [color, normal, roughness]) {
+          map.wrapS = map.wrapT = THREE.RepeatWrapping;
+          map.minFilter = THREE.LinearMipmapLinearFilter;
+          map.magFilter = THREE.LinearFilter;
+          map.anisotropy = 8;
+        }
+        setLoaded({id:materialId,maps:{color,normal,roughness}});
+      }).catch(() => { if(active)setLoaded(null); });
+    return () => { active=false; };
+  }, [materialId]);
+  useEffect(() => () => {
+    loaded?.maps.color.dispose(); loaded?.maps.normal.dispose(); loaded?.maps.roughness.dispose();
+  }, [loaded]);
+
   const maxAnisotropy = useThree(state => state.gl.capabilities.getMaxAnisotropy());
   const tiled = room.floorName.endsWith(" tiles") || room.floorName === "Marble white tiles";
   const wooden = ["Natural oak", "Light ash", "Warm walnut"].includes(room.floorName);
@@ -110,17 +142,27 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
   useEffect(() => {
     texture?.repeat.set(room.width / (wooden ? 3.2 : large ? 1.2 : .6), room.depth / (wooden ? 2.4 : large ? 1.2 : .6));
   }, [texture, room.width, room.depth, wooden, large]);
+  const maps = loaded?.id === materialId ? loaded.maps : null;
+  // Real-world texture metres: measured source for Tiles140 is approximately 2m.
+  const metres = materialId === "Tiles140" ? 2 : 2.5;
+  if (maps) for (const t of [maps.color,maps.normal,maps.roughness]) {
+    t.repeat.set(room.width / metres, room.depth / metres);
+    t.needsUpdate = true;
+  }
   const polished = large || room.floorName === "Marble white tiles";
   const marble = room.floorName === "Marble white tiles";
   return <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
     <planeGeometry args={[room.width, room.depth]} />
     <meshStandardMaterial
       key={room.floorName}
-      map={texture}
-      bumpMap={texture}
-      bumpScale={wooden ? .0035 : marble ? .0009 : tiled ? .0017 : 0}
-      color={texture ? "#ffffff" : room.floorColor}
-      roughness={marble ? .26 : polished ? .33 : tiled ? .46 : wooden ? .59 : .88}
+      normalMap={maps?.normal ?? null}
+      roughnessMap={maps?.roughness ?? null}
+      normalScale={new THREE.Vector2(.55,.55)}
+      map={maps?.color ?? texture}
+      bumpMap={maps ? null : texture}
+      bumpScale={maps ? 0 : wooden ? .0035 : marble ? .0009 : tiled ? .0017 : 0}
+      color={(maps || texture) ? "#ffffff" : room.floorColor}
+      roughness={maps ? 1 : marble ? .26 : polished ? .33 : tiled ? .46 : wooden ? .59 : .88}
       metalness={polished ? .015 : 0}
       envMapIntensity={polished ? 0.9 : wooden ? .55 : 0.6}
     />
