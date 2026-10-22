@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import type { ReactNode } from "react";
 import * as THREE from "three";
 import type { RoomConfig } from "@/stores/planner-store";
@@ -32,6 +32,7 @@ function openingShape(width: number, height: number, arched: boolean) {
 type WallMaps = { color: THREE.Texture; normal: THREE.Texture; roughness: THREE.Texture };
 function WallPaintMaterial({ color, finish = "paint", span = 4, height = 3 }: { color: string; finish?: RoomConfig["wallFinish"]; span?: number; height?: number }) {
   const [loaded, setLoaded] = useState<{ finish: string; maps: WallMaps } | null>(null);
+  const invalidate = useThree(state => state.invalidate);
   const texture = useMemo(() => {
     if (typeof document === "undefined") return null;
     const canvas = document.createElement("canvas");
@@ -70,9 +71,10 @@ function WallPaintMaterial({ color, finish = "paint", span = 4, height = 3 }: { 
           map.anisotropy = 8;
         });
         setLoaded({finish, maps:{color:albedo,normal,roughness}});
-      }).catch(() => { if(active)setLoaded(null); });
+        invalidate();
+      }).catch(() => { if(active){ setLoaded(null); invalidate(); } });
     return () => { active = false; };
-  }, [finish]);
+  }, [finish, invalidate]);
   useEffect(() => () => {
     loaded?.maps.color.dispose();
     loaded?.maps.normal.dispose();
@@ -85,6 +87,7 @@ function WallPaintMaterial({ color, finish = "paint", span = 4, height = 3 }: { 
     map.needsUpdate = true;
   }
   return <meshStandardMaterial
+    key={`${finish}-${maps ? "pbr" : "fallback"}`}
     color={maps ? "#ffffff" : color}
     map={maps?.color ?? null}
     normalMap={maps?.normal ?? null}
