@@ -11,17 +11,17 @@ export type DecorSpec = {
   style?: "leafy" | "palm" | "snake" | "trailing" | "succulent" | "fern" | "abstract" | "botanical" | "landscape" | "woven" | "geometric";
   color: string;
 };
-// Photographic category previews sourced from verified, publicly listed Pexels
-// image pages. They are styling references, NOT photographs of Rama inventory.
-// Use stable image IDs instead of fabricated links.
-const photo = (id: number) => `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=640`;
+// Verified photographic reference images. Served through Rama's cached image
+// endpoint so the designer does not depend on cross-site browser image loading.
+// Photos are editorial references, NOT photos of actual FurnitureRama inventory.
+const photo = (id: number) => `/api/decor-photo/${id}`;
 const categoryPhotos: Record<DecorGroup, string[]> = {
-  "Floor plants": [photo(12897987), photo(12897981), photo(12897987), photo(12897981)],
-  "Hanging plants": [photo(11018345)],
-  "Table plants": [photo(12897981), photo(12897987)],
-  "Wall art": [photo(3705846), photo(1488378), photo(1249532), photo(7245073), photo(3705846)],
-  "Mirrors": [photo(6186523), photo(20604665), photo(12987345), photo(7739817), photo(7614528)],
-  "Rugs": [photo(19367517), photo(5551824), photo(16501695), photo(6487966), photo(10168692), photo(6129394)],
+  "Floor plants": [photo(12454083), photo(33771655), photo(6186516), photo(33771655)],
+  "Hanging plants": [photo(11018345), photo(15176015), photo(20337867)],
+  "Table plants": [photo(5579163), photo(11216397), photo(7318095)],
+  "Wall art": [photo(3705846), photo(1488378), photo(7245073), photo(3705846), photo(1488378)],
+  "Mirrors": [photo(6186523), photo(33678501), photo(4915847), photo(6186516)],
+  "Rugs": [photo(6129394), photo(19367517), photo(5551824), photo(6129394), photo(6487966)],
   "Vases": [photo(8767273), photo(10995881)],
 };
 const photoCounts: Partial<Record<DecorGroup, number>> = {};
