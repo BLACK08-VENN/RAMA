@@ -89,6 +89,8 @@ const placementSpots: Array<[number, number, number]> = [
   [3.3, 0, -1.5],
 ];
 
+const wallColors = ["#f3f0e9", "#e4ded2", "#cbdcdc", "#b7b2a8"];
+
 const floorFinishes = [
   { name: "Natural oak", color: "#d8b78e" },
   { name: "Light ash", color: "#c8b79f" },
@@ -814,29 +816,18 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                   </div>
                 </div>
                 <div className="finish-section">
-                  <span>Wall material</span>
-                  <div className="floor-options">
-                    {([
-                      { id: "beige_wall_001", label: "Beige plaster · Poly Haven" },
-                      { id: "white_stucco", label: "White stucco · Poly Haven" },
-                      { id: "plastered_wall_05", label: "Weathered plaster · Poly Haven" },
-                      { id: "Porcelain001", label: "Porcelain · 001" },
-                      { id: "Marble025", label: "Marble · 025" },
-                      { id: "Porcelain002", label: "Porcelain · 002" },
-                    ] as const).map(finish => (
-                      <button
-                        key={finish.id}
-                        type="button"
-                        aria-pressed={(design.room.wallFinish && design.room.wallFinish !== "paint" ? design.room.wallFinish : "beige_wall_001") === finish.id}
-                        className={(design.room.wallFinish && design.room.wallFinish !== "paint" ? design.room.wallFinish : "beige_wall_001") === finish.id ? "selected" : ""}
-                        onClick={() => updateRoom({ wallFinish: finish.id })}
-                      >
-                        <span>{finish.label}</span>
-                      </button>
+                  <span>Wall colour</span>
+                  <div className="swatches">
+                    {wallColors.map(color => (
+                      <button key={color} type="button"
+                        className={design.room.wallColor === color ? "selected" : ""}
+                        style={{ background: color }}
+                        onClick={() => updateRoom({ wallColor: color })}
+                        aria-label={`Set wall colour to ${color}`}
+                      />
                     ))}
                   </div>
                 </div>
-
                 </>}
               </div>
             </div>
