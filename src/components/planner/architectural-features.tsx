@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { ReactNode } from "react";
 import * as THREE from "three";
@@ -28,6 +28,34 @@ function openingShape(width: number, height: number, arched: boolean) {
   return shape;
 }
 
+/** Fine-grain paint/plaster relief; a shared tiny tile rather than a flat solid wall. */
+function WallPaintMaterial({ color }: { color: string }) {
+  const texture = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 256;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const pixels = ctx.createImageData(256, 256);
+    let seed = 1151;
+    const random = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      const value = 123 + Math.floor(random() * 26);
+      pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = value;
+      pixels.data[i + 3] = 255;
+    }
+    ctx.putImageData(pixels, 0, 0);
+    const map = new THREE.CanvasTexture(canvas);
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    map.repeat.set(6, 5);
+    map.minFilter = THREE.LinearMipmapLinearFilter;
+    map.generateMipmaps = true;
+    return map;
+  }, []);
+  useEffect(() => () => texture?.dispose(), [texture]);
+  return <meshStandardMaterial color={color} bumpMap={texture} bumpScale={0.009} roughness={0.93} metalness={0} side={THREE.DoubleSide} />;
+}
+
 export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
   const back = useMemo(() => {
     const shape = new THREE.Shape();
@@ -52,7 +80,7 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
   }, [room.depth, room.height, room.door]);
   return <group>
     <CutawayWall room={room} wall="back">
-      <mesh receiveShadow position={[0, 0, -room.depth / 2]}><shapeGeometry args={[back, 48]} /><meshStandardMaterial color={room.wallColor} roughness={.92} metalness={0} side={THREE.DoubleSide} /></mesh>
+      <mesh receiveShadow position={[0, 0, -room.depth / 2]}><shapeGeometry args={[back, 48]} /><WallPaintMaterial color={room.wallColor} /></mesh>
       <mesh position={[0, .045, -room.depth / 2 + .04]}><boxGeometry args={[room.width, .09, .05]} /><meshStandardMaterial color="#f8f5ef" /></mesh>
     </CutawayWall>
     {/* Thin painted skirting gives walls a believable floor junction without changing openings. */}
@@ -74,9 +102,9 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
         <meshStandardMaterial color="#f5f3ee" roughness={.7} />
       </mesh>
     </CutawayWall>
-    <CutawayWall room={room} wall="left"><mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><shapeGeometry args={[left]} /><meshStandardMaterial color={room.wallColor} roughness={.92} metalness={0} side={THREE.DoubleSide} /></mesh></CutawayWall>
-    <CutawayWall room={room} wall="right"><mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><meshStandardMaterial color={room.wallColor} roughness={.92} metalness={0} side={THREE.DoubleSide} /></mesh></CutawayWall>
-    <CutawayWall room={room} wall="front"><mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><meshStandardMaterial color={room.wallColor} roughness={.92} metalness={0} side={THREE.DoubleSide} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="left"><mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><shapeGeometry args={[left]} /><WallPaintMaterial color={room.wallColor} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="right"><mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><WallPaintMaterial color={room.wallColor} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="front"><mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><WallPaintMaterial color={room.wallColor} /></mesh></CutawayWall>
   </group>;
 }
 
