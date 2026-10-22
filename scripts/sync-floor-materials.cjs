@@ -51,8 +51,30 @@ async function sync(id) {
     await fs.rm(temp,{recursive:true,force:true});
   }
 }
+// Poly Haven CC0 textured walls, selected from the user's links.
+// Three unique assets: the duplicate beige_wall_001 link is included only once.
+const polyWalls = ["plastered_wall_05", "beige_wall_001", "white_stucco"];
+async function syncPolyWall(id) {
+  const dest = path.join(root, id);
+  await fs.mkdir(dest, { recursive: true });
+  const parts = [["Color", "diff"], ["NormalGL", "nor_gl"], ["Roughness", "rough"]];
+  for (const [local, remote] of parts) {
+    const file = path.join(dest, local + ".jpg");
+    try { await fs.access(file); continue; } catch {}
+    const url = "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/" + id + "/" + id + "_" + remote + "_1k.jpg";
+    const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    if (!response.ok) throw Error(id + " " + remote + " HTTP " + response.status);
+    const data = Buffer.from(await response.arrayBuffer());
+    if (data.length < 1000 || data.length > 6_000_000) throw Error(id + " invalid JPEG");
+    await fs.writeFile(file, data);
+  }
+  console.log("Poly Haven wall material synced:", id);
+}
 (async()=>{
   await fs.mkdir(root,{recursive:true});
+  for (const id of polyWalls) {
+    try { await syncPolyWall(id); } catch (e) { console.warn("Poly Haven wall material unavailable:", id, String(e.message || e)); }
+  }
   for(const id of materials){
     try{await sync(id)}catch(e){console.warn("Material unavailable; using existing safe finish",id,String(e.message||e));}
   }
