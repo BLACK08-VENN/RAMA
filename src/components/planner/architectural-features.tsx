@@ -30,7 +30,7 @@ function openingShape(width: number, height: number, arched: boolean) {
 
 /** Fine-grain paint/plaster relief; a shared tiny tile rather than a flat solid wall. */
 type WallMaps = { color: THREE.Texture; normal: THREE.Texture; roughness: THREE.Texture };
-function WallPaintMaterial({ color, finish = "beige_wall_001", span = 4, height = 3 }: { color: string; finish?: RoomConfig["wallFinish"]; span?: number; height?: number }) {
+function WallPaintMaterial({ color, finish = "paint", span = 4, height = 3 }: { color: string; finish?: RoomConfig["wallFinish"]; span?: number; height?: number }) {
   const [loaded, setLoaded] = useState<{ finish: string; maps: WallMaps } | null>(null);
   const texture = useMemo(() => {
     if (typeof document === "undefined") return null;
@@ -56,10 +56,10 @@ function WallPaintMaterial({ color, finish = "beige_wall_001", span = 4, height 
   }, []);
   useEffect(() => () => texture?.dispose(), [texture]);
   useEffect(() => {
-    if (!finish) finish = "beige_wall_001";
+    if (!finish || finish === "paint") return;
     let active = true;
     const loader = new THREE.TextureLoader();
-    const root = `/materials/ambientcg/${finish === "paint" ? "beige_wall_001" : finish}/`;
+    const root = `/materials/ambientcg/${finish}/`;
     Promise.all(["Color", "NormalGL", "Roughness"].map(kind => loader.loadAsync(root + kind + ".jpg")))
       .then(([albedo, normal, roughness]) => {
         if (!active) {albedo.dispose();normal.dispose();roughness.dispose();return;}
@@ -78,7 +78,7 @@ function WallPaintMaterial({ color, finish = "beige_wall_001", span = 4, height 
     loaded?.maps.normal.dispose();
     loaded?.maps.roughness.dispose();
   }, [loaded]);
-  const maps = loaded?.finish === (finish ?? "beige_wall_001") ? loaded.maps : null;
+  const maps = loaded?.finish === finish ? loaded.maps : null;
   // Consistent metre-based UV scale on each architectural wall.
   if (maps) for (const map of [maps.color, maps.normal, maps.roughness]) {
     map.repeat.set(span / 1.5, height / 1.5);
