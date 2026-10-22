@@ -816,7 +816,28 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                   </div>
                 </div>
                 <div className="finish-section">
-                  <span>Wall colour</span>
+                  <span>Wall material</span>
+                  <div className="floor-options">
+                    {([
+                      { id: "paint", label: "Painted plaster" },
+                      { id: "Porcelain001", label: "Porcelain · 001" },
+                      { id: "Marble025", label: "Marble · 025" },
+                      { id: "Porcelain002", label: "Porcelain · 002" },
+                    ] as const).map(finish => (
+                      <button
+                        key={finish.id}
+                        type="button"
+                        aria-pressed={(design.room.wallFinish ?? "paint") === finish.id}
+                        className={(design.room.wallFinish ?? "paint") === finish.id ? "selected" : ""}
+                        onClick={() => updateRoom({ wallFinish: finish.id })}
+                      >
+                        <span>{finish.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="finish-section">
+                  <span>Wall colour (paint)</span>
                   <div className="swatches">
                     {wallColors.map((color) => (
                       <button
