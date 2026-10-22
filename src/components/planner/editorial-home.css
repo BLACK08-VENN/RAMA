@@ -36,3 +36,29 @@
 @media(prefers-reduced-motion:reduce) {
   .rama-editorial .rama-below .offers-viewport { overflow-x:auto; }
 }
+
+
+/*
+ * The 3D designer deliberately locks document scrolling in globals.css.
+ * The welcome homepage is a regular document with sections below the hero.
+ * Restore native document scrolling ONLY while that homepage is mounted.
+ * Do not change the planner-app viewport / touch interactions.
+ */
+html:has(.welcome-screen.rama-editorial),
+body:has(.welcome-screen.rama-editorial) {
+  height: auto;
+  min-height: 100%;
+  overflow-x: clip;
+  overflow-y: auto;
+}
+body:has(.welcome-screen.rama-editorial) {
+  overscroll-behavior-y: auto;
+}
+.welcome-screen.rama-editorial {
+  height: auto;
+  min-height: 100dvh;
+  max-height: none;
+  overflow-x: clip;
+  overflow-y: visible;
+  overscroll-behavior: auto;
+}
