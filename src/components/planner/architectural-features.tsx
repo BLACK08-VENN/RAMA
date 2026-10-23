@@ -138,6 +138,29 @@ function ConferenceGlassWall({ span, height, position, rotation }: { span: numbe
   </group>;
 }
 
+function ConferencePresentationFeatures({ room }: { room: RoomConfig }) {
+  if (room.presetId !== "conference-room") return null;
+  const z = -room.depth/2 + .09;
+  const x = -room.width/2 + .88;
+  return <group>
+    {room.conferenceAcousticPanels && [-1,1].map(side =>
+      <group key={side} position={[side*(room.width/2-.48),0,z]}>
+        {Array.from({length:6},(_,i)=><mesh key={i} position={[(i-2.5)*.115,room.height/2,.005]}>
+          <boxGeometry args={[.094,Math.min(2.3,room.height-.4),.055]}/>
+          <meshStandardMaterial color={i%2 ? "#977e69" : "#b9a18a"} roughness={.95}/>
+        </mesh>)}
+      </group>
+    )}
+    {room.conferencePresentationWall && <group position={[x,room.height*.59,z+.075]}>
+      <mesh><boxGeometry args={[1.45,.89,.085]}/><meshStandardMaterial color="#212729" roughness={.34}/></mesh>
+      <mesh position={[0,0,.049]}><planeGeometry args={[1.36,.8]}/><meshBasicMaterial color="#12202a" toneMapped={false}/></mesh>
+      <mesh position={[-.2,.12,.051]}><planeGeometry args={[.72,.007]}/><meshBasicMaterial color="#74a6ae"/></mesh>
+      <mesh position={[-.2,-.04,.051]}><planeGeometry args={[.72,.007]}/><meshBasicMaterial color="#477f90"/></mesh>
+      <mesh position={[0,-.56,-.025]}><boxGeometry args={[.72,.045,.12]}/><meshStandardMaterial color="#4a4c4b" metalness={.4} roughness={.5}/></mesh>
+    </group>}
+  </group>;
+}
+
 export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
   const back = useMemo(() => {
     const shape = new THREE.Shape();
@@ -161,6 +184,7 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
     shape.lineTo(span / 2, 0); shape.lineTo(span / 2, room.height); shape.lineTo(-span / 2, room.height); shape.closePath(); return shape;
   }, [room.depth, room.height, room.door]);
   return <group>
+    <ConferencePresentationFeatures room={room}/>
     <CutawayWall room={room} wall="back">
       <mesh receiveShadow position={[0, 0, -room.depth / 2]}><WallOpeningGeometry shape={back} span={room.width} height={room.height} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.width} height={room.height} /></mesh>
       <mesh position={[0, .045, -room.depth / 2 + .04]}><boxGeometry args={[room.width, .09, .05]} /><meshStandardMaterial color="#f8f5ef" /></mesh>
@@ -216,6 +240,12 @@ export function Ceiling({ room }: { room: RoomConfig }) {
       <planeGeometry args={[room.width, room.depth]} />
       <meshStandardMaterial color={tone} roughness={0.95} />
     </mesh>
+    {room.presetId === "conference-room" && room.conferenceCeilingBulkhead && [
+      {position:[0,room.height-.13,-room.depth*.37] as const,size:[room.width*.75,.19,.22] as const},
+      {position:[0,room.height-.13,room.depth*.37] as const,size:[room.width*.75,.19,.22] as const},
+      {position:[-room.width*.37,room.height-.13,0] as const,size:[.22,.19,room.depth*.74] as const},
+      {position:[room.width*.37,room.height-.13,0] as const,size:[.22,.19,room.depth*.74] as const},
+    ].map((piece,index)=><mesh key={index} position={piece.position}><boxGeometry args={piece.size}/><meshStandardMaterial color="#eeeae3" roughness={.86}/></mesh>)}
     {room.presetId === "conference-room" && room.conferenceRecessedLights && [-1, 1].flatMap(row => [-1.5,-.5,.5,1.5].map(col => <group key={`${row}-${col}`} position={[col*room.width/5,room.height-.014,row*room.depth/4]}>
       <mesh rotation={[Math.PI/2,0,0]}><ringGeometry args={[.085,.115,24]}/><meshStandardMaterial color="#dddcd4" roughness={.4} side={THREE.DoubleSide}/></mesh>
       <mesh rotation={[Math.PI/2,0,0]} position={[0,-.008,0]}><circleGeometry args={[.084,24]}/><meshBasicMaterial color="#fff2d8" side={THREE.DoubleSide} toneMapped={false}/></mesh>
