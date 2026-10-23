@@ -70,6 +70,7 @@ import { AuthModal } from "@/components/auth-modal";
 import { RoomSwitchPrompt } from "./room-switch-prompt";
 import { readSavedRooms, saveRoomSnapshot, deleteRoomSnapshot, type SavedRoom } from "@/lib/saved-rooms";
 import { saveDesignToCloud } from "@/lib/design-storage";
+import { readTrialModel, saveTrialModel, verifyGlb, trialModelIds, type TrialModelId } from "@/lib/trial-model-storage";
 
 const RoomScene = dynamic(
   () => import("./room-scene").then((module) => module.RoomScene),
@@ -85,7 +86,7 @@ const RoomScene = dynamic(
 );
 
 const categories: Array<"All" | ProductCategory> = ["All", "Seating", "Tables", "Storage", "Bedroom"];
-const decorGroups: Array<"All" | DecorGroup> = ["All", "Floor plants", "Hanging plants", "Table plants", "Wall art", "Mirrors", "Rugs", "Vases"];
+const decorGroups: Array<"All" | DecorGroup> = ["All", "Trial furniture", "Floor plants", "Hanging plants", "Table plants", "Wall art", "Mirrors", "Rugs", "Vases"];
 
 const placementSpots: Array<[number, number, number]> = [
   [1.3, 0, 0.4],
@@ -146,6 +147,31 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>("All");
   const [activeDecorGroup, setActiveDecorGroup] = useState<(typeof decorGroups)[number]>("All");
   const [query, setQuery] = useState("");
+  const [trialModelUrls, setTrialModelUrls] = useState<Record<string, string>>({});
+  const trialUrlsRef = useRef<Record<string, string>>({});
+  const [trialImportingId, setTrialImportingId] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    const restore = async () => {
+      for (const id of trialModelIds) {
+        try {
+          const stored = await readTrialModel(id);
+          if (!stored || !active) continue;
+          const url = URL.createObjectURL(stored);
+          trialUrlsRef.current[id] = url;
+          setTrialModelUrls({ ...trialUrlsRef.current });
+        } catch (error) {
+          console.warn("Trial asset could not be restored", id, error);
+        }
+      }
+    };
+    void restore();
+    return () => {
+      active = false;
+      Object.values(trialUrlsRef.current).forEach(url => URL.revokeObjectURL(url));
+      trialUrlsRef.current = {};
+    };
+  }, []);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   useEffect(() => {
     try {
@@ -270,7 +296,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
         const matchesCategory = activePanel === "decor"
           ? Boolean(product.decorative) && (activeDecorGroup === "All" || product.decor?.group === activeDecorGroup)
           : !product.decorative && (activeCategory === "All" || product.category === activeCategory);
-        const searchTerms = query.trim().toLocaleLowerCase().split(/\\s+/).filter(Boolean);
+        const searchTerms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
         const searchText = [product.name, product.category, product.decor?.group, product.kind, product.dimensions, product.id].filter(Boolean).join(" ").toLocaleLowerCase();
         const matchesQuery = searchTerms.every(term => searchText.includes(term));
         return matchesCategory && matchesQuery;
@@ -412,10 +438,39 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     }
   };
 
+  const importTrialModel = async (id: TrialModelId, file?: File) => {
+    if (!file) return;
+    setTrialImportingId(id);
+    try {
+      if (!(await verifyGlb(file))) {
+        notify("Please choose a valid GLB 2.0 model under 100 MB");
+        return;
+      }
+      let stored = true;
+      try { await saveTrialModel(id, file); }
+      catch (error) {
+        stored = false;
+        console.warn("Browser cannot persist trial model", error);
+      }
+      const nextUrl = URL.createObjectURL(file);
+      const previous = trialUrlsRef.current[id];
+      trialUrlsRef.current[id] = nextUrl;
+      setTrialModelUrls({ ...trialUrlsRef.current });
+      if (previous) URL.revokeObjectURL(previous);
+      notify(stored ? "3D model imported. Tap Add to furnish your room." : "3D model loaded for this session. Browser storage is unavailable.");
+    } catch (error) {
+      console.error("Unable to import GLB model", error);
+      notify("Unable to import this GLB file");
+    } finally {
+      setTrialImportingId(null);
+    }
+  };
+
   const addProduct = (productId: string) => {
     const product = products.find((candidate) => candidate.id === productId);
     if (!product) return;
     if (!product.decorative) { notify("Furniture coming soon. Explore Décor to style your room now."); return; }
+    if (product.id.startsWith("trial-") && !trialModelUrls[product.id]) { notify("Import the matching 3D model first, then tap Add."); return; }
     const spec = product.decor;
     if (spec && (spec.mount === "wall" || spec.mount === "ceiling") && design.room.spaceType && design.room.spaceType !== "indoor") {
       notify("Choose an indoor room for wall and ceiling décor"); return;
@@ -712,6 +767,9 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 ))}
               </div>
 
+              {activePanel === "decor" && activeDecorGroup === "Trial furniture" && (
+                <p style={{fontSize:13,lineHeight:1.5,padding:"6px 2px"}}>Trial furnishings: import each GLB once on this device, then Add, move, rotate or duplicate it in the 3D room. Models are stored in this browser for future visits.</p>
+              )}
               <div className="catalog-result-heading">
                 <span>{filteredProducts.length} {activePanel === "decor" ? "styling accessories" : "products · coming soon"}</span>
                 <span aria-label="Grid view"><LayoutGrid size={16} /> Grid</span>
@@ -729,15 +787,31 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                   <article className={`product-card ${product.decorative ? "" : "coming-soon-card"}`} key={product.id}>
                     {!product.decorative && <button className="coming-soon-trigger" onClick={() => addProduct(product.id)} aria-label={`${product.name} — coming soon`} />}
                     <div className="product-image-wrap">
-                      <ProductCardImage src={product.image} fallback={product.decorative ? `/decor/${product.id}.svg` : product.image} alt={product.name} />
-                      {product.decorative && <button type="button" className="decor-image-add" onClick={() => addProduct(product.id)} aria-label={`Add ${product.name} to room`} />}
+                      {product.id.startsWith("trial-")
+                        ? <div aria-label={`${product.name}, trial model`} style={{height:"100%",width:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9,background:"linear-gradient(145deg,#e8e4dc,#cfcdc7)",color:"#3b4645"}}>
+                            <Armchair size={43} strokeWidth={1.3} />
+                            <span style={{fontSize:12,fontWeight:650,letterSpacing:".07em"}}>{trialModelUrls[product.id] ? "3D MODEL READY" : "IMPORT 3D MODEL"}</span>
+                          </div>
+                        : <ProductCardImage src={product.image} fallback={product.decorative ? `/decor/${product.id}.svg` : product.image} alt={product.name} />}
+                      {product.decorative && !product.id.startsWith("trial-") && <button type="button" className="decor-image-add" onClick={() => addProduct(product.id)} aria-label={`Add ${product.name} to room`} />}
                       <button type="button" className="favorite-button" tabIndex={product.decorative ? 0 : -1} aria-label={`${favoriteIds.includes(product.id) ? "Unsave" : "Save"} ${product.name}`} aria-pressed={favoriteIds.includes(product.id)} onClick={() => toggleFavorite(product.id)}><Heart size={17} fill={favoriteIds.includes(product.id) ? "currentColor" : "none"} /></button>
-                      <span className="model-ready">{product.decor ? product.decor.mount === "wall" ? "WALL" : product.decor.mount === "ceiling" ? "HANGING" : "3D DÉCOR" : "COMING SOON"}</span>
+                      <span className="model-ready">{product.id.startsWith("trial-") ? "TRIAL GLB" : product.decor ? product.decor.mount === "wall" ? "WALL" : product.decor.mount === "ceiling" ? "HANGING" : "3D DÉCOR" : "COMING SOON"}</span>
                     </div>
                     <div className="product-card-body">
                       <span className="product-category">{product.decor?.group ?? product.category}</span>
                       <h2>{product.name}</h2>
                       <span className="product-dimensions">{product.dimensions}</span>
+                      {product.id.startsWith("trial-") && <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,margin:"8px 0",padding:"10px",border:"1px solid #a9aaa7",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:600}}>
+                        <PackagePlus size={16}/>
+                        {trialImportingId === product.id ? "Importing…" : trialModelUrls[product.id] ? "Replace GLB" : "Import GLB"}
+                        <input type="file" accept=".glb,model/gltf-binary" style={{position:"absolute",opacity:0,width:1,height:1}} disabled={trialImportingId !== null}
+                          aria-label={`Import model for ${product.name}`}
+                          onChange={event => {
+                            const selected = event.currentTarget.files?.[0];
+                            event.currentTarget.value = "";
+                            void importTrialModel(product.id as TrialModelId, selected);
+                          }} />
+                      </label>}
                       <div className="product-card-footer">
                         <strong>{(product.decorative ? "Styling accessory" : formatKes(product.price))}</strong>
                         <button tabIndex={product.decorative ? 0 : -1} onClick={() => addProduct(product.id)} aria-label={product.decorative ? `Add ${product.name} to room` : `${product.name} — coming soon`}>
@@ -1025,6 +1099,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
             zoomRequest={zoomRequest}
             room={design.room}
             placedItems={placedItems}
+            trialModelUrls={trialModelUrls}
             selectedId={selectedId}
             onSelect={selectItem}
             onMove={moveItem}
