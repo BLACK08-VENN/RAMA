@@ -16,6 +16,7 @@ export type WindowConfig = {
   frameColor?: "white" | "black" | "wood";
   openAmount?: number;
   curtains?: boolean;
+  blinds?: boolean;
   enabled: boolean;
   width: number;
   height: number;
@@ -280,6 +281,7 @@ const isValidSharedDesign = (design: DesignDocument) => {
     (room.window.frameColor === undefined || ["white", "black", "wood"].includes(room.window.frameColor)) &&
     (room.window.openAmount === undefined || (isFiniteNumber(room.window.openAmount) && room.window.openAmount >= 0 && room.window.openAmount <= 1)) &&
     (room.window.curtains === undefined || typeof room.window.curtains === "boolean") &&
+    (room.window.blinds === undefined || typeof room.window.blinds === "boolean") &&
     typeof room.window.enabled === "boolean" &&
     isFiniteNumber(room.window.width) && room.window.width >= 0.8 && room.window.width <= 5.5 &&
     isFiniteNumber(room.window.height) && room.window.height >= 0.6 && room.window.height <= 2.4 &&
