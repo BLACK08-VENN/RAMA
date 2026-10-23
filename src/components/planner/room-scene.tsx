@@ -459,11 +459,13 @@ function GlbModel({ model }: { model: ProductModel }) {
       scale: nextScale,
       offset: new THREE.Vector3(-center.x * nextScale.x, -bounds.min.y * nextScale.y, -center.z * nextScale.z),
     };
-  }, [gltf, model, maxAnisotropy]);
+  }, [gltf, model.width, model.height, model.depth, maxAnisotropy]);
 
   return (
-    <group position={offset} scale={scale}>
-      <primitive object={object} />
+    <group rotation={[0, model.rotationY ?? 0, 0]}>
+      <group position={offset} scale={scale}>
+        <primitive object={object} />
+      </group>
     </group>
   );
 }
@@ -472,8 +474,17 @@ function Furniture({ item, trialModelUrls }: { item: PlacedItem; trialModelUrls:
   if (["plant", "rug", "mirror", "vase", "wall-art"].includes(item.kind)) return <DecorModel item={item} />;
   const imported = trialModelUrls[item.productId];
   const spec = productById[item.productId]?.decor;
+  // The uploaded dining table is authored along local Z; rotate it into
+  // the room's width axis rather than stretching its geometry sideways.
+  const diningRotation = item.productId === "trial-dining-table";
   const model = imported && spec
-    ? { url: imported, width: spec.width, depth: spec.depth, height: spec.height }
+    ? {
+        url: imported,
+        width: diningRotation ? spec.depth : spec.width,
+        depth: diningRotation ? spec.width : spec.depth,
+        height: spec.height,
+        rotationY: diningRotation ? Math.PI / 2 : 0,
+      }
     : productModels[item.productId];
 
   if (model) {
