@@ -884,10 +884,11 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                   <div className="dimension-card-heading"><span><strong>Statement lighting</strong><small>Choose a chandelier for your room</small></span></div>
                   <div className="opening-fields"><label className="opening-position">Chandelier<select value={design.room.chandelier ?? "none"} onChange={(event) => updateRoom({ chandelier: event.currentTarget.value as "none" | "rings" | "globes" })}><option value="none">No chandelier</option><option value="rings">Floating luminous rings</option><option value="globes">Brass & opal globes</option></select></label></div>
                 </section>
+                {design.room.presetId !== "conference-room" && <>
                 <div className="finish-section">
                   <span>Floor finish</span>
                   <div className="floor-options">
-                    {(design.room.presetId === "conference-room" ? conferenceFloors : floorFinishes).map((finish) => (
+                    {floorFinishes.map((finish) => (
                       <button
                         key={finish.name}
                         className={design.room.floorName === finish.name ? "selected" : ""}
@@ -899,6 +900,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     ))}
                   </div>
                 </div>
+                </>}
                 <div className="finish-section">
                   <span>Wall finish</span>
                   <div className="floor-options">
@@ -926,6 +928,20 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     ))}
                   </div>
                 </div>
+                {design.room.presetId === "conference-room" && <section className="dimension-card">
+                  <div className="dimension-card-heading"><span><strong>Conference room finishes</strong><small>Glass partitions, lighting and professional flooring</small></span></div>
+                  <div className="opening-fields">
+                    <label className="opening-position">Glass partition walls
+                      <select value={design.room.conferenceGlassWalls ? "yes" : "no"} onChange={event => updateRoom({ conferenceGlassWalls: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select>
+                    </label>
+                    <label className="opening-position">Recessed ceiling lights
+                      <select value={design.room.conferenceRecessedLights ? "yes" : "no"} onChange={event => updateRoom({ conferenceRecessedLights: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select>
+                    </label>
+                  </div>
+                  <div className="finish-section"><span>Conference flooring</span>
+                    <div className="floor-options">{conferenceFloors.map(finish => <button type="button" key={finish.name} className={design.room.floorName === finish.name ? "selected" : ""} onClick={() => updateRoom({ floorName: finish.name, floorColor: finish.color })}><i style={{ background: finish.color }}/><span>{finish.label}</span></button>)}</div>
+                  </div>
+                </section>}
                 </>}
               </div>
             </div>
