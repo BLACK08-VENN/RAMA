@@ -120,7 +120,19 @@ function WallOpeningGeometry({ shape, span, height }: { shape: THREE.Shape; span
 
 function ConferenceGlassWall({ span, height, position, rotation }: { span: number; height: number; position: [number,number,number]; rotation: [number,number,number] }) {
   return <group position={position} rotation={rotation}>
-    <mesh position={[0,height/2,0]}><planeGeometry args={[span,height]}/><meshPhysicalMaterial color="#d8e9ed" roughness={.09} metalness={.08} transparent opacity={.22} depthWrite={false} side={THREE.DoubleSide} clearcoat={.75}/></mesh>
+    <mesh position={[0,height/2,0]}>
+      <planeGeometry args={[span,height]}/>
+      <meshPhysicalMaterial color="#dce8e9" roughness={.76} metalness={0} transparent opacity={.67} depthWrite={false} side={THREE.DoubleSide} clearcoat={.22} clearcoatRoughness={.64}/>
+    </mesh>
+    {/* Fine satin haze: obscures detail while allowing silhouettes and light through. */}
+    <mesh position={[0,height/2,.003]}>
+      <planeGeometry args={[span*.99,height*.99]}/>
+      <meshBasicMaterial color="#f4f7f5" transparent opacity={.085} side={THREE.DoubleSide} depthWrite={false}/>
+    </mesh>
+    <mesh position={[span*.18,height*.57,.008]} rotation={[0,0,-.23]}>
+      <planeGeometry args={[span*.10,height*.52]}/>
+      <meshBasicMaterial color="#ffffff" transparent opacity={.045} side={THREE.DoubleSide} depthWrite={false}/>
+    </mesh>
     {[-span/2,-span/6,span/6,span/2].map(x=><mesh key={x} position={[x,height/2,.018]}><boxGeometry args={[.038,height,.06]}/><meshStandardMaterial color="#3d484d" metalness={.48} roughness={.3}/></mesh>)}
     {[0,height].map(y=><mesh key={y} position={[0,y,.018]}><boxGeometry args={[span+.06,.05,.06]}/><meshStandardMaterial color="#3d484d" metalness={.48} roughness={.3}/></mesh>)}
   </group>;
