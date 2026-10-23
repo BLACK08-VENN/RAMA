@@ -43,6 +43,9 @@ export function OutdoorSpaces({ room }: { room: RoomConfig }) {
         <mesh position={[0, .55, 0]}><boxGeometry args={[.05, .04, deck.depth]} /><meshStandardMaterial color="#414d49" metalness={.5} roughness={.3} /></mesh>
         {[-1, 1].map(end => <mesh key={end} position={[0, 0, end * deck.depth / 2]}><boxGeometry args={[.04, 1.1, .04]} /><meshStandardMaterial color="#414d49" metalness={.5} /></mesh>)}
       </group>)}
+      <mesh position={[0,.54,deck.depth/2]}><boxGeometry args={[deck.width,.99,.018]}/><meshPhysicalMaterial color="#d8f1f2" transparent opacity={.22} roughness={.14} metalness={.08} depthWrite={false}/></mesh>
+      <mesh position={[0,1.09,deck.depth/2]}><boxGeometry args={[deck.width+.06,.045,.06]}/><meshStandardMaterial color="#414d49" metalness={.55} roughness={.32}/></mesh>
+      {[-1,1].map(side=><mesh key={side} position={[side*deck.width/2,.54,deck.depth/2]}><boxGeometry args={[.044,1.1,.048]}/><meshStandardMaterial color="#414d49" metalness={.55} roughness={.32}/></mesh>)}
     </group>}
     {yard?.enabled && <group position={[0, 0, standalone ? 0 : room.depth / 2 + balconyDepth + yard.depth / 2]}>
       <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[yard.width, yard.depth]} /><meshStandardMaterial key={grass ? "grass005-loaded" : "grass-fallback"} color={grass ? "#ffffff" : "#749455"} map={grass} roughness={1} /></mesh>
