@@ -432,3 +432,41 @@ export const formatKes = (price: number) =>
 
 
 export const productById = Object.fromEntries(products.map(product => [product.id, product]));
+
+/**
+ * Register furniture uploaded on this device so it participates in the
+ * existing selection, snapping, layout and saved-room code paths.
+ */
+export function registerUploadedTrialProduct(record: {
+  id: string;
+  name: string;
+  kind: "chair" | "sofa" | "table" | "bed" | "cabinet";
+  width: number;
+  depth: number;
+  height: number;
+}): void {
+  if (!record.id.startsWith("trial-upload-") || productById[record.id]) return;
+  const product: PlannerProduct = {
+    id: record.id,
+    name: record.name,
+    kind: record.kind,
+    category: "Décor",
+    decorative: true,
+    price: 0,
+    productUrl: "",
+    image: "",
+    dimensions: `${Math.round(record.width * 100)} × ${Math.round(record.depth * 100)} × ${Math.round(record.height * 100)} cm (approx.)`,
+    accent: "#8e8175",
+    decor: { group: "Trial furniture", mount: "floor", width: record.width, depth: record.depth, height: record.height, color: "#8e8175" },
+  };
+  products.push(product);
+  productById[record.id] = product;
+}
+
+export function unregisterUploadedTrialProduct(id: string): void {
+  if (!id.startsWith("trial-upload-")) return;
+  const position = products.findIndex(product => product.id === id);
+  if (position !== -1) products.splice(position, 1);
+  delete productById[id];
+}
+
