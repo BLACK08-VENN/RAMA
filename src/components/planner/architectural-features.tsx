@@ -364,6 +364,25 @@ export function DesignerWindow({ room }: { room: RoomConfig }) {
     {(room.window.style === "panoramic" ? [-width / 6, width / 6] : [0]).map(x => <mesh key={x} position={[x, (height - (arched ? radius : 0)) / 2, .025]}><boxGeometry args={[.035, height - (arched ? radius : 0), .065]} /><meshStandardMaterial color="#343d3b" /></mesh>)}
     <mesh position={[width * .2, height * .46, .03]} rotation={[0, 0, -.3]}><planeGeometry args={[width * .12, height * .7]} /><meshBasicMaterial color="#ffffff" transparent opacity={.08} depthWrite={false} side={THREE.DoubleSide} /></mesh>
     </>}
+    {room.window.curtains && room.window.style !== "grid-slider" && <group position={[0,height/2,.22]}>
+      <mesh position={[0,height/2+.12,0]} rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[.014,.014,width+.22,12]}/><meshStandardMaterial color="#a79a88" metalness={.4} roughness={.42}/></mesh>
+      {Array.from({length:18},(_,i)=> {
+        const side = i<9 ? -1 : 1;
+        const n=i%9;
+        const x=side*(width*.31)+(n-4)*width*.018;
+        return <mesh key={i} position={[x,0,.03+.015*Math.cos(n*Math.PI)]}>
+          <planeGeometry args={[width*.04,height+.02]}/>
+          <meshStandardMaterial color={n%2 ? "#ded7ca" : "#efe9df"} side={THREE.DoubleSide} transparent opacity={.91} roughness={1}/>
+        </mesh>;
+      })}
+    </group>}
+    {room.window.blinds && <group position={[0,height/2,.26]}>
+      <mesh position={[0,height/2-.02,0]}><boxGeometry args={[width+.12,.095,.115]}/><meshStandardMaterial color="#d8d6d0" roughness={.76}/></mesh>
+      {Array.from({length:17},(_,i)=><mesh key={i} position={[0,-height/2+(i+.5)*height/18,.01]} rotation={[-.06,0,0]}>
+        <boxGeometry args={[width-.05,.048,.018]}/>
+        <meshStandardMaterial color={i%2 ? "#e3e2dc" : "#d5d5d0"} roughness={.88} side={THREE.DoubleSide}/>
+      </mesh>)}
+    </group>}
   </group>;
 }
 
