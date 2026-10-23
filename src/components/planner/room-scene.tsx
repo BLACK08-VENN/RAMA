@@ -476,7 +476,7 @@ function Furniture({ item, trialModelUrls }: { item: PlacedItem; trialModelUrls:
   const spec = productById[item.productId]?.decor;
   // The uploaded dining table is authored along local Z; rotate it into
   // the room's width axis rather than stretching its geometry sideways.
-  const diningRotation = item.productId === "trial-dining-table";
+  const diningRotation = item.productId === "trial-dining-table" || productById[item.productId]?.trialRotated === true;
   const model = imported && spec
     ? {
         url: imported,
