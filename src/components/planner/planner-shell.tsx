@@ -934,6 +934,15 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     <label className="opening-position">Glass partition walls
                       <select value={design.room.conferenceGlassWalls ? "yes" : "no"} onChange={event => updateRoom({ conferenceGlassWalls: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select>
                     </label>
+                    {([
+                      ["conferencePresentationWall", "TV / presentation wall"],
+                      ["conferenceAcousticPanels", "Acoustic wall panels"],
+                      ["conferenceCeilingBulkhead", "Ceiling bulkhead"]
+                    ] as const).map(([key,label]) => <label key={key} className="opening-position">{label}
+                      <select value={design.room[key] ? "yes" : "no"} onChange={event => updateRoom({[key]:event.currentTarget.value === "yes"})}>
+                        <option value="yes">Enabled</option><option value="no">Disabled</option>
+                      </select>
+                    </label>)}
                     <label className="opening-position">Recessed ceiling lights
                       <select value={design.room.conferenceRecessedLights ? "yes" : "no"} onChange={event => updateRoom({ conferenceRecessedLights: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select>
                     </label>
