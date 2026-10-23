@@ -12,7 +12,10 @@ export type DoorConfig = {
 };
 
 export type WindowConfig = {
-  style?: "picture" | "panoramic" | "arched";
+  style?: "picture" | "panoramic" | "arched" | "grid-slider";
+  frameColor?: "white" | "black" | "wood";
+  openAmount?: number;
+  curtains?: boolean;
   enabled: boolean;
   width: number;
   height: number;
@@ -259,11 +262,14 @@ const isValidSharedDesign = (design: DesignDocument) => {
     (room.chandelier === undefined || ["none", "rings", "globes"].includes(room.chandelier)) &&
     (room.emptyShell === undefined || typeof room.emptyShell === "boolean") &&
     (room.door.style === undefined || ["hinged", "sliding"].includes(room.door.style)) &&
-    (room.window.style === undefined || ["picture", "panoramic", "arched"].includes(room.window.style)) &&
+    (room.window.style === undefined || ["picture", "panoramic", "arched", "grid-slider"].includes(room.window.style)) &&
     typeof room.door.enabled === "boolean" &&
     isFiniteNumber(room.door.width) && room.door.width >= 0.7 && room.door.width <= 3.6 &&
     isFiniteNumber(room.door.height) && room.door.height >= 1.8 && room.door.height <= 2.5 &&
     isFiniteNumber(room.door.position) && Math.abs(room.door.position) <= 0.35 &&
+    (room.window.frameColor === undefined || ["white", "black", "wood"].includes(room.window.frameColor)) &&
+    (room.window.openAmount === undefined || (isFiniteNumber(room.window.openAmount) && room.window.openAmount >= 0 && room.window.openAmount <= 1)) &&
+    (room.window.curtains === undefined || typeof room.window.curtains === "boolean") &&
     typeof room.window.enabled === "boolean" &&
     isFiniteNumber(room.window.width) && room.window.width >= 0.8 && room.window.width <= 5.5 &&
     isFiniteNumber(room.window.height) && room.window.height >= 0.6 && room.window.height <= 2.4 &&
