@@ -40,6 +40,7 @@ export type RoomConfig = {
   conferenceCeilingBulkhead?: boolean;
   conferenceAcousticPanels?: boolean;
   conferencePresentationWall?: boolean;
+  conferenceScreen?: { width: number; height: number; x: number; y: number };
   presetId: string | null;
   width: number;
   depth: number;
@@ -272,6 +273,11 @@ const isValidSharedDesign = (design: DesignDocument) => {
     (room.conferenceCeilingBulkhead === undefined || typeof room.conferenceCeilingBulkhead === "boolean") &&
     (room.conferenceAcousticPanels === undefined || typeof room.conferenceAcousticPanels === "boolean") &&
     (room.conferencePresentationWall === undefined || typeof room.conferencePresentationWall === "boolean") &&
+    (room.conferenceScreen === undefined || (isRecord(room.conferenceScreen) &&
+      isFiniteNumber(room.conferenceScreen.width) && room.conferenceScreen.width >= 0.8 && room.conferenceScreen.width <= 3.6 &&
+      isFiniteNumber(room.conferenceScreen.height) && room.conferenceScreen.height >= 0.5 && room.conferenceScreen.height <= 2.1 &&
+      isFiniteNumber(room.conferenceScreen.x) && Math.abs(room.conferenceScreen.x) <= 6 &&
+      isFiniteNumber(room.conferenceScreen.y) && room.conferenceScreen.y >= 0 && room.conferenceScreen.y <= 4.5)) &&
     (room.door.style === undefined || ["hinged", "sliding"].includes(room.door.style)) &&
     (room.window.style === undefined || ["picture", "panoramic", "arched", "grid-slider"].includes(room.window.style)) &&
     typeof room.door.enabled === "boolean" &&
@@ -398,6 +404,7 @@ export const usePlannerStore = create<PlannerState>()(
             conferenceCeilingBulkhead: preset.conferenceCeilingBulkhead ?? false,
             conferenceAcousticPanels: preset.conferenceAcousticPanels ?? false,
             conferencePresentationWall: preset.conferencePresentationWall ?? false,
+            conferenceScreen: preset.conferenceScreen ? { ...preset.conferenceScreen } : undefined,
             width: preset.width,
             depth: preset.depth,
             height: preset.height,
