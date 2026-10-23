@@ -45,7 +45,7 @@ export function OutdoorSpaces({ room }: { room: RoomConfig }) {
       </group>)}
     </group>}
     {yard?.enabled && <group position={[0, 0, standalone ? 0 : room.depth / 2 + balconyDepth + yard.depth / 2]}>
-      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[yard.width, yard.depth]} /><meshStandardMaterial color={grass ? "#ffffff" : "#749455"} map={grass} roughness={1} /></mesh>
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[yard.width, yard.depth]} /><meshStandardMaterial key={grass ? "grass005-loaded" : "grass-fallback"} color={grass ? "#ffffff" : "#749455"} map={grass} roughness={1} /></mesh>
       <mesh position={[0, -.12, 0]}><boxGeometry args={[yard.width, .2, yard.depth]} /><meshStandardMaterial color="#796b50" roughness={1} /></mesh>
       {[-1, 1].map(side => <mesh key={side} position={[side * yard.width / 2, -.025, 0]}><boxGeometry args={[.07, .08, yard.depth]} /><meshStandardMaterial color="#d0c6b1" roughness={.9} /></mesh>)}
       <mesh position={[0, -.025, yard.depth / 2]}><boxGeometry args={[yard.width, .08, .07]} /><meshStandardMaterial color="#d0c6b1" roughness={.9} /></mesh>
