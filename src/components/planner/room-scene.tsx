@@ -33,6 +33,7 @@ type ZoomRequest = {
 
 type RoomSceneProps = {
   cameraView: CameraView;
+  lightingMode: "day" | "evening";
   editMode: boolean;
   showGrid: boolean;
   zoomRequest: ZoomRequest;
@@ -689,6 +690,7 @@ function ContextRecovery({ onLost }: { onLost: () => void }) {
 
 export function RoomScene({
   cameraView,
+  lightingMode,
   editMode,
   showGrid,
   zoomRequest,
@@ -779,12 +781,12 @@ export function RoomScene({
       <StudioEnvironment />
       {/* Lower flat ambient light; broad bounced daylight shapes the room
           without bleaching wall paint or washing texture out of wood. */}
-      <ambientLight intensity={0.48} color="#f7f5f0" />
-      <hemisphereLight args={["#e5edee", "#b6a69a", 0.55]} />
+      <ambientLight intensity={lightingMode === "evening" ? 0.36 : 0.48} color={lightingMode === "evening" ? "#fff0de" : "#f7f5f0"} />
+      <hemisphereLight args={[lightingMode === "evening" ? "#f4d9bd" : "#e5edee", "#b6a69a", lightingMode === "evening" ? 0.36 : 0.55]} />
       <directionalLight
         position={[4, 8, 5]}
-        intensity={1.9}
-        color="#fff5e7"
+        intensity={lightingMode === "evening" ? 0.42 : 1.9}
+        color={lightingMode === "evening" ? "#e6a97d" : "#fff5e7"}
         shadow-mapSize={[SHADOW_MAP_SIZE, SHADOW_MAP_SIZE]}
         shadow-camera-left={-shadowExtent}
         shadow-camera-right={shadowExtent}
@@ -796,8 +798,8 @@ export function RoomScene({
         shadow-normalBias={0.02}
         shadow-radius={3}
       />
-      <directionalLight position={[-4, 4, -2]} intensity={0.32} color="#dbe6f0" />
-      <directionalLight position={[0.5, 3, -6]} intensity={0.32} color="#f2e6d4" />
+      <directionalLight position={[-4, 4, -2]} intensity={lightingMode === "evening" ? 0.12 : 0.32} color="#dbe6f0" />
+      <directionalLight position={[0.5, 3, -6]} intensity={lightingMode === "evening" ? 0.7 : 0.32} color={lightingMode === "evening" ? "#ffd7a3" : "#f2e6d4"} />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} controlsRef={controlsRef} />
       <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={handleDraggingChange} />
       {editMode && (["width", "depth"] as const).flatMap((dimension) =>
