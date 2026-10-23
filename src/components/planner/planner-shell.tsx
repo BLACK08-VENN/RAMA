@@ -49,7 +49,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CameraView } from "./room-scene";
-import { formatKes, products, type ProductCategory } from "@/data/products";
+import { formatKes, products, registerUploadedTrialProduct, unregisterUploadedTrialProduct, type ProductCategory } from "@/data/products";
 import { ProductCardImage } from "./product-card-image";
 import { getRoomArea, matchRoomPreset, roomPresets } from "@/data/room-presets";
 import { DEFAULT_CONFERENCE_SCREEN, getConferenceScreen, screenLimits, type ConferenceScreenConfig } from "@/lib/conference-screen";
@@ -71,7 +71,8 @@ import { AuthModal } from "@/components/auth-modal";
 import { RoomSwitchPrompt } from "./room-switch-prompt";
 import { readSavedRooms, saveRoomSnapshot, deleteRoomSnapshot, type SavedRoom } from "@/lib/saved-rooms";
 import { saveDesignToCloud } from "@/lib/design-storage";
-import { readTrialModel, saveTrialModel, verifyGlb, trialModelIds, type TrialModelId } from "@/lib/trial-model-storage";
+import { addUploadedTrialModel, listUploadedTrialModels, removeUploadedTrialModel, readTrialModel, saveTrialModel, verifyGlb, trialModelIds, type TrialModelId } from "@/lib/trial-model-storage";
+import { inspectUploadedTrialGlb } from "@/lib/trial-glb-import";
 
 const RoomScene = dynamic(
   () => import("./room-scene").then((module) => module.RoomScene),
@@ -162,6 +163,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const [trialModelUrls, setTrialModelUrls] = useState<Record<string, string>>({});
   const trialUrlsRef = useRef<Record<string, string>>({});
   const [trialImportingId, setTrialImportingId] = useState<string | null>(null);
+  const [addingTrials, setAddingTrials] = useState(false);
+  const [catalogVersion, setCatalogVersion] = useState(0);
   useEffect(() => {
     let active = true;
     const restore = async () => {
@@ -175,6 +178,21 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
         } catch (error) {
           console.warn("Trial asset could not be restored", id, error);
         }
+      }
+      try {
+        const uploaded = await listUploadedTrialModels();
+        for (const record of uploaded) {
+          if (!active) return;
+          const blob = await readTrialModel(record.id);
+          if (!blob || !active) continue;
+          registerUploadedTrialProduct(record);
+          const url = URL.createObjectURL(blob);
+          trialUrlsRef.current[record.id] = url;
+          setTrialModelUrls({ ...trialUrlsRef.current });
+        }
+        if (active) setCatalogVersion(value => value + 1);
+      } catch (error) {
+        console.warn("Could not restore additional trial furniture", error);
       }
     };
     void restore();
@@ -319,7 +337,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
         const matchesQuery = searchTerms.every(term => searchText.includes(term));
         return matchesCategory && matchesQuery;
       }),
-    [activePanel, activeCategory, activeDecorGroup, query],
+    [activePanel, activeCategory, activeDecorGroup, query, catalogVersion],
   );
 
   const total = useMemo(
@@ -494,6 +512,60 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
       if (id && await importTrialModel(id, file, true)) imported++;
     }
     notify(imported ? `${imported} trial model${imported === 1 ? "" : "s"} imported. Tap Add to furnish your room.` : "No matching trial models. Select the six named GLB files, not the ZIP.");
+  };
+
+  const importNewTrialFurniture = async (files: File[]) => {
+    if (!files.length || addingTrials) return;
+    setAddingTrials(true);
+    let added = 0;
+    const failed: string[] = [];
+    try {
+      for (const file of files.slice(0, 12)) {
+        try {
+          const record = await inspectUploadedTrialGlb(file);
+          await addUploadedTrialModel(record, file);
+          registerUploadedTrialProduct(record);
+          const url = URL.createObjectURL(file);
+          trialUrlsRef.current[record.id] = url;
+          setTrialModelUrls({ ...trialUrlsRef.current });
+          added++;
+        } catch (error) {
+          failed.push(`${file.name}: ${error instanceof Error ? error.message : "Import failed"}`);
+          console.warn("Trial GLB rejected", file.name, error);
+        }
+      }
+      setCatalogVersion(value => value + 1);
+      setActivePanel("decor");
+      setActiveDecorGroup("Trial furniture");
+      setQuery("");
+      if (added) notify(`${added} new trial item${added !== 1 ? "s" : ""} ready. Tap Add to place in your room.`);
+      else notify(failed[0] ?? "No files could be imported.");
+      if (failed.length) console.warn("Some trial GLBs were not imported:", failed);
+      if (files.length > 12) console.warn("Select additional GLBs in another batch (12 per import).");
+    } finally {
+      setAddingTrials(false);
+    }
+  };
+
+  const removeNewTrialFurniture = async (id: string) => {
+    if (placedItems.some(item => item.productId === id)) {
+      notify("Remove the furniture from your room before deleting its model.");
+      return;
+    }
+    if (!window.confirm("Remove this model from this browser? Saved rooms using it may no longer display it.")) return;
+    try {
+      await removeUploadedTrialModel(id);
+      const url = trialUrlsRef.current[id];
+      if (url) URL.revokeObjectURL(url);
+      delete trialUrlsRef.current[id];
+      setTrialModelUrls({ ...trialUrlsRef.current });
+      unregisterUploadedTrialProduct(id);
+      setCatalogVersion(value => value + 1);
+      notify("Trial model removed from this browser.");
+    } catch (error) {
+      console.error("Unable to remove trial model", error);
+      notify("Could not remove this trial model.");
+    }
   };
 
   const addProduct = (productId: string) => {
@@ -785,6 +857,18 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 <button type="button" aria-label="Clear search and category filters" title="Clear filters" onClick={() => { setQuery(""); setActiveCategory("All"); setActiveDecorGroup("All"); }}><X size={18} /></button>
               </label>
 
+              {activePanel === "decor" && (
+                <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:9,padding:"12px 14px",borderRadius:12,background:"#384843",color:"white",fontWeight:650,fontSize:13,cursor:addingTrials?"progress":"pointer",margin:"8px 0 12px"}}>
+                  <PackagePlus size={18} /> {addingTrials ? "Adding trial furniture…" : "Upload new trial furniture (.glb)"}
+                  <input type="file" accept=".glb,model/gltf-binary" multiple disabled={addingTrials} aria-label="Upload any new furniture GLB files"
+                    style={{position:"absolute",width:1,height:1,opacity:0}}
+                    onChange={event => {
+                      const uploads = Array.from(event.currentTarget.files ?? []);
+                      event.currentTarget.value = "";
+                      void importNewTrialFurniture(uploads);
+                    }} />
+                </label>
+              )}
               <div className="category-list" aria-label={activePanel === "decor" ? "Décor categories" : "Product categories"}>
                 {(activePanel === "decor" ? decorGroups : categories).map((category) => (
                   <button
@@ -798,7 +882,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
               </div>
 
               {activePanel === "decor" && activeDecorGroup === "Trial furniture" && (
-                <p style={{fontSize:13,lineHeight:1.5,padding:"6px 2px"}}>Trial furnishings: import the matching GLB files once on this device, then Add, move, rotate or duplicate the real 3D objects. Models are stored in this browser.</p>
+                <p style={{fontSize:13,lineHeight:1.5,padding:"6px 2px"}}>Trial furniture is stored in this browser. Upload any GLB using the button above and it appears here automatically; tap Add to furnish your room. The original six items can also be imported individually.</p>
               )}
               {activePanel === "decor" && activeDecorGroup === "Trial furniture" && (
                 <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,borderRadius:10,padding:"11px 14px",background:"#394744",color:"#ffffff",fontSize:14,cursor:"pointer",fontWeight:650}}>
@@ -845,7 +929,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                       <span className="product-category">{product.decor?.group ?? product.category}</span>
                       <h2>{product.name}</h2>
                       <span className="product-dimensions">{product.dimensions}</span>
-                      {product.id.startsWith("trial-") && <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,margin:"8px 0",padding:"10px",border:"1px solid #a9aaa7",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:600}}>
+                      {product.id.startsWith("trial-") && !product.id.startsWith("trial-upload-") && <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,margin:"8px 0",padding:"10px",border:"1px solid #a9aaa7",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:600}}>
                         <PackagePlus size={16}/>
                         {trialImportingId === product.id ? "Importing…" : trialModelUrls[product.id] ? "Replace GLB" : "Import GLB"}
                         <input type="file" accept=".glb,model/gltf-binary" style={{position:"absolute",opacity:0,width:1,height:1}} disabled={trialImportingId !== null}
@@ -856,6 +940,11 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                             void importTrialModel(product.id as TrialModelId, selected);
                           }} />
                       </label>}
+                      {product.id.startsWith("trial-upload-") && <button type="button"
+                        style={{display:"block",width:"100%",margin:"8px 0",padding:"8px",border:"1px solid #d1c5c0",borderRadius:7,color:"#865346",fontSize:12}}
+                        onClick={() => void removeNewTrialFurniture(product.id)} aria-label={`Remove ${product.name} from trial library`}>
+                        Remove from trial library
+                      </button>}
                       <div className="product-card-footer">
                         <strong>{(product.decorative ? "Styling accessory" : formatKes(product.price))}</strong>
                         <button tabIndex={product.decorative ? 0 : -1} onClick={() => addProduct(product.id)} aria-label={product.decorative ? `Add ${product.name} to room` : `${product.name} — coming soon`}>
