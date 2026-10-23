@@ -849,7 +849,22 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     </div>
                     {design.room.window.enabled && (
                       <div className="opening-fields">
-                        <label className="opening-position">Window style<select value={design.room.window.style ?? "picture"} onChange={(event) => updateWindowSetting({ style: event.currentTarget.value as WindowConfig["style"] })}><option value="picture">Classic picture window</option><option value="panoramic">Panoramic glass</option><option value="arched">Sculptural arch</option></select></label>
+                        <label className="opening-position">Window style<select value={design.room.window.style ?? "picture"} onChange={(event) => updateWindowSetting({ style: event.currentTarget.value as WindowConfig["style"] })}><option value="picture">Classic picture window</option><option value="panoramic">Panoramic glass</option><option value="arched">Sculptural arch</option><option value="grid-slider">White grid sliding window</option></select></label>
+                        {design.room.window.style === "grid-slider" && <>
+                          <label className="opening-position">Frame finish
+                            <select value={design.room.window.frameColor ?? "white"} onChange={event => updateWindowSetting({ frameColor: event.currentTarget.value as WindowConfig["frameColor"] })}>
+                              <option value="white">White</option><option value="black">Matte black</option><option value="wood">Natural wood</option>
+                            </select>
+                          </label>
+                          <label className="opening-position">Slide open ({Math.round((design.room.window.openAmount ?? 0) * 100)}%)
+                            <input type="range" min="0" max="1" step="0.05" value={design.room.window.openAmount ?? 0} onChange={event => updateWindowSetting({ openAmount: Number(event.currentTarget.value) })} />
+                          </label>
+                          <label className="opening-position">Curtains
+                            <select value={design.room.window.curtains ? "yes" : "no"} onChange={event => updateWindowSetting({ curtains: event.currentTarget.value === "yes" })}>
+                              <option value="no">No curtains</option><option value="yes">Soft pleated curtains</option>
+                            </select>
+                          </label>
+                        </>}
                         <label>Width<input type="number" min="0.8" max="5.5" step="0.1" value={design.room.window.width} onChange={(event) => updateOpeningNumber("window", "width", event.currentTarget.valueAsNumber, 0.8, 5.5)} /></label>
                         <label>Sill height<input type="number" min="0.15" max="1.4" step="0.1" value={design.room.window.sillHeight} onChange={(event) => updateOpeningNumber("window", "sillHeight", event.currentTarget.valueAsNumber, 0.15, 1.4)} /></label>
                         <label className="opening-position">Position<input type="range" min="-0.35" max="0.35" step="0.05" value={design.room.window.position} onChange={(event) => updateOpeningNumber("window", "position", event.currentTarget.valueAsNumber, -0.35, 0.35)} /></label>
