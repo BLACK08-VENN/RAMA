@@ -247,6 +247,51 @@ function WindowExterior({ width, height }: { width: number; height: number }) {
   </mesh>;
 }
 
+function GridSliderWindow({ width, height, room }: { width: number; height: number; room: RoomConfig }) {
+  const frame = room.window.frameColor === "black" ? "#292c2b" : room.window.frameColor === "wood" ? "#9b714f" : "#f3f2eb";
+  const trim = room.window.frameColor === "black" ? "#474947" : room.window.frameColor === "wood" ? "#b1875e" : "#d9dbd8";
+  const open = Math.max(0, Math.min(1, room.window.openAmount ?? 0));
+  const sashW = width / 2 - .035;
+  const sashH = height - .085;
+  const bar = Math.max(.016, Math.min(.035, width * .017));
+  return <group>
+    <WindowExterior width={width} height={height} />
+    {/* Glazed opening and outer casing, without an opaque block over the glass. */}
+    <mesh position={[0, height / 2, -.005]}>
+      <planeGeometry args={[width, height]} />
+      <meshStandardMaterial color="#e9f4f7" metalness={.15} roughness={.13} transparent opacity={.13} depthWrite={false} side={THREE.DoubleSide} />
+    </mesh>
+    {[-1, 1].map(side => <group key={side}>
+      <mesh position={[side * (width / 2), height / 2, .045]}><boxGeometry args={[.075, height + .12, .11]} /><meshStandardMaterial color={frame} roughness={.32} /></mesh>
+    </group>)}
+    {[0, height].map(y => <mesh key={y} position={[0,y,.045]}><boxGeometry args={[width + .15,.075,.11]} /><meshStandardMaterial color={frame} roughness={.32} /></mesh>)}
+    <mesh position={[0,height / 2,.07]}><boxGeometry args={[.055,height,.075]} /><meshStandardMaterial color={trim} roughness={.36}/></mesh>
+    {[-1,1].map((side,index) => <group key={side} position={[side * (width / 4) - (index === 1 ? open * (sashW - .05) : 0), height / 2, index === 1 ? .13 : .09]}>
+      <mesh><planeGeometry args={[sashW - .055,sashH - .045]}/><meshPhysicalMaterial color="#cde0e4" metalness={.08} roughness={.08} transmission={.16} transparent opacity={.26} depthWrite={false} side={THREE.DoubleSide} clearcoat={.8} clearcoatRoughness={.09}/></mesh>
+      {[-1,1].map(edge=><group key={edge}>
+        <mesh position={[edge * sashW / 2,0,.015]}><boxGeometry args={[.048,sashH,.064]}/><meshStandardMaterial color={frame} roughness={.32}/></mesh>
+        <mesh position={[0,edge * sashH / 2,.015]}><boxGeometry args={[sashW,.048,.064]}/><meshStandardMaterial color={frame} roughness={.32}/></mesh>
+      </group>)}
+      {[-1/6,1/6].map(fraction=><mesh key={fraction} position={[fraction*sashW,0,.035]}><boxGeometry args={[bar,sashH-.06,.035]}/><meshStandardMaterial color={trim} roughness={.32}/></mesh>)}
+      {[-1/6,1/6].map(fraction=><mesh key={fraction} position={[0,fraction*sashH,.035]}><boxGeometry args={[sashW-.06,bar,.035]}/><meshStandardMaterial color={trim} roughness={.32}/></mesh>)}
+      <mesh position={[sashW*.2,sashH*.1,.042]} rotation={[0,0,-.22]}><planeGeometry args={[sashW*.08,sashH*.62]}/><meshBasicMaterial color="#ffffff" transparent opacity={.09} depthWrite={false}/></mesh>
+    </group>)}
+    <mesh position={[0,-.045,.11]}><boxGeometry args={[width+.21,.055,.23]}/><meshStandardMaterial color={frame} roughness={.38}/></mesh>
+    {room.window.curtains && <group position={[0,height / 2,.23]}>
+      <mesh position={[0,height / 2 + .13,0]} rotation={[0,0,Math.PI / 2]}><cylinderGeometry args={[.014,.014,width+.26,10]}/><meshStandardMaterial color="#a69b89" metalness={.55} roughness={.3}/></mesh>
+      {Array.from({length:18},(_,i)=> {
+        const side = i < 9 ? -1 : 1;
+        const n = i % 9;
+        const x = side * (width*.32) + (n-4) * width*.018;
+        return <mesh key={i} position={[x,0,.04 + .018*Math.cos(n*Math.PI)]}>
+          <planeGeometry args={[width*.04,height+.04]}/>
+          <meshStandardMaterial color={n%2 ? "#ded7ca" : "#eee8de"} side={THREE.DoubleSide} transparent opacity={.88} roughness={.95}/>
+        </mesh>;
+      })}
+    </group>}
+  </group>;
+}
+
 export function DesignerWindow({ room }: { room: RoomConfig }) {
   const width = Math.min(room.window.width, room.width - .7);
   const height = Math.max(.6, Math.min(room.window.height, room.height - room.window.sillHeight - .15));
@@ -255,6 +300,7 @@ export function DesignerWindow({ room }: { room: RoomConfig }) {
   const radius = Math.min(width / 2, height * .4);
   if (!room.window.enabled) return null;
   return <group position={[room.window.position * (room.width - width), room.window.sillHeight, -room.depth / 2 + .01]}>
+    {room.window.style === "grid-slider" ? <GridSliderWindow width={width} height={height} room={room} /> : <>
     <WindowExterior width={width} height={height} />
     <mesh><shapeGeometry args={[shape, 48]} /><meshStandardMaterial color="#e6eff0" metalness={.08} roughness={.12} transparent opacity={.18} depthWrite={false} side={THREE.DoubleSide} /></mesh>
     {[-width / 2, width / 2].map(x => <mesh key={x} position={[x, (height - (arched ? radius : 0)) / 2, .025]}><boxGeometry args={[.045, height - (arched ? radius : 0), .07]} /><meshStandardMaterial color="#343d3b" metalness={.5} roughness={.35} /></mesh>)}
@@ -262,6 +308,7 @@ export function DesignerWindow({ room }: { room: RoomConfig }) {
     {arched ? <group position={[0, height - radius, .025]} scale={[1, radius / (width / 2), 1]}><mesh><torusGeometry args={[width / 2, .025, 8, 48, Math.PI]} /><meshStandardMaterial color="#b39762" metalness={.65} roughness={.3} /></mesh></group> : <mesh position={[0, height, .025]}><boxGeometry args={[width + .09, .045, .07]} /><meshStandardMaterial color="#343d3b" /></mesh>}
     {(room.window.style === "panoramic" ? [-width / 6, width / 6] : [0]).map(x => <mesh key={x} position={[x, (height - (arched ? radius : 0)) / 2, .025]}><boxGeometry args={[.035, height - (arched ? radius : 0), .065]} /><meshStandardMaterial color="#343d3b" /></mesh>)}
     <mesh position={[width * .2, height * .46, .03]} rotation={[0, 0, -.3]}><planeGeometry args={[width * .12, height * .7]} /><meshBasicMaterial color="#ffffff" transparent opacity={.08} depthWrite={false} side={THREE.DoubleSide} /></mesh>
+    </>}
   </group>;
 }
 
