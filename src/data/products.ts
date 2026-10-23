@@ -6,6 +6,7 @@ export type ProductKind = "sofa" | "table" | "chair" | "cabinet" | "bed" | "plan
 
 export type ProductModel = {
   url: string;
+  rotationY?: number;
   width: number;
   depth: number;
   height: number;
