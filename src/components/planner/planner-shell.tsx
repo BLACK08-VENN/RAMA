@@ -219,7 +219,9 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
         const matchesCategory = activePanel === "decor"
           ? Boolean(product.decorative) && (activeDecorGroup === "All" || product.decor?.group === activeDecorGroup)
           : !product.decorative && (activeCategory === "All" || product.category === activeCategory);
-        const matchesQuery = product.name.toLowerCase().includes(query.toLowerCase());
+        const searchTerms = query.trim().toLocaleLowerCase().split(/\\s+/).filter(Boolean);
+        const searchText = [product.name, product.category, product.decor?.group, product.kind, product.dimensions, product.id].filter(Boolean).join(" ").toLocaleLowerCase();
+        const matchesQuery = searchTerms.every(term => searchText.includes(term));
         return matchesCategory && matchesQuery;
       }),
     [activePanel, activeCategory, activeDecorGroup, query],
@@ -644,7 +646,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
               <label className="catalog-search">
                 <Search size={19} />
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={activePanel === "decor" ? "Search décor" : "Search furniture"} />
-                <button aria-label="Filters"><SlidersHorizontal size={18} /></button>
+                <button type="button" aria-label="Clear search and category filters" title="Clear filters" onClick={() => { setQuery(""); setActiveCategory("All"); setActiveDecorGroup("All"); }}><X size={18} /></button>
               </label>
 
               <div className="category-list" aria-label={activePanel === "decor" ? "Décor categories" : "Product categories"}>
@@ -664,6 +666,13 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 <button><LayoutGrid size={16} /> Grid</button>
               </div>
 
+              {filteredProducts.length === 0 && (
+                <div role="status" className="opening-card">
+                  <strong>No matching products</strong>
+                  <p>Try a product name, material, category or another keyword.</p>
+                  <button type="button" onClick={() => { setQuery(""); setActiveCategory("All"); setActiveDecorGroup("All"); }}>Show all in this collection</button>
+                </div>
+              )}
               <div className="product-grid">
                 {filteredProducts.map((product) => (
                   <article className={`product-card ${product.decorative ? "" : "coming-soon-card"}`} key={product.id}>
