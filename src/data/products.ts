@@ -20,6 +20,7 @@ export type PlannerProduct = {
   category: ProductCategory;
   kind: ProductKind;
   decorative?: boolean;
+  trialRotated?: boolean;
   decor?: DecorSpec;
   price: number;
   image: string;
@@ -441,6 +442,7 @@ export function registerUploadedTrialProduct(record: {
   id: string;
   name: string;
   kind: "chair" | "sofa" | "table" | "bed" | "cabinet";
+  rotated?: boolean;
   width: number;
   depth: number;
   height: number;
@@ -452,6 +454,7 @@ export function registerUploadedTrialProduct(record: {
     kind: record.kind,
     category: "Décor",
     decorative: true,
+    trialRotated: record.rotated ?? false,
     price: 0,
     productUrl: "",
     image: "",
