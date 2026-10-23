@@ -86,6 +86,17 @@ const RoomScene = dynamic(
 );
 
 const categories: Array<"All" | ProductCategory> = ["All", "Seating", "Tables", "Storage", "Bedroom"];
+function modelIdFromFilename(name: string): TrialModelId | null {
+  const nameKey = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (nameKey.includes("officechair")) return "trial-office-chair";
+  if (nameKey.includes("conferencetable") || nameKey.includes("confrencetable")) return "trial-conference-table";
+  if (nameKey.includes("diningtable")) return "trial-dining-table";
+  if (nameKey.includes("whiteseat")) return "trial-white-seat";
+  if (nameKey.includes("couch")) return "trial-couch";
+  if (nameKey.includes("seat")) return "trial-seat";
+  return null;
+}
+
 const decorGroups: Array<"All" | DecorGroup> = ["All", "Trial furniture", "Floor plants", "Hanging plants", "Table plants", "Wall art", "Mirrors", "Rugs", "Vases"];
 
 const placementSpots: Array<[number, number, number]> = [
@@ -438,13 +449,13 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     }
   };
 
-  const importTrialModel = async (id: TrialModelId, file?: File) => {
-    if (!file) return;
+  const importTrialModel = async (id: TrialModelId, file?: File, quiet = false): Promise<boolean> => {
+    if (!file) return false;
     setTrialImportingId(id);
     try {
       if (!(await verifyGlb(file))) {
-        notify("Please choose a valid GLB 2.0 model under 100 MB");
-        return;
+        if (!quiet) notify("Please choose a valid GLB 2.0 model under 100 MB");
+        return false;
       }
       let stored = true;
       try { await saveTrialModel(id, file); }
@@ -457,13 +468,25 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
       trialUrlsRef.current[id] = nextUrl;
       setTrialModelUrls({ ...trialUrlsRef.current });
       if (previous) URL.revokeObjectURL(previous);
-      notify(stored ? "3D model imported. Tap Add to furnish your room." : "3D model loaded for this session. Browser storage is unavailable.");
+      if (!quiet) notify(stored ? "3D model imported. Tap Add to furnish your room." : "3D model loaded for this session. Browser storage is unavailable.");
+      return true;
     } catch (error) {
       console.error("Unable to import GLB model", error);
-      notify("Unable to import this GLB file");
+      if (!quiet) notify("Unable to import this GLB file");
+      return false;
     } finally {
       setTrialImportingId(null);
     }
+  };
+
+  const importAllTrialModels = async (files: File[]) => {
+    if (files.length === 0) return;
+    let imported = 0;
+    for (const file of files) {
+      const id = modelIdFromFilename(file.name);
+      if (id && await importTrialModel(id, file, true)) imported++;
+    }
+    notify(imported ? `${imported} trial model${imported === 1 ? "" : "s"} imported. Tap Add to furnish your room.` : "No matching trial models. Select the six named GLB files, not the ZIP.");
   };
 
   const addProduct = (productId: string) => {
@@ -768,7 +791,21 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
               </div>
 
               {activePanel === "decor" && activeDecorGroup === "Trial furniture" && (
-                <p style={{fontSize:13,lineHeight:1.5,padding:"6px 2px"}}>Trial furnishings: import each GLB once on this device, then Add, move, rotate or duplicate it in the 3D room. Models are stored in this browser for future visits.</p>
+                <p style={{fontSize:13,lineHeight:1.5,padding:"6px 2px"}}>Trial furnishings: import the matching GLB files once on this device, then Add, move, rotate or duplicate the real 3D objects. Models are stored in this browser.</p>
+              )}
+              {activePanel === "decor" && activeDecorGroup === "Trial furniture" && (
+                <label style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,borderRadius:10,padding:"11px 14px",background:"#394744",color:"#ffffff",fontSize:14,cursor:"pointer",fontWeight:650}}>
+                  <PackagePlus size={18}/> Import all six GLBs
+                  <input type="file" multiple accept=".glb,model/gltf-binary"
+                    aria-label="Import all trial furniture GLB models"
+                    style={{position:"absolute",opacity:0,width:1,height:1}}
+                    onChange={event => {
+                      const files = Array.from(event.currentTarget.files ?? []);
+                      event.currentTarget.value = "";
+                      void importAllTrialModels(files);
+                    }}
+                  />
+                </label>
               )}
               <div className="catalog-result-heading">
                 <span>{filteredProducts.length} {activePanel === "decor" ? "styling accessories" : "products · coming soon"}</span>
