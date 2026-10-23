@@ -898,7 +898,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                         className={design.room.floorName === finish.name ? "selected" : ""}
                         onClick={() => updateRoom({ floorName: finish.name, floorColor: finish.color })}
                       >
-                        <i style={{ background: finish.color }} />
+                        <i style={{ backgroundColor: finish.color, backgroundImage: `url(/materials/ambientcg/${finish.label}/Color.jpg)`, backgroundSize: "cover", backgroundPosition: "center" }} />
                         <span>{finish.label}</span>
                       </button>
                     ))}
