@@ -377,7 +377,7 @@ export const usePlannerStore = create<PlannerState>()(
             presetId:
               room.presetId !== undefined
                 ? room.presetId
-                : matchRoomPreset(merged)?.id ?? null,
+                : design.room.presetId === "conference-room" ? "conference-room" : matchRoomPreset(merged)?.id ?? null,
           };
           return {
             ...design,
