@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
+import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { getOutdoorMetrics, type RoomConfig } from "@/stores/planner-store";
 
@@ -9,19 +10,28 @@ export function OutdoorSpaces({ room }: { room: RoomConfig }) {
   const grassWidth = room.spaceType === "garden" ? room.width : room.yard?.width;
   const grassDepth = room.spaceType === "garden" ? room.depth : room.yard?.depth;
   const grassEnabled = room.spaceType === "garden" || Boolean(room.yard?.enabled);
-  const grass = useMemo(() => {
-    if (!grassEnabled || typeof document === "undefined") return null;
-    const canvas = document.createElement("canvas"); canvas.width = canvas.height = 256;
-    const c = canvas.getContext("2d"); if (!c) return null;
-    c.fillStyle = "#749455"; c.fillRect(0, 0, 256, 256);
-    let seed = 23;
-    const random = () => { seed = seed * 16807 % 2147483647; return seed / 2147483647; };
-    for (let i = 0; i < 6000; i++) { const x = random() * 256, y = random() * 256; c.strokeStyle = i % 2 ? "#92ac6b" : "#5e7e45"; c.lineWidth = .6; c.beginPath(); c.moveTo(x, y); c.lineTo(x + random() * 2 - 1, y - random() * 4); c.stroke(); }
-    const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace; map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.anisotropy = 2; return map;
-  }, [grassEnabled]);
-  useEffect(() => () => { grass?.dispose(); }, [grass]);
-  useEffect(() => { grass?.repeat.set(grassWidth ?? 1, grassDepth ?? 1); }, [grass, grassWidth, grassDepth]);
+  const [grass, setGrass] = useState<THREE.Texture | null>(null);
+  const invalidate = useThree(state => state.invalidate);
+  useEffect(() => {
+    if (!grassEnabled) { setGrass(null); return; }
+    let active = true;
+    new THREE.TextureLoader().load("/materials/ambientcg/Grass005/Color.jpg", map => {
+      if (!active) { map.dispose(); return; }
+      map.colorSpace = THREE.SRGBColorSpace;
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.anisotropy = 8;
+      setGrass(map);
+      invalidate();
+    }, undefined, () => { if (active) setGrass(null); });
+    return () => { active = false; };
+  }, [grassEnabled, invalidate]);
+  useEffect(() => {
+    if (!grass) return;
+    grass.repeat.set((grassWidth ?? 1) / 2, (grassDepth ?? 1) / 2);
+    grass.needsUpdate = true;
+    invalidate();
+  }, [grass, grassWidth, grassDepth, invalidate]);
+  useEffect(() => () => grass?.dispose(), [grass]);
   const { balconyDepth } = getOutdoorMetrics(room);
   const deck = room.spaceType === "balcony" ? { enabled: true, width: room.width, depth: room.depth } : room.balcony, yard = room.spaceType === "garden" ? { enabled: true, width: room.width, depth: room.depth } : room.yard;
   return <group>
