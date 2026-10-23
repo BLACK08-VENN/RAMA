@@ -52,6 +52,7 @@ import type { CameraView } from "./room-scene";
 import { formatKes, products, type ProductCategory } from "@/data/products";
 import { ProductCardImage } from "./product-card-image";
 import { getRoomArea, matchRoomPreset, roomPresets } from "@/data/room-presets";
+import { DEFAULT_CONFERENCE_SCREEN, getConferenceScreen, screenLimits, type ConferenceScreenConfig } from "@/lib/conference-screen";
 import {
   decodeSharedDesign,
   encodeSharedDesign,
@@ -298,6 +299,12 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const roomArea = getRoomArea(design.room);
   const activeRoomPreset = matchRoomPreset(design.room);
   const openingCount = Number(design.room.door.enabled) + Number(design.room.window.enabled);
+  const conferenceScreen = getConferenceScreen(design.room);
+  const conferenceScreenBounds = screenLimits(design.room, conferenceScreen.width, conferenceScreen.height);
+  const changeConferenceScreen = (change: Partial<ConferenceScreenConfig>) => {
+    updateRoom({ conferenceScreen: getConferenceScreen(design.room, change) });
+  };
+
   const nextItemNumber = useRef(10);
   const sceneStageRef = useRef<HTMLDivElement>(null);
 
@@ -1074,6 +1081,23 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                       <select value={design.room.conferenceRecessedLights ? "yes" : "no"} onChange={event => updateRoom({ conferenceRecessedLights: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select>
                     </label>
                   </div>
+                  {design.room.conferencePresentationWall && <div className="finish-section">
+                    <strong>Presentation screen — size & position</strong>
+                    <p className="resize-instruction">Drag the TV on its back wall in Move mode, or tap a measurement below to enter an exact size or location.</p>
+                    <div className="dimension-fields">
+                      <DimensionInput label="Screen width" value={Number(conferenceScreen.width.toFixed(2))} min={0.8} max={conferenceScreenBounds.widthMax} onCommit={width => changeConferenceScreen({ width })} />
+                      <DimensionInput label="Screen height" value={Number(conferenceScreen.height.toFixed(2))} min={0.5} max={conferenceScreenBounds.heightMax} onCommit={height => changeConferenceScreen({ height })} />
+                      <DimensionInput label="Left / right from centre" value={Number(conferenceScreen.x.toFixed(2))} min={-conferenceScreenBounds.xLimit} max={conferenceScreenBounds.xLimit} onCommit={x => changeConferenceScreen({ x })} />
+                      <DimensionInput label="Centre height above floor" value={Number(conferenceScreen.y.toFixed(2))} min={conferenceScreenBounds.yMin} max={conferenceScreenBounds.yMax} onCommit={y => changeConferenceScreen({ y })} />
+                    </div>
+                    <div className="selection-move-controls" role="group" aria-label="Fine-adjust presentation screen position" style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                      <button type="button" aria-label="Move presentation screen left by 10 centimetres" title="Left 10 cm" onClick={() => changeConferenceScreen({ x: conferenceScreen.x - .1 })}><ArrowLeft size={18}/></button>
+                      <button type="button" aria-label="Move presentation screen right by 10 centimetres" title="Right 10 cm" onClick={() => changeConferenceScreen({ x: conferenceScreen.x + .1 })}><ArrowRight size={18}/></button>
+                      <button type="button" aria-label="Move presentation screen up by 10 centimetres" title="Up 10 cm" onClick={() => changeConferenceScreen({ y: conferenceScreen.y + .1 })}><ArrowUp size={18}/></button>
+                      <button type="button" aria-label="Move presentation screen down by 10 centimetres" title="Down 10 cm" onClick={() => changeConferenceScreen({ y: conferenceScreen.y - .1 })}><ArrowDown size={18}/></button>
+                      <button type="button" aria-label="Reset presentation screen size and position" onClick={() => changeConferenceScreen(DEFAULT_CONFERENCE_SCREEN)}>Reset TV</button>
+                    </div>
+                  </div>}
                   <div className="finish-section"><span>Conference flooring</span>
                     <div className="floor-options">{conferenceFloors.map(finish => <button type="button" key={finish.name} className={design.room.floorName === finish.name ? "selected" : ""} onClick={() => updateRoom({ floorName: finish.name, floorColor: finish.color })}><i style={{ backgroundColor: finish.color, backgroundImage: `url(/materials/ambientcg/${finish.label}/Color.jpg)`, backgroundSize: "cover", backgroundPosition: "center" }}/><span>{finish.label}</span></button>)}</div>
                   </div>
@@ -1141,6 +1165,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
             onSelect={selectItem}
             onMove={moveItem}
             onStorageMove={position => updateRoom({ builtInStorage: { ...design.room.builtInStorage, enabled: true, width: design.room.builtInStorage?.width ?? 2, position } })}
+            onScreenMove={(x, y) => changeConferenceScreen({ x, y })}
             onResize={(dimension, value) => updateRoom({ [dimension]: value })}
           />
 
