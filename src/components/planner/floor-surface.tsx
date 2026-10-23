@@ -29,6 +29,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
 
   useEffect(() => {
     let active = true;
+    const owned = new Set<THREE.Texture>();
     const loader = new THREE.TextureLoader();
     const root = `/materials/ambientcg/${id}/`;
     // Load the visible colour texture first. A missing optional PBR map must
@@ -36,6 +37,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
     loader.loadAsync(root + "Color.jpg")
       .then(async color => {
         if (!active) { color.dispose(); return; }
+        owned.add(color);
         color.colorSpace = THREE.SRGBColorSpace;
         color.wrapS = color.wrapT = THREE.RepeatWrapping;
         color.minFilter = THREE.LinearMipmapLinearFilter;
@@ -49,6 +51,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
         if (!active) { normal?.dispose(); roughness?.dispose(); return; }
         [normal, roughness].forEach(map => {
           if (!map) return;
+          owned.add(map);
           map.wrapS = map.wrapT = THREE.RepeatWrapping;
           map.minFilter = THREE.LinearMipmapLinearFilter;
           map.anisotropy = 8;
@@ -57,13 +60,8 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
         invalidate();
       })
       .catch(error => console.warn("Floor colour image not available", id, error));
-    return () => { active = false; };
+    return () => { active = false; owned.forEach(texture => texture.dispose()); };
   }, [id]);
-
-  useEffect(() => () => {
-    // TextureLoader resources may be reused between the two stages; do not
-    // dispose a map still referenced by the active material.
-  }, [loaded]);
 
   const maps = loaded?.id === id ? loaded.maps : null;
   const textureSize = id === "Tiles140" ? 2 : 2.5;
