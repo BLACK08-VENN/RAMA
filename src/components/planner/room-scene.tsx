@@ -39,6 +39,7 @@ type RoomSceneProps = {
   zoomRequest: ZoomRequest;
   room: RoomConfig;
   placedItems: PlacedItem[];
+  trialModelUrls: Record<string, string>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onMove: (id: string, position: [number, number, number], wall?: WallSide) => void;
@@ -466,9 +467,13 @@ function GlbModel({ model }: { model: ProductModel }) {
   );
 }
 
-function Furniture({ item }: { item: PlacedItem }) {
+function Furniture({ item, trialModelUrls }: { item: PlacedItem; trialModelUrls: Record<string, string> }) {
   if (["plant", "rug", "mirror", "vase", "wall-art"].includes(item.kind)) return <DecorModel item={item} />;
-  const model = productModels[item.productId];
+  const imported = trialModelUrls[item.productId];
+  const spec = productById[item.productId]?.decor;
+  const model = imported && spec
+    ? { url: imported, width: spec.width, depth: spec.depth, height: spec.height }
+    : productModels[item.productId];
 
   if (model) {
     return (
@@ -696,6 +701,7 @@ export function RoomScene({
   zoomRequest,
   room,
   placedItems,
+  trialModelUrls,
   selectedId,
   onSelect,
   onMove,
@@ -827,7 +833,7 @@ export function RoomScene({
           onMove={onMove}
           onDraggingChange={handleDraggingChange}
         >
-          <Furniture item={item} />
+          <Furniture item={item} trialModelUrls={trialModelUrls} />
         </DraggableFurniture>
         );
         return content;
