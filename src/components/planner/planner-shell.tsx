@@ -103,6 +103,34 @@ const floorFinishes = [
   { name: "Fabric floor", color: "#a49d94", label: "Fabric081C" },
 ];
 
+function DimensionInput({ label, value, min, max, onCommit }: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onCommit: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  const [editing, setEditing] = useState(false);
+  useEffect(() => { if (!editing) setDraft(String(value)); }, [value, editing]);
+  const commit = () => {
+    const parsed = Number(draft);
+    if (draft.trim() !== "" && Number.isFinite(parsed)) {
+      onCommit(Math.min(max, Math.max(min, parsed)));
+    }
+    setEditing(false);
+    setDraft(draft.trim() !== "" && Number.isFinite(parsed) ? String(Math.min(max, Math.max(min, parsed))) : String(value));
+  };
+  return <label>{label} (m)
+    <input type="number" inputMode="decimal" min={min} max={max} step="any"
+      value={draft} onFocus={() => setEditing(true)}
+      onChange={event => setDraft(event.currentTarget.value)}
+      onBlur={commit}
+      onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraft(String(value)); event.currentTarget.blur(); } }}
+      aria-label={`${label} in metres`} />
+  </label>;
+}
+
 export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const [activePanel, setActivePanel] = useState<"products" | "decor" | "room" | "design">("decor");
   const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>("All");
@@ -746,9 +774,9 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                   </div>
                   <p className="resize-instruction">Drag the teal handles on the room edges to pull or push the walls. Use the fields below for exact sizes.</p>
                   <div className="dimension-fields">
-                    <label>Width<input type="number" min="2.5" max="12" step="0.1" value={design.room.width} onChange={(event) => updateRoomDimension("width", event.currentTarget.valueAsNumber)} /></label>
-                    <label>Depth<input type="number" min="2.5" max="12" step="0.1" value={design.room.depth} onChange={(event) => updateRoomDimension("depth", event.currentTarget.valueAsNumber)} /></label>
-                    <label>Height<input type="number" min="2.2" max="4.5" step="0.1" value={design.room.height} onChange={(event) => updateRoomDimension("height", event.currentTarget.valueAsNumber)} /></label>
+                    <DimensionInput label="Width" value={design.room.width} min={2.5} max={12} onCommit={value => updateRoomDimension("width", value)} />
+                    <DimensionInput label="Depth" value={design.room.depth} min={2.5} max={12} onCommit={value => updateRoomDimension("depth", value)} />
+                    <DimensionInput label="Height" value={design.room.height} min={2.2} max={4.5} onCommit={value => updateRoomDimension("height", value)} />
                   </div>
                 </section>
                 {(!design.room.spaceType || design.room.spaceType === "indoor") && <>
