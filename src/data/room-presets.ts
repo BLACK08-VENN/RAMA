@@ -7,6 +7,9 @@ export type RoomPreset = {
   empty?: boolean;
   conferenceGlassWalls?: boolean;
   conferenceRecessedLights?: boolean;
+  conferenceCeilingBulkhead?: boolean;
+  conferenceAcousticPanels?: boolean;
+  conferencePresentationWall?: boolean;
   chandelier?: "none" | "rings" | "globes";
   id: string;
   name: string;
@@ -77,6 +80,7 @@ export const roomPresets: RoomPreset[] = [
   {
       id: "conference-room",
       conferenceGlassWalls: true, conferenceRecessedLights: true,
+      conferencePresentationWall: true, conferenceAcousticPanels: true, conferenceCeilingBulkhead: true,
       name: "Conference room",
       description: "Spacious meeting room with panoramic daylight",
       empty: true,
