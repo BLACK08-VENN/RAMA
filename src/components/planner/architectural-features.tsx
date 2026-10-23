@@ -118,6 +118,14 @@ function WallOpeningGeometry({ shape, span, height }: { shape: THREE.Shape; span
   return <primitive object={geometry} attach="geometry" />;
 }
 
+function ConferenceGlassWall({ span, height, position, rotation }: { span: number; height: number; position: [number,number,number]; rotation: [number,number,number] }) {
+  return <group position={position} rotation={rotation}>
+    <mesh position={[0,height/2,0]}><planeGeometry args={[span,height]}/><meshPhysicalMaterial color="#d8e9ed" roughness={.09} metalness={.08} transparent opacity={.22} depthWrite={false} side={THREE.DoubleSide} clearcoat={.75}/></mesh>
+    {[-span/2,-span/6,span/6,span/2].map(x=><mesh key={x} position={[x,height/2,.018]}><boxGeometry args={[.038,height,.06]}/><meshStandardMaterial color="#3d484d" metalness={.48} roughness={.3}/></mesh>)}
+    {[0,height].map(y=><mesh key={y} position={[0,y,.018]}><boxGeometry args={[span+.06,.05,.06]}/><meshStandardMaterial color="#3d484d" metalness={.48} roughness={.3}/></mesh>)}
+  </group>;
+}
+
 export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
   const back = useMemo(() => {
     const shape = new THREE.Shape();
@@ -180,8 +188,8 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
       </CutawayWall>
     ))}
     <CutawayWall room={room} wall="left"><mesh receiveShadow position={[-room.width / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]}><WallOpeningGeometry shape={left} span={room.depth} height={room.height} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.depth} height={room.height} /></mesh></CutawayWall>
-    <CutawayWall room={room} wall="right"><mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.depth} height={room.height} /></mesh></CutawayWall>
-    <CutawayWall room={room} wall="front"><mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.width} height={room.height} /></mesh></CutawayWall>
+    <CutawayWall room={room} wall="right">{room.presetId === "conference-room" && room.conferenceGlassWalls ? <ConferenceGlassWall span={room.depth} height={room.height} position={[room.width/2,0,0]} rotation={[0,-Math.PI/2,0]}/> : <mesh receiveShadow position={[room.width / 2, room.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[room.depth, room.height]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.depth} height={room.height} /></mesh>}</CutawayWall>
+    <CutawayWall room={room} wall="front">{room.presetId === "conference-room" && room.conferenceGlassWalls ? <ConferenceGlassWall span={room.width} height={room.height} position={[0,0,room.depth/2]} rotation={[0,Math.PI,0]}/> : <mesh receiveShadow position={[0, room.height / 2, room.depth / 2]} rotation={[0, Math.PI, 0]}><planeGeometry args={[room.width, room.height]} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.width} height={room.height} /></mesh>}</CutawayWall>
   </group>;
 }
 
@@ -196,6 +204,11 @@ export function Ceiling({ room }: { room: RoomConfig }) {
       <planeGeometry args={[room.width, room.depth]} />
       <meshStandardMaterial color={tone} roughness={0.95} />
     </mesh>
+    {room.presetId === "conference-room" && room.conferenceRecessedLights && [-1, 1].flatMap(row => [-1.5,-.5,.5,1.5].map(col => <group key={`${row}-${col}`} position={[col*room.width/5,room.height-.014,row*room.depth/4]}>
+      <mesh rotation={[Math.PI/2,0,0]}><ringGeometry args={[.085,.115,24]}/><meshStandardMaterial color="#dddcd4" roughness={.4} side={THREE.DoubleSide}/></mesh>
+      <mesh rotation={[Math.PI/2,0,0]} position={[0,-.008,0]}><circleGeometry args={[.084,24]}/><meshBasicMaterial color="#fff2d8" side={THREE.DoubleSide} toneMapped={false}/></mesh>
+      <pointLight position={[0,-.12,0]} intensity={.28} distance={3.2} decay={2} color="#fff0d4"/>
+    </group>))}
     {[
       { position: [0, drop, insetZ] as const, size: [room.width, band, trim] as const },
       { position: [0, drop, -insetZ] as const, size: [room.width, band, trim] as const },
