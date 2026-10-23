@@ -26,6 +26,7 @@ export type UploadedTrialModel = {
   depth: number;
   height: number;
   fileName: string;
+  rotated?: boolean;
   createdAt: number;
 };
 
@@ -57,7 +58,7 @@ export async function saveTrialModel(id: TrialModelId, model: Blob): Promise<voi
   });
 }
 
-export async function readTrialModel(id: TrialModelId): Promise<Blob | null> {
+export async function readTrialModel(id: string): Promise<Blob | null> {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(OBJECT_STORE, "readonly");
