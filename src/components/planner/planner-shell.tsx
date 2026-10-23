@@ -870,12 +870,13 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                           <label className="opening-position">Slide open ({Math.round((design.room.window.openAmount ?? 0) * 100)}%)
                             <input type="range" min="0" max="1" step="0.05" value={design.room.window.openAmount ?? 0} onChange={event => updateWindowSetting({ openAmount: Number(event.currentTarget.value) })} />
                           </label>
-                          <label className="opening-position">Curtains
-                            <select value={design.room.window.curtains ? "yes" : "no"} onChange={event => updateWindowSetting({ curtains: event.currentTarget.value === "yes" })}>
-                              <option value="no">No curtains</option><option value="yes">Soft pleated curtains</option>
-                            </select>
-                          </label>
                         </>}
+                        <label className="opening-position">Window covering
+                          <select value={design.room.window.blinds ? "blinds" : design.room.window.curtains ? "curtains" : "none"}
+                            onChange={event => updateWindowSetting({ curtains: event.currentTarget.value === "curtains", blinds: event.currentTarget.value === "blinds" })}>
+                            <option value="none">None</option><option value="curtains">Soft curtains</option><option value="blinds">Roller blinds</option>
+                          </select>
+                        </label>
                         <label>Width<input type="number" min="0.8" max="5.5" step="0.1" value={design.room.window.width} onChange={(event) => updateOpeningNumber("window", "width", event.currentTarget.valueAsNumber, 0.8, 5.5)} /></label>
                         <label>Sill height<input type="number" min="0.15" max="1.4" step="0.1" value={design.room.window.sillHeight} onChange={(event) => updateOpeningNumber("window", "sillHeight", event.currentTarget.valueAsNumber, 0.15, 1.4)} /></label>
                         <label className="opening-position">Position<input type="range" min="-0.35" max="0.35" step="0.05" value={design.room.window.position} onChange={(event) => updateOpeningNumber("window", "position", event.currentTarget.valueAsNumber, -0.35, 0.35)} /></label>
