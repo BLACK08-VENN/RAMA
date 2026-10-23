@@ -32,7 +32,7 @@ export type RoomPreset = {
   };
 };
 
-export const roomPresets: RoomPreset[
+export const roomPresets: RoomPreset[] = [
   {
       id: "balcony", name: "Balcony", description: "Empty · independent timber deck with glass rails", empty: true, spaceType: "balcony",
       width: 5.4, depth: 2.8, height: 2.7, wallColor: "#eeeae3", floorColor: "#bca78a", floorName: "Natural oak",
