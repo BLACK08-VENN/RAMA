@@ -45,6 +45,7 @@ type RoomSceneProps = {
   onMove: (id: string, position: [number, number, number], wall?: WallSide) => void;
   onResize: (dimension: "width" | "depth", value: number) => void;
   onStorageMove: (position: [number, number]) => void;
+  onScreenMove: (x: number, y: number) => void;
 };
 
 const initialCameraPosition: [number, number, number] = [7, 5.5, 7];
@@ -542,13 +543,13 @@ function DoorFeature({ room }: { room: RoomConfig }) {
   );
 }
 
-function StyledRoom({ room, editMode, onStorageMove, onDraggingChange }: { room: RoomConfig; editMode: boolean; onStorageMove: (position: [number, number]) => void; onDraggingChange: (dragging: boolean) => void }) {
+function StyledRoom({ room, editMode, onStorageMove, onScreenMove, onDraggingChange }: { room: RoomConfig; editMode: boolean; onStorageMove: (position: [number, number]) => void; onScreenMove: (x: number, y: number) => void; onDraggingChange: (dragging: boolean) => void }) {
   if (room.spaceType === "balcony" || room.spaceType === "garden") return <OutdoorSpaces room={room} />;
   return (
     <group>
       <FloorSurface key={room.floorName} room={room} />
       <OutdoorSpaces room={room} />
-      <ArchitecturalWalls room={room} />
+      <ArchitecturalWalls room={room} screenDragEnabled={editMode} onScreenMove={onScreenMove} onDraggingChange={onDraggingChange} />
       <Ceiling room={room} />
       <CutawayWall room={room} wall="left"><DoorFeature room={room} /></CutawayWall>
       <CutawayWall room={room} wall="back"><DesignerWindow room={room} /></CutawayWall>
@@ -707,6 +708,7 @@ export function RoomScene({
   onMove,
   onResize,
   onStorageMove,
+  onScreenMove,
 }: RoomSceneProps) {
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -807,7 +809,7 @@ export function RoomScene({
       <directionalLight position={[-4, 4, -2]} intensity={lightingMode === "evening" ? 0.12 : 0.32} color="#dbe6f0" />
       <directionalLight position={[0.5, 3, -6]} intensity={lightingMode === "evening" ? 0.7 : 0.32} color={lightingMode === "evening" ? "#ffd7a3" : "#f2e6d4"} />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} controlsRef={controlsRef} />
-      <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onDraggingChange={handleDraggingChange} />
+      <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onScreenMove={onScreenMove} onDraggingChange={handleDraggingChange} />
       {editMode && (["width", "depth"] as const).flatMap((dimension) =>
         ([-1, 1] as const).map((side) => (
           <RoomResizeHandle
