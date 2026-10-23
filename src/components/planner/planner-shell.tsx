@@ -94,6 +94,14 @@ const placementSpots: Array<[number, number, number]> = [
 
 const wallColors = ["#f3f0e9", "#e4ded2", "#cbdcdc", "#b7b2a8"];
 
+const conferenceFloors = [
+  { name: "Conference Fabric026", color: "#817c76", label: "Fabric026" },
+  { name: "Conference Carpet004", color: "#85827d", label: "Carpet004" },
+  { name: "Conference Fabric027", color: "#a29c94", label: "Fabric027" },
+  { name: "Conference Carpet005", color: "#6f6a66", label: "Carpet005" },
+  { name: "Conference Fabric022", color: "#99918b", label: "Fabric022" },
+];
+
 const floorFinishes = [
   { name: "Natural oak", color: "#d8b78e", label: "WoodFloor051" },
   { name: "Light ash", color: "#c8b79f", label: "WoodFloor070" },
@@ -879,7 +887,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 <div className="finish-section">
                   <span>Floor finish</span>
                   <div className="floor-options">
-                    {floorFinishes.map((finish) => (
+                    {(design.room.presetId === "conference-room" ? conferenceFloors : floorFinishes).map((finish) => (
                       <button
                         key={finish.name}
                         className={design.room.floorName === finish.name ? "selected" : ""}
