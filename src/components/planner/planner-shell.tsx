@@ -146,6 +146,18 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>("All");
   const [activeDecorGroup, setActiveDecorGroup] = useState<(typeof decorGroups)[number]>("All");
   const [query, setQuery] = useState("");
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem("rama-favorite-product-ids") ?? "[]");
+      if (Array.isArray(saved)) setFavoriteIds(saved.filter((id): id is string => typeof id === "string").slice(0, 200));
+    } catch { /* Missing or disabled storage must not affect room design. */ }
+  }, []);
+  const toggleFavorite = (id: string) => {
+    const next = favoriteIds.includes(id) ? favoriteIds.filter(value => value !== id) : [...favoriteIds, id];
+    setFavoriteIds(next);
+    try { window.localStorage.setItem("rama-favorite-product-ids", JSON.stringify(next)); } catch { /* Optional preference. */ }
+  };
   const [cameraView, setCameraView] = useState<CameraView>("perspective");
   const [showGrid, setShowGrid] = useState(false);
   const [zoomRequest, setZoomRequest] = useState<{ id: number; direction: "in" | "out" }>({
@@ -702,7 +714,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
 
               <div className="catalog-result-heading">
                 <span>{filteredProducts.length} {activePanel === "decor" ? "styling accessories" : "products · coming soon"}</span>
-                <button><LayoutGrid size={16} /> Grid</button>
+                <span aria-label="Grid view"><LayoutGrid size={16} /> Grid</span>
               </div>
 
               {filteredProducts.length === 0 && (
@@ -719,7 +731,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     <div className="product-image-wrap">
                       <ProductCardImage src={product.image} fallback={product.decorative ? `/decor/${product.id}.svg` : product.image} alt={product.name} />
                       {product.decorative && <button type="button" className="decor-image-add" onClick={() => addProduct(product.id)} aria-label={`Add ${product.name} to room`} />}
-                      <button className="favorite-button" tabIndex={product.decorative ? 0 : -1} aria-label={`Save ${product.name}`}><Heart size={17} /></button>
+                      <button type="button" className="favorite-button" tabIndex={product.decorative ? 0 : -1} aria-label={`${favoriteIds.includes(product.id) ? "Unsave" : "Save"} ${product.name}`} aria-pressed={favoriteIds.includes(product.id)} onClick={() => toggleFavorite(product.id)}><Heart size={17} fill={favoriteIds.includes(product.id) ? "currentColor" : "none"} /></button>
                       <span className="model-ready">{product.decor ? product.decor.mount === "wall" ? "WALL" : product.decor.mount === "ceiling" ? "HANGING" : "3D DÉCOR" : "COMING SOON"}</span>
                     </div>
                     <div className="product-card-body">
@@ -1083,7 +1095,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
             <button aria-label="Zoom out" onClick={() => requestZoom("out")}><Minus size={17} /></button>
           </div>
 
-          <button className="inspiration-button"><Sparkles size={17} /> Design ideas</button>
+          <button className="inspiration-button" onClick={() => { setActivePanel("decor"); setActiveDecorGroup("All"); setQuery(""); setPanelOpen(true); }}><Sparkles size={17} /> Design ideas</button>
         </div>
       </section>
 
