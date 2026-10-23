@@ -30,6 +30,42 @@ export type PlannerProduct = {
 export const products: PlannerProduct[] = [
   ...decorProducts,
   {
+    id: "trial-office-chair", name: "Office chair · trial", category: "Décor", kind: "chair", decorative: true,
+    price: 0, productUrl: "", image: "/delton-grey.jpg", accent: "#3d4747",
+    dimensions: "68 × 68 × 116 cm (trial scale)",
+    decor: { group: "Trial furniture", mount: "floor", width: 0.68, depth: 0.68, height: 1.16, color: "#3d4747" },
+  },
+  {
+    id: "trial-seat", name: "Lounge seat · trial", category: "Décor", kind: "chair", decorative: true,
+    price: 0, productUrl: "", image: "/delton-grey.jpg", accent: "#897563",
+    dimensions: "80 × 76 × 98 cm (trial scale)",
+    decor: { group: "Trial furniture", mount: "floor", width: 0.8, depth: 0.76, height: 0.98, color: "#897563" },
+  },
+  {
+    id: "trial-dining-table", name: "Dining table · trial", category: "Décor", kind: "table", decorative: true,
+    price: 0, productUrl: "", image: "/delton-grey.jpg", accent: "#92735c",
+    dimensions: "185 × 102 × 76 cm (trial scale)",
+    decor: { group: "Trial furniture", mount: "floor", width: 1.85, depth: 1.02, height: 0.76, color: "#92735c" },
+  },
+  {
+    id: "trial-conference-table", name: "Conference table · trial", category: "Décor", kind: "table", decorative: true,
+    price: 0, productUrl: "", image: "/delton-grey.jpg", accent: "#5f5146",
+    dimensions: "300 × 128 × 76 cm (trial scale)",
+    decor: { group: "Trial furniture", mount: "floor", width: 3, depth: 1.28, height: 0.76, color: "#5f5146" },
+  },
+  {
+    id: "trial-white-seat", name: "White accent seat · trial", category: "Décor", kind: "chair", decorative: true,
+    price: 0, productUrl: "", image: "/delton-grey.jpg", accent: "#ddd8cd",
+    dimensions: "90 × 90 × 92 cm (trial scale)",
+    decor: { group: "Trial furniture", mount: "floor", width: 0.9, depth: 0.9, height: 0.92, color: "#ddd8cd" },
+  },
+  {
+    id: "trial-couch", name: "Couch · trial", category: "Décor", kind: "sofa", decorative: true,
+    price: 0, productUrl: "", image: "/delton-grey.jpg", accent: "#81776e",
+    dimensions: "235 × 100 × 92 cm (trial scale)",
+    decor: { group: "Trial furniture", mount: "floor", width: 2.35, depth: 1, height: 0.92, color: "#81776e" },
+  },
+  {
     id: "delton-sofa",
     openCartProductId: 980,
     productUrl: "https://furniturerama.co.ke/delton-single-sofa-bed-grey",
