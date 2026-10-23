@@ -36,6 +36,9 @@ export type RoomConfig = {
   emptyShell?: boolean;
   conferenceGlassWalls?: boolean;
   conferenceRecessedLights?: boolean;
+  conferenceCeilingBulkhead?: boolean;
+  conferenceAcousticPanels?: boolean;
+  conferencePresentationWall?: boolean;
   presetId: string | null;
   width: number;
   depth: number;
@@ -265,6 +268,9 @@ const isValidSharedDesign = (design: DesignDocument) => {
     (room.emptyShell === undefined || typeof room.emptyShell === "boolean") &&
     (room.conferenceGlassWalls === undefined || typeof room.conferenceGlassWalls === "boolean") &&
     (room.conferenceRecessedLights === undefined || typeof room.conferenceRecessedLights === "boolean") &&
+    (room.conferenceCeilingBulkhead === undefined || typeof room.conferenceCeilingBulkhead === "boolean") &&
+    (room.conferenceAcousticPanels === undefined || typeof room.conferenceAcousticPanels === "boolean") &&
+    (room.conferencePresentationWall === undefined || typeof room.conferencePresentationWall === "boolean") &&
     (room.door.style === undefined || ["hinged", "sliding"].includes(room.door.style)) &&
     (room.window.style === undefined || ["picture", "panoramic", "arched", "grid-slider"].includes(room.window.style)) &&
     typeof room.door.enabled === "boolean" &&
@@ -387,6 +393,9 @@ export const usePlannerStore = create<PlannerState>()(
             emptyShell: preset.empty ?? false,
             conferenceGlassWalls: preset.conferenceGlassWalls ?? false,
             conferenceRecessedLights: preset.conferenceRecessedLights ?? false,
+            conferenceCeilingBulkhead: preset.conferenceCeilingBulkhead ?? false,
+            conferenceAcousticPanels: preset.conferenceAcousticPanels ?? false,
+            conferencePresentationWall: preset.conferencePresentationWall ?? false,
             width: preset.width,
             depth: preset.depth,
             height: preset.height,
