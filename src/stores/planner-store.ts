@@ -34,6 +34,8 @@ export type RoomConfig = {
   yard?: OutdoorArea;
   chandelier?: "none" | "rings" | "globes";
   emptyShell?: boolean;
+  conferenceGlassWalls?: boolean;
+  conferenceRecessedLights?: boolean;
   presetId: string | null;
   width: number;
   depth: number;
@@ -261,6 +263,8 @@ const isValidSharedDesign = (design: DesignDocument) => {
     typeof room.floorName === "string" && room.floorName.length <= 80 &&
     (room.chandelier === undefined || ["none", "rings", "globes"].includes(room.chandelier)) &&
     (room.emptyShell === undefined || typeof room.emptyShell === "boolean") &&
+    (room.conferenceGlassWalls === undefined || typeof room.conferenceGlassWalls === "boolean") &&
+    (room.conferenceRecessedLights === undefined || typeof room.conferenceRecessedLights === "boolean") &&
     (room.door.style === undefined || ["hinged", "sliding"].includes(room.door.style)) &&
     (room.window.style === undefined || ["picture", "panoramic", "arched", "grid-slider"].includes(room.window.style)) &&
     typeof room.door.enabled === "boolean" &&
@@ -381,6 +385,8 @@ export const usePlannerStore = create<PlannerState>()(
             yard: preset.yard ? { ...preset.yard } : undefined,
             chandelier: preset.chandelier ?? "none",
             emptyShell: preset.empty ?? false,
+            conferenceGlassWalls: preset.conferenceGlassWalls ?? false,
+            conferenceRecessedLights: preset.conferenceRecessedLights ?? false,
             width: preset.width,
             depth: preset.depth,
             height: preset.height,
