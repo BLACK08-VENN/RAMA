@@ -5,6 +5,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import type { ReactNode } from "react";
 import * as THREE from "three";
 import type { RoomConfig } from "@/stores/planner-store";
+import { getConferenceScreen, screenLimits } from "@/lib/conference-screen";
+import { useObjectDrag } from "./use-object-drag";
 
 export function CutawayWall({ room, wall, children }: { room: RoomConfig; wall: "left" | "right" | "front" | "back" | "ceiling"; children: ReactNode }) {
   const group = useRef<THREE.Group>(null);
@@ -138,10 +140,46 @@ function ConferenceGlassWall({ span, height, position, rotation }: { span: numbe
   </group>;
 }
 
-function ConferencePresentationFeatures({ room }: { room: RoomConfig }) {
+function ConferencePresentationScreen({ room, dragEnabled, onMove, onDraggingChange }: {
+  room: RoomConfig;
+  dragEnabled: boolean;
+  onMove?: (x: number, y: number) => void;
+  onDraggingChange?: (active: boolean) => void;
+}) {
+  const screen = getConferenceScreen(room);
+  const wallZ = -room.depth / 2 + 0.165;
+  const drag = useObjectDrag({
+    enabled: dragEnabled && Boolean(onMove),
+    position: [screen.x, screen.y, wallZ],
+    normal: new THREE.Vector3(0, 0, 1),
+    clamp: (next) => {
+      const limits = screenLimits(room, screen.width, screen.height);
+      return [
+        Math.max(-limits.xLimit, Math.min(limits.xLimit, next[0])),
+        Math.max(limits.yMin, Math.min(limits.yMax, next[1])),
+        wallZ,
+      ];
+    },
+    onMove: (next) => onMove?.(next[0], next[1]),
+    onDraggingChange: (active) => onDraggingChange?.(active),
+  });
+  return <group {...drag} position={[screen.x, screen.y, wallZ]}>
+    <mesh><boxGeometry args={[screen.width,screen.height,.085]}/><meshStandardMaterial color="#212729" roughness={.34}/></mesh>
+    <mesh position={[0,0,.049]}><planeGeometry args={[screen.width-.09,screen.height-.09]}/><meshBasicMaterial color="#12202a" toneMapped={false}/></mesh>
+    <mesh position={[-screen.width*.14,screen.height*.135,.051]}><planeGeometry args={[screen.width*.50,.007]}/><meshBasicMaterial color="#74a6ae"/></mesh>
+    <mesh position={[-screen.width*.14,-screen.height*.045,.051]}><planeGeometry args={[screen.width*.50,.007]}/><meshBasicMaterial color="#477f90"/></mesh>
+    <mesh position={[0,-screen.height/2-.115,-.025]}><boxGeometry args={[Math.min(.72,screen.width*.5),.045,.12]}/><meshStandardMaterial color="#4a4c4b" metalness={.4} roughness={.5}/></mesh>
+  </group>;
+}
+
+function ConferencePresentationFeatures({ room, screenDragEnabled = false, onScreenMove, onDraggingChange }: {
+  room: RoomConfig;
+  screenDragEnabled?: boolean;
+  onScreenMove?: (x: number, y: number) => void;
+  onDraggingChange?: (active: boolean) => void;
+}) {
   if (room.presetId !== "conference-room") return null;
-  const z = -room.depth/2 + .09;
-  const x = -room.width/2 + .88;
+  const z = -room.depth / 2 + .09;
   return <group>
     {room.conferenceAcousticPanels && [-1,1].map(side =>
       <group key={side} position={[side*(room.width/2-.48),0,z]}>
@@ -151,17 +189,21 @@ function ConferencePresentationFeatures({ room }: { room: RoomConfig }) {
         </mesh>)}
       </group>
     )}
-    {room.conferencePresentationWall && <group position={[x,room.height*.59,z+.075]}>
-      <mesh><boxGeometry args={[1.45,.89,.085]}/><meshStandardMaterial color="#212729" roughness={.34}/></mesh>
-      <mesh position={[0,0,.049]}><planeGeometry args={[1.36,.8]}/><meshBasicMaterial color="#12202a" toneMapped={false}/></mesh>
-      <mesh position={[-.2,.12,.051]}><planeGeometry args={[.72,.007]}/><meshBasicMaterial color="#74a6ae"/></mesh>
-      <mesh position={[-.2,-.04,.051]}><planeGeometry args={[.72,.007]}/><meshBasicMaterial color="#477f90"/></mesh>
-      <mesh position={[0,-.56,-.025]}><boxGeometry args={[.72,.045,.12]}/><meshStandardMaterial color="#4a4c4b" metalness={.4} roughness={.5}/></mesh>
-    </group>}
+    {room.conferencePresentationWall && <ConferencePresentationScreen
+      room={room}
+      dragEnabled={screenDragEnabled}
+      onMove={onScreenMove}
+      onDraggingChange={onDraggingChange}
+    />}
   </group>;
 }
 
-export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
+export function ArchitecturalWalls({ room, screenDragEnabled = false, onScreenMove, onDraggingChange }: {
+  room: RoomConfig;
+  screenDragEnabled?: boolean;
+  onScreenMove?: (x: number, y: number) => void;
+  onDraggingChange?: (active: boolean) => void;
+}) {
   const back = useMemo(() => {
     const shape = new THREE.Shape();
     shape.moveTo(-room.width / 2, 0); shape.lineTo(room.width / 2, 0); shape.lineTo(room.width / 2, room.height); shape.lineTo(-room.width / 2, room.height); shape.closePath();
@@ -184,7 +226,7 @@ export function ArchitecturalWalls({ room }: { room: RoomConfig }) {
     shape.lineTo(span / 2, 0); shape.lineTo(span / 2, room.height); shape.lineTo(-span / 2, room.height); shape.closePath(); return shape;
   }, [room.depth, room.height, room.door]);
   return <group>
-    <ConferencePresentationFeatures room={room}/>
+    <ConferencePresentationFeatures room={room} screenDragEnabled={screenDragEnabled} onScreenMove={onScreenMove} onDraggingChange={onDraggingChange}/>
     <CutawayWall room={room} wall="back">
       <mesh receiveShadow position={[0, 0, -room.depth / 2]}><WallOpeningGeometry shape={back} span={room.width} height={room.height} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.width} height={room.height} /></mesh>
       <mesh position={[0, .045, -room.depth / 2 + .04]}><boxGeometry args={[room.width, .09, .05]} /><meshStandardMaterial color="#f8f5ef" /></mesh>
