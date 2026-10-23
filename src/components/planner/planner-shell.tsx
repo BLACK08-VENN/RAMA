@@ -11,6 +11,9 @@ import {
   Box,
   Check,
   ChevronDown,
+  Copy,
+  RefreshCw,
+  PanelsTopLeft,
   CircleHelp,
   DoorOpen,
   ExternalLink,
@@ -387,6 +390,30 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     if (isPhone) setPanelOpen(false);
     if (isTouch) setEditMode(true);
     notify("Added to your room");
+  };
+
+  const copySelected = () => {
+    if (!selectedItem) return;
+    let id = `${selectedItem.productId}-${nextItemNumber.current++}`;
+    while (placedItems.some(item => item.id === id)) id = `${selectedItem.productId}-${nextItemNumber.current++}`;
+    const offset: [number, number, number] = [selectedItem.position[0] + 0.35, selectedItem.position[1], selectedItem.position[2] + 0.25];
+    addItem({
+      ...selectedItem,
+      id,
+      position: clampItemPosition(design.room, selectedItem.kind, offset, selectedItem.productId, selectedItem.wall, selectedItem.rotation[1]),
+      rotation: [...selectedItem.rotation] as [number, number, number],
+    });
+    selectItem(id);
+    notify("Copy added to room");
+  };
+
+  const browseFromSelected = (replace: boolean) => {
+    if (!selectedItem) return;
+    setActivePanel("decor");
+    setActiveDecorGroup("All");
+    setQuery(replace ? (products.find(product => product.id === selectedItem.productId)?.name ?? "") : "");
+    setPanelOpen(true);
+    notify(replace ? "Choose a replacement; remove the original when ready" : "Browse décor to complement this item");
   };
 
   const removeSelected = () => {
@@ -939,6 +966,9 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 <button onClick={() => moveSelected(0, 0.1)} aria-label={selectedDecor?.mount === "wall" ? "Move down" : "Move backward"}><ArrowDown size={15} /></button>
                 <button onClick={() => moveSelected(0.1, 0)} aria-label="Move right"><ArrowRight size={15} /></button>
               </div>
+              <button aria-label="Make copy of selected item" onClick={copySelected}><Copy size={17} /><span className="selection-action-label">Make copy</span></button>
+              <button aria-label="Browse replacement items" onClick={() => browseFromSelected(true)}><RefreshCw size={17} /><span className="selection-action-label">Replace</span></button>
+              <button aria-label="Browse complementary décor" onClick={() => browseFromSelected(false)}><PanelsTopLeft size={17} /><span className="selection-action-label">Goes with</span></button>
               <button aria-label={selectedDecor?.mount === "wall" ? "Move to next wall" : "Rotate selected item"} onClick={() => rotateItem(selectedId)}><RotateCcw size={17} /><span className="selection-action-label">{selectedDecor?.mount === "wall" ? "Next wall" : "Rotate"}</span></button>
               <button aria-label="Remove selected item" onClick={removeSelected} className="danger"><Trash2 size={17} /><span className="selection-action-label">Remove</span></button>
             </div>
