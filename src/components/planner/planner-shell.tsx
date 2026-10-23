@@ -952,7 +952,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     </label>
                   </div>
                   <div className="finish-section"><span>Conference flooring</span>
-                    <div className="floor-options">{conferenceFloors.map(finish => <button type="button" key={finish.name} className={design.room.floorName === finish.name ? "selected" : ""} onClick={() => updateRoom({ floorName: finish.name, floorColor: finish.color })}><i style={{ background: finish.color }}/><span>{finish.label}</span></button>)}</div>
+                    <div className="floor-options">{conferenceFloors.map(finish => <button type="button" key={finish.name} className={design.room.floorName === finish.name ? "selected" : ""} onClick={() => updateRoom({ floorName: finish.name, floorColor: finish.color })}><i style={{ backgroundColor: finish.color, backgroundImage: `url(/materials/ambientcg/${finish.label}/Color.jpg)`, backgroundSize: "cover", backgroundPosition: "center" }}/><span>{finish.label}</span></button>)}</div>
                   </div>
                 </section>}
                 </>}
