@@ -1,6 +1,6 @@
 import type { PlannerProduct } from "./products";
 
-export type DecorGroup = "Floor plants" | "Hanging plants" | "Table plants" | "Wall art" | "Mirrors" | "Rugs" | "Vases";
+export type DecorGroup = "Trial furniture" | "Floor plants" | "Hanging plants" | "Table plants" | "Wall art" | "Mirrors" | "Rugs" | "Vases";
 export type DecorSpec = {
   group: DecorGroup;
   mount: "floor" | "ceiling" | "table" | "wall";
@@ -16,6 +16,7 @@ export type DecorSpec = {
 // Photos are editorial references, NOT photos of actual FurnitureRama inventory.
 const photo = (id: number) => `/api/decor-photo/${id}`;
 const categoryPhotos: Record<DecorGroup, string[]> = {
+  "Trial furniture": [],
   "Floor plants": [photo(12454083), photo(33771655), photo(6186516), photo(33771655)],
   "Hanging plants": [photo(11018345), photo(15176015), photo(20337867)],
   "Table plants": [photo(5579163), photo(11216397), photo(7318095)],
