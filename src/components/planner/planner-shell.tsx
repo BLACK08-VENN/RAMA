@@ -34,6 +34,8 @@ import {
   RotateCcw,
   Ruler,
   Search,
+  Sun,
+  Moon,
   Share2,
   ShoppingBag,
   SlidersHorizontal,
@@ -1072,8 +1074,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
           </div>
 
           <div className="scene-lighting-control" role="group" aria-label="Room lighting preview" style={{position:"absolute",right:12,top:64,zIndex:5,display:"flex",gap:6,padding:5,borderRadius:12,background:"rgba(255,255,255,.94)",boxShadow:"0 2px 12px rgba(0,0,0,.09)"}}>
-            <button type="button" aria-label="Preview daylight lighting" aria-pressed={lightingMode === "day"} onClick={() => setLightingMode("day")} style={{padding:"8px 12px",borderRadius:8,background:lightingMode==="day"?"#ddd9ca":"transparent",color:"#262626",minHeight:42}}>☀ Day</button>
-            <button type="button" aria-label="Preview evening lighting" aria-pressed={lightingMode === "evening"} onClick={() => setLightingMode("evening")} style={{padding:"8px 12px",borderRadius:8,background:lightingMode==="evening"?"#ddd9ca":"transparent",color:"#262626",minHeight:42}}>☾ Evening</button>
+            <button type="button" aria-label="Preview daylight lighting" aria-pressed={lightingMode === "day"} onClick={() => setLightingMode("day")} style={{padding:"8px 12px",borderRadius:8,background:lightingMode==="day"?"#ddd9ca":"transparent",color:"#262626",minHeight:42}}><Sun size={16} style={{display:"inline-block",verticalAlign:"middle",marginRight:4}}/>Day</button>
+            <button type="button" aria-label="Preview evening lighting" aria-pressed={lightingMode === "evening"} onClick={() => setLightingMode("evening")} style={{padding:"8px 12px",borderRadius:8,background:lightingMode==="evening"?"#ddd9ca":"transparent",color:"#262626",minHeight:42}}><Moon size={16} style={{display:"inline-block",verticalAlign:"middle",marginRight:4}}/>Evening</button>
           </div>
           <div className="zoom-controls">
             <button aria-label="Zoom in" onClick={() => requestZoom("in")}><span>+</span></button>
