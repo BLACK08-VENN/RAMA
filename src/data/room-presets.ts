@@ -78,7 +78,7 @@ export const roomPresets: RoomPreset[
       description: "Spacious meeting room with panoramic daylight",
       empty: true,
       width: 7.2, depth: 5.4, height: 3.1,
-      wallColor: "#e4ded2", floorColor: "#c8b79f", floorName: "Light ash",
+      wallColor: "#e4ded2", floorColor: "#817c76", floorName: "Conference Fabric026",
       chandelier: "none",
       door: { enabled: true, style: "hinged", width: 1.2, height: 2.2, position: 0.1 },
       window: { enabled: true, style: "panoramic", width: 3.6, height: 1.75, sillHeight: 0.95, position: 0 },
