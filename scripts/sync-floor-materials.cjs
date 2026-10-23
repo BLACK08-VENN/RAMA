@@ -8,7 +8,7 @@ const os = require("node:os");
 const { execFile } = require("node:child_process");
 const { promisify } = require("node:util");
 const exec = promisify(execFile);
-const materials = ["WoodFloor051","Tiles140","WoodFloor070","WoodFloor052","Onyx010","Fabric081C","Porcelain001","Marble025","Porcelain002","Grass004","Bricks025"];
+const materials = ["WoodFloor051","Tiles140","WoodFloor070","WoodFloor052","Onyx010","Fabric081C","Fabric026","Carpet004","Fabric027","Carpet005","Fabric022","Grass005","Porcelain001","Marble025","Porcelain002","Grass004","Bricks025"];
 const maps = ["Color","NormalGL","Roughness"];
 const root = path.join(process.cwd(), "public", "materials", "ambientcg");
 
