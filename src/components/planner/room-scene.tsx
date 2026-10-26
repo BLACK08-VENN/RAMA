@@ -21,6 +21,7 @@ import {
 
 import { createWallDragProjection, isWallVisible } from "./wall-drag";
 import { useObjectDrag, pointerCaptureTarget } from "./use-object-drag";
+import type { ConferenceScreenConfig } from "@/lib/conference-screen";
 import { DecorModel } from "./decor-models";
 import { DiningSink } from "./dining-sink";
 import { BuiltInStorage } from "./built-in-storage";
@@ -28,7 +29,7 @@ import { OutdoorSpaces } from "./outdoor-spaces";
 import { FloorSurface } from "./floor-surface";
 import { CutawayWall, ArchitecturalWalls, Ceiling, DesignerWindow, SlidingDoor, Chandelier } from "./architectural-features";
 
-export type CameraView = "perspective" | "top" | "front";
+export type CameraView = "perspective" | "top" | "front" | `screen-${WallSide}`;
 
 type ZoomRequest = {
   id: number;
@@ -49,7 +50,7 @@ type RoomSceneProps = {
   onMove: (id: string, position: [number, number, number], wall?: WallSide) => void;
   onResize: (dimension: "width" | "depth", value: number) => void;
   onStorageMove: (position: [number, number]) => void;
-  onScreenMove: (x: number, y: number) => void;
+  onScreenChange: (change: Partial<ConferenceScreenConfig>) => void;
 };
 
 const initialCameraPosition: [number, number, number] = [7, 5.5, 7];
@@ -120,6 +121,10 @@ function viewPose(view: CameraView, roomHeight: number, span: number, centerZ: n
     perspective: [span * 1.35, span, span * 1.35],
     top: [0, span * 2.25, 0.01],
     front: [0, span * 0.7, span * 2],
+    "screen-back": [0, span * .3, span * 1.4],
+    "screen-right": [-span * 1.4, span * .3, 0],
+    "screen-front": [0, span * .3, -span * 1.4],
+    "screen-left": [span * 1.4, span * .3, 0],
   };
   const [x, y, z] = offsets[view];
   return {
@@ -606,13 +611,13 @@ function DoorFeature({ room }: { room: RoomConfig }) {
   );
 }
 
-function StyledRoom({ room, editMode, onStorageMove, onScreenMove, onDraggingChange }: { room: RoomConfig; editMode: boolean; onStorageMove: (position: [number, number]) => void; onScreenMove: (x: number, y: number) => void; onDraggingChange: (dragging: boolean) => void }) {
+function StyledRoom({ room, editMode, onStorageMove, onScreenChange, onDraggingChange }: { room: RoomConfig; editMode: boolean; onStorageMove: (position: [number, number]) => void; onScreenChange: (change: Partial<ConferenceScreenConfig>) => void; onDraggingChange: (dragging: boolean) => void }) {
   if (room.spaceType === "balcony" || room.spaceType === "garden") return <OutdoorSpaces room={room} />;
   return (
     <group>
       <FloorSurface key={room.floorName} room={room} />
       <OutdoorSpaces room={room} />
-      <ArchitecturalWalls room={room} screenDragEnabled={editMode} onScreenMove={onScreenMove} onDraggingChange={onDraggingChange} />
+      <ArchitecturalWalls room={room} screenDragEnabled={editMode} onScreenChange={onScreenChange} onDraggingChange={onDraggingChange} />
       <Ceiling room={room} />
       <CutawayWall room={room} wall="left"><DoorFeature room={room} /></CutawayWall>
       <CutawayWall room={room} wall="back"><DesignerWindow room={room} /></CutawayWall>
@@ -771,7 +776,7 @@ export function RoomScene({
   onMove,
   onResize,
   onStorageMove,
-  onScreenMove,
+  onScreenChange,
 }: RoomSceneProps) {
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -872,7 +877,7 @@ export function RoomScene({
       <directionalLight position={[-4, 4, -2]} intensity={lightingMode === "evening" ? 0.12 : 0.32} color="#dbe6f0" />
       <directionalLight position={[0.5, 3, -6]} intensity={lightingMode === "evening" ? 0.7 : 0.32} color={lightingMode === "evening" ? "#ffd7a3" : "#f2e6d4"} />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} controlsRef={controlsRef} />
-      <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onScreenMove={onScreenMove} onDraggingChange={handleDraggingChange} />
+      <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onScreenChange={onScreenChange} onDraggingChange={handleDraggingChange} />
       {editMode && (["width", "depth"] as const).flatMap((dimension) =>
         ([-1, 1] as const).map((side) => (
           <RoomResizeHandle

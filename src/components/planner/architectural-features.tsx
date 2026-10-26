@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { ReactNode } from "react";
 import * as THREE from "three";
-import type { RoomConfig } from "@/stores/planner-store";
-import { getConferenceScreen, screenLimits } from "@/lib/conference-screen";
+import { wallRotation, type RoomConfig } from "@/stores/planner-store";
+import { getConferenceScreen, screenWorldPosition, screenWallX, stretchConferenceScreen, type ConferenceScreenConfig } from "@/lib/conference-screen";
 import { useObjectDrag } from "./use-object-drag";
+import { isWallVisible } from "./wall-drag";
 
 export function CutawayWall({ room, wall, children }: { room: RoomConfig; wall: "left" | "right" | "front" | "back" | "ceiling"; children: ReactNode }) {
   const group = useRef<THREE.Group>(null);
@@ -140,42 +141,97 @@ function ConferenceGlassWall({ span, height, position, rotation }: { span: numbe
   </group>;
 }
 
-function ConferencePresentationScreen({ room, dragEnabled, onMove, onDraggingChange }: {
+function ScreenStretchHandle({ room, screen, preview, corner, onPreview, onChange, onDraggingChange }: {
+  room: RoomConfig;
+  screen: ConferenceScreenConfig;
+  preview: ConferenceScreenConfig;
+  corner: readonly [number, number];
+  onPreview: (screen: ConferenceScreenConfig | null) => void;
+  onChange?: (screen: ConferenceScreenConfig) => void;
+  onDraggingChange?: (active: boolean) => void;
+}) {
+  const wall = screen.wall ?? "back";
+  const position: [number, number, number] = [preview.x - screen.x + corner[0] * preview.width / 2, preview.y - screen.y + corner[1] * preview.height / 2, .065];
+  const configAt = (point: number[]) => stretchConferenceScreen(room, screen, corner, [screen.x + point[0], screen.y + point[1]]);
+  const lastPreview = useRef("");
+  const { camera, viewport, size } = useThree();
+  const drag = useObjectDrag({
+    enabled: Boolean(onChange), position, normal: new THREE.Vector3(0, 0, 1),
+    createProjection: (origin, grabbed) => {
+      const matrix = new THREE.Matrix4().compose(new THREE.Vector3(...screenWorldPosition(room, screen)), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, wallRotation[wall], 0)), new THREE.Vector3(1, 1, 1));
+      const inverse = matrix.clone().invert();
+      const normal = new THREE.Vector3(0, 0, 1).transformDirection(matrix);
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, grabbed);
+      const offset = origin.clone().sub(grabbed.clone().applyMatrix4(inverse));
+      return ray => {
+        if (Math.abs(ray.direction.dot(normal)) < .015) return null;
+        const hit = ray.intersectPlane(plane, new THREE.Vector3());
+        return hit ? hit.applyMatrix4(inverse).add(offset) : null;
+      };
+    },
+    clamp: point => {
+      const next = configAt(point);
+      return [next.x - screen.x + corner[0] * next.width / 2, next.y - screen.y + corner[1] * next.height / 2, .065];
+    },
+    onPreview: (_, point) => {
+      const next = configAt(point);
+      const key = `${next.width},${next.height},${next.x},${next.y}`;
+      if (lastPreview.current !== key) { lastPreview.current = key; onPreview(next); }
+    },
+    onMove: point => onChange?.(configAt(point)),
+    onCancel: () => onPreview(null),
+    onDraggingChange: active => { if (!active) { lastPreview.current = ""; onPreview(null); } onDraggingChange?.(active); },
+  });
+  useFrame(() => {
+    const handle = drag.ref.current;
+    if (!handle) return;
+    const height = viewport.getCurrentViewport(camera, handle.getWorldPosition(new THREE.Vector3()), size).height;
+    handle.scale.setScalar(height / Math.max(1, size.height) * 44 / .24);
+  });
+  return <group {...drag} position={position}>
+    <mesh renderOrder={1001}><planeGeometry args={[.24, .24]} /><meshBasicMaterial color="#ffffff" depthTest={false} toneMapped={false} /></mesh>
+    <mesh position={[0, 0, .002]} renderOrder={1002}><planeGeometry args={[.17, .17]} /><meshBasicMaterial color="#0d9399" depthTest={false} toneMapped={false} /></mesh>
+  </group>;
+}
+
+function ConferencePresentationScreen({ room, dragEnabled, onChange, onDraggingChange }: {
   room: RoomConfig;
   dragEnabled: boolean;
-  onMove?: (x: number, y: number) => void;
+  onChange?: (change: Partial<ConferenceScreenConfig>) => void;
   onDraggingChange?: (active: boolean) => void;
 }) {
   const screen = getConferenceScreen(room);
-  const wallZ = -room.depth / 2 + 0.165;
+  const wall = screen.wall ?? "back";
+  const [preview, setPreview] = useState<ConferenceScreenConfig | null>(null);
+  const visible = preview ?? screen;
+  const camera = useThree(state => state.camera);
   const drag = useObjectDrag({
-    enabled: dragEnabled && Boolean(onMove),
-    position: [screen.x, screen.y, wallZ],
-    normal: new THREE.Vector3(0, 0, 1),
+    enabled: dragEnabled && Boolean(onChange),
+    position: screenWorldPosition(room, screen),
+    normal: new THREE.Vector3(wall === "left" || wall === "right" ? 1 : 0, 0, wall === "left" || wall === "right" ? 0 : 1),
+    isVisible: () => isWallVisible(room, wall, camera.position),
     clamp: (next) => {
-      const limits = screenLimits(room, screen.width, screen.height);
-      return [
-        Math.max(-limits.xLimit, Math.min(limits.xLimit, next[0])),
-        Math.max(limits.yMin, Math.min(limits.yMax, next[1])),
-        wallZ,
-      ];
+      return screenWorldPosition(room, getConferenceScreen(room, { x: screenWallX(wall, next), y: next[1] }));
     },
-    onMove: (next) => onMove?.(next[0], next[1]),
+    onMove: (next) => onChange?.({ x: screenWallX(wall, next), y: next[1] }),
     onDraggingChange: (active) => onDraggingChange?.(active),
   });
-  return <group {...drag} position={[screen.x, screen.y, wallZ]}>
+  return <group {...drag} position={screenWorldPosition(room, screen)} rotation={[0, wallRotation[wall], 0]}>
+    <group position={[visible.x - screen.x, visible.y - screen.y, 0]} scale={[visible.width / screen.width, visible.height / screen.height, 1]}>
     <mesh><boxGeometry args={[screen.width,screen.height,.085]}/><meshStandardMaterial color="#212729" roughness={.34}/></mesh>
     <mesh position={[0,0,.049]}><planeGeometry args={[screen.width-.09,screen.height-.09]}/><meshBasicMaterial color="#12202a" toneMapped={false}/></mesh>
     <mesh position={[-screen.width*.14,screen.height*.135,.051]}><planeGeometry args={[screen.width*.50,.007]}/><meshBasicMaterial color="#74a6ae"/></mesh>
     <mesh position={[-screen.width*.14,-screen.height*.045,.051]}><planeGeometry args={[screen.width*.50,.007]}/><meshBasicMaterial color="#477f90"/></mesh>
     <mesh position={[0,-screen.height/2-.115,-.025]}><boxGeometry args={[Math.min(.72,screen.width*.5),.045,.12]}/><meshStandardMaterial color="#4a4c4b" metalness={.4} roughness={.5}/></mesh>
+    </group>
+    {dragEnabled && ([-1, 1] as const).flatMap(x => ([-1, 1] as const).map(y => <ScreenStretchHandle key={`${wall}-${x}-${y}`} room={room} screen={screen} preview={visible} corner={[x, y]} onPreview={setPreview} onChange={onChange} onDraggingChange={onDraggingChange} />))}
   </group>;
 }
 
-function ConferencePresentationFeatures({ room, screenDragEnabled = false, onScreenMove, onDraggingChange }: {
+function ConferencePresentationFeatures({ room, screenDragEnabled = false, onScreenChange, onDraggingChange }: {
   room: RoomConfig;
   screenDragEnabled?: boolean;
-  onScreenMove?: (x: number, y: number) => void;
+  onScreenChange?: (change: Partial<ConferenceScreenConfig>) => void;
   onDraggingChange?: (active: boolean) => void;
 }) {
   if (room.presetId !== "conference-room") return null;
@@ -190,18 +246,19 @@ function ConferencePresentationFeatures({ room, screenDragEnabled = false, onScr
       </group>
     )}
     {room.conferencePresentationWall && <ConferencePresentationScreen
+      key={room.conferenceScreen?.wall ?? "back"}
       room={room}
       dragEnabled={screenDragEnabled}
-      onMove={onScreenMove}
+      onChange={onScreenChange}
       onDraggingChange={onDraggingChange}
     />}
   </group>;
 }
 
-export function ArchitecturalWalls({ room, screenDragEnabled = false, onScreenMove, onDraggingChange }: {
+export function ArchitecturalWalls({ room, screenDragEnabled = false, onScreenChange, onDraggingChange }: {
   room: RoomConfig;
   screenDragEnabled?: boolean;
-  onScreenMove?: (x: number, y: number) => void;
+  onScreenChange?: (change: Partial<ConferenceScreenConfig>) => void;
   onDraggingChange?: (active: boolean) => void;
 }) {
   const back = useMemo(() => {
@@ -226,7 +283,7 @@ export function ArchitecturalWalls({ room, screenDragEnabled = false, onScreenMo
     shape.lineTo(span / 2, 0); shape.lineTo(span / 2, room.height); shape.lineTo(-span / 2, room.height); shape.closePath(); return shape;
   }, [room.depth, room.height, room.door]);
   return <group>
-    <ConferencePresentationFeatures room={room} screenDragEnabled={screenDragEnabled} onScreenMove={onScreenMove} onDraggingChange={onDraggingChange}/>
+    <ConferencePresentationFeatures room={room} screenDragEnabled={screenDragEnabled} onScreenChange={onScreenChange} onDraggingChange={onDraggingChange}/>
     <CutawayWall room={room} wall="back">
       <mesh receiveShadow position={[0, 0, -room.depth / 2]}><WallOpeningGeometry shape={back} span={room.width} height={room.height} /><WallPaintMaterial color={room.wallColor} finish={room.wallFinish} span={room.width} height={room.height} /></mesh>
       <mesh position={[0, .045, -room.depth / 2 + .04]}><boxGeometry args={[room.width, .09, .05]} /><meshStandardMaterial color="#f8f5ef" /></mesh>

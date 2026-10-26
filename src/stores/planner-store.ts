@@ -40,7 +40,7 @@ export type RoomConfig = {
   conferenceCeilingBulkhead?: boolean;
   conferenceAcousticPanels?: boolean;
   conferencePresentationWall?: boolean;
-  conferenceScreen?: { width: number; height: number; x: number; y: number };
+  conferenceScreen?: { width: number; height: number; x: number; y: number; wall?: WallSide };
   presetId: string | null;
   width: number;
   depth: number;
@@ -274,6 +274,7 @@ const isValidSharedDesign = (design: DesignDocument) => {
     (room.conferenceAcousticPanels === undefined || typeof room.conferenceAcousticPanels === "boolean") &&
     (room.conferencePresentationWall === undefined || typeof room.conferencePresentationWall === "boolean") &&
     (room.conferenceScreen === undefined || (isRecord(room.conferenceScreen) &&
+      (room.conferenceScreen.wall === undefined || ["back", "right", "front", "left"].includes(room.conferenceScreen.wall as string)) &&
       isFiniteNumber(room.conferenceScreen.width) && room.conferenceScreen.width >= 0.8 && room.conferenceScreen.width <= 3.6 &&
       isFiniteNumber(room.conferenceScreen.height) && room.conferenceScreen.height >= 0.5 && room.conferenceScreen.height <= 2.1 &&
       isFiniteNumber(room.conferenceScreen.x) && Math.abs(room.conferenceScreen.x) <= 6 &&
