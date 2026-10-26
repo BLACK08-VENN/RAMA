@@ -67,9 +67,9 @@ const TOP_VIEW_ZOOM = 0.28;
 
 // Renders at up to 2x device pixels. A phone at 3x would be sharper still, but the fragment
 // cost of MSAA plus a 2048 shadow map makes the orbit draggy long before the extra pixels
-// are visible, so 2x is the point where sharpness stops paying for itself.
-const MAX_PIXEL_RATIO = 2;
-const MIN_PIXEL_RATIO = 1;
+// Keep the room legible while bounding the expensive fullscreen GPU pixel workload.
+const MAX_PIXEL_RATIO = 1.6;
+const MIN_PIXEL_RATIO = 0.65;
 const SHADOW_MAP_SIZE = 2048;
 const ENVIRONMENT_INTENSITY = 0.65;
 
@@ -81,16 +81,25 @@ type CameraPose = { position: THREE.Vector3; target: THREE.Vector3 };
 // drawn, which means it reacts during orbiting and zooming rather than penalising idling.
 function AdaptiveResolution() {
   const setDpr = useThree(state => state.setDpr);
-  const ceiling = useMemo(() => Math.min(window.devicePixelRatio || MIN_PIXEL_RATIO, MAX_PIXEL_RATIO), []);
-  useEffect(() => { setDpr(ceiling); }, [ceiling, setDpr]);
-  return (
-    <PerformanceMonitor
-      factor={1}
-      flipflops={4}
-      onChange={({ factor }) => setDpr(MIN_PIXEL_RATIO + factor * (ceiling - MIN_PIXEL_RATIO))}
-      onFallback={() => setDpr(MIN_PIXEL_RATIO)}
-    />
-  );
+  const width = useThree(state => state.size.width);
+  const height = useThree(state => state.size.height);
+  const limits = useMemo(() => {
+    // Large 4K signage displays are expensive even at 1x resolution.
+    // Bound the number of shaded pixels rather than only devicePixelRatio.
+    const touch = window.matchMedia("(pointer: coarse)").matches;
+    const budget = touch ? 2_400_000 : 3_200_000;
+    const byArea = Math.sqrt(budget / Math.max(1, width * height));
+    const ceiling = Math.max(MIN_PIXEL_RATIO, Math.min(window.devicePixelRatio || 1, touch ? 1.25 : MAX_PIXEL_RATIO, byArea));
+    const floor = Math.max(MIN_PIXEL_RATIO, ceiling * .72);
+    return { ceiling, floor };
+  }, [width, height]);
+
+  useEffect(() => { setDpr(limits.ceiling); }, [limits, setDpr]);
+  return <PerformanceMonitor
+    flipflops={3}
+    onChange={({ factor }) => setDpr(limits.floor + factor * (limits.ceiling - limits.floor))}
+    onFallback={() => setDpr(limits.floor)}
+  />;
 }
 
 // A procedural light rig gives every standard material something to reflect, which is what
@@ -250,12 +259,14 @@ function CameraRig({
 function ItemSelectionOutline({ selectedId }: { selectedId: string | null }) {
   const { gl, scene, camera, size, viewport, invalidate } = useThree();
   const pipeline = useRef<{ composer: EffectComposer; outline: OutlinePass } | null>(null);
+  const selectedObject = useRef<THREE.Object3D | null>(null);
   const active = selectedId !== null;
 
   useEffect(() => {
     if (!active) return;
+    // Avoid multisampled, full-resolution postprocess targets: they heavily
+    // penalize selection/orbit on mobile GPUs and ultra-wide touchscreens.
     const composer = new EffectComposer(gl);
-    composer.renderTarget1.samples = composer.renderTarget2.samples = Math.min(4, gl.capabilities.maxSamples);
     const render = new RenderPass(scene, camera);
     const outline = new OutlinePass(new THREE.Vector2(), scene, camera);
     const output = new OutputPass();
@@ -287,9 +298,16 @@ function ItemSelectionOutline({ selectedId }: { selectedId: string | null }) {
     invalidate();
   }, [active, selectedId, size.width, size.height, viewport.dpr, invalidate]);
 
+  useEffect(() => {
+    // Resolve the selected root once; traversing every nested GLB mesh on each
+    // rendered frame makes dragging complex furniture needlessly expensive.
+    selectedObject.current = selectedId ? scene.getObjectByName(`placed-item-${selectedId}`) ?? null : null;
+    invalidate();
+  }, [selectedId, scene, invalidate]);
+
   useFrame((_, delta) => {
     const current = pipeline.current;
-    const item = selectedId ? scene.getObjectByName(`placed-item-${selectedId}`) : undefined;
+    const item = selectedObject.current;
     if (!current || !item?.visible) {
       gl.render(scene, camera);
       return;
@@ -486,16 +504,31 @@ function Bed() {
   );
 }
 
+// Repeated chairs/sofas share one source GLB: never recompute source bounds per copy.
+const glbBoundsCache = new WeakMap<THREE.Object3D, { size: THREE.Vector3; center: THREE.Vector3; minY: number }>();
+
 function GlbModel({ model }: { model: ProductModel }) {
   const gltf = useGLTF(model.url);
-  const maxAnisotropy = useThree(state => state.gl.capabilities.getMaxAnisotropy());
+  const maxAnisotropy = useThree(state => Math.min(4, state.gl.capabilities.getMaxAnisotropy()));
 
   const { object, scale, offset } = useMemo(() => {
-    gltf.scene.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(gltf.scene);
-    const size = bounds.getSize(new THREE.Vector3());
-    const center = bounds.getCenter(new THREE.Vector3());
-    const nextScale = new THREE.Vector3(model.width / size.x, model.height / size.y, model.depth / size.z);
+    let cached = glbBoundsCache.get(gltf.scene);
+    if (!cached) {
+      gltf.scene.updateMatrixWorld(true);
+      const bounds = new THREE.Box3().setFromObject(gltf.scene);
+      cached = {
+        size: bounds.getSize(new THREE.Vector3()),
+        center: bounds.getCenter(new THREE.Vector3()),
+        minY: bounds.min.y,
+      };
+      glbBoundsCache.set(gltf.scene, cached);
+    }
+    const { size, center, minY } = cached;
+    const nextScale = new THREE.Vector3(
+      model.width / Math.max(size.x, 0.0001),
+      model.height / Math.max(size.y, 0.0001),
+      model.depth / Math.max(size.z, 0.0001),
+    );
     const clone = gltf.scene.clone(true);
     clone.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
@@ -514,7 +547,7 @@ function GlbModel({ model }: { model: ProductModel }) {
     return {
       object: clone,
       scale: nextScale,
-      offset: new THREE.Vector3(-center.x * nextScale.x, -bounds.min.y * nextScale.y, -center.z * nextScale.z),
+      offset: new THREE.Vector3(-center.x * nextScale.x, -minY * nextScale.y, -center.z * nextScale.z),
     };
   }, [gltf, model.width, model.height, model.depth, maxAnisotropy]);
 
@@ -848,7 +881,7 @@ export function RoomScene({
       dpr={[MIN_PIXEL_RATIO, MAX_PIXEL_RATIO]}
       camera={{ position: initialCameraPosition, fov: 42 }}
       onPointerMissed={() => onSelect(null)}
-      gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
+      gl={{ antialias: typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
     >
       <color attach="background" args={["#ecece7"]} />
       <fog attach="fog" args={["#ecece7", getOutdoorMetrics(room).span * 3, getOutdoorMetrics(room).span * 5]} />
