@@ -256,8 +256,8 @@ function ItemSelectionOutline({ selectedId }: { selectedId: string | null }) {
     const output = new OutputPass();
     outline.visibleEdgeColor.set("#0d9399");
     outline.hiddenEdgeColor.set("#000000");
-    outline.edgeStrength = 8;
-    outline.edgeThickness = 3;
+    outline.edgeStrength = 12;
+    outline.edgeThickness = 6;
     outline.edgeGlow = 0;
     composer.addPass(render);
     composer.addPass(outline);
