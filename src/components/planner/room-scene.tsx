@@ -79,7 +79,7 @@ type CameraPose = { position: THREE.Vector3; target: THREE.Vector3 };
 // strong phone keeps the full 2x and a weak one still gets smooth orbiting instead of a
 // frozen canvas. On demand rendering the monitor only samples frames that are actually
 // drawn, which means it reacts during orbiting and zooming rather than penalising idling.
-function AdaptiveResolution() {
+function AdaptiveResolution({ interacting }: { interacting: boolean }) {
   const setDpr = useThree(state => state.setDpr);
   const width = useThree(state => state.size.width);
   const height = useThree(state => state.size.height);
@@ -94,10 +94,15 @@ function AdaptiveResolution() {
     return { ceiling, floor };
   }, [width, height]);
 
-  useEffect(() => { setDpr(limits.ceiling); }, [limits, setDpr]);
+  // Temporarily reduce GPU pixels during orbit/drag, restore detail at rest.
+  const motionCeiling = interacting ? Math.max(limits.floor, limits.ceiling * .8) : limits.ceiling;
+  useEffect(() => { setDpr(motionCeiling); }, [motionCeiling, setDpr]);
   return <PerformanceMonitor
     flipflops={3}
-    onChange={({ factor }) => setDpr(limits.floor + factor * (limits.ceiling - limits.floor))}
+    onChange={({ factor }) => {
+      const adaptive = limits.floor + factor * (limits.ceiling - limits.floor);
+      setDpr(Math.min(motionCeiling, adaptive));
+    }}
     onFallback={() => setDpr(limits.floor)}
   />;
 }
@@ -813,6 +818,7 @@ export function RoomScene({
 }: RoomSceneProps) {
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [orbiting, setOrbiting] = useState(false);
   const [contextLost, setContextLost] = useState(false);
   const [sceneGeneration, setSceneGeneration] = useState(0);
   const [previewRoom, setPreviewRoom] = useState<RoomConfig | null>(null);
@@ -886,7 +892,7 @@ export function RoomScene({
       <color attach="background" args={["#ecece7"]} />
       <fog attach="fog" args={["#ecece7", getOutdoorMetrics(room).span * 3, getOutdoorMetrics(room).span * 5]} />
       <ContextRecovery onLost={() => setContextLost(true)} />
-      <AdaptiveResolution />
+      <AdaptiveResolution interacting={orbiting || dragging} />
       <StudioEnvironment />
       {/* Lower flat ambient light; broad bounced daylight shapes the room
           without bleaching wall paint or washing texture out of wood. */}
@@ -962,6 +968,8 @@ export function RoomScene({
         ref={controlsRef}
         makeDefault
         enableDamping
+        onStart={() => setOrbiting(true)}
+        onEnd={() => setOrbiting(false)}
         enabled={!dragging}
         minDistance={MIN_CAMERA_DISTANCE}
         maxDistance={getOutdoorMetrics(room).span * 3.5}
