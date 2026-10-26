@@ -1049,20 +1049,22 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                       <button aria-label="Rotate drawers left" onClick={() => updateRoom({ builtInStorage: getRotatedStorage(design.room, -45) })}><RotateCcw size={18} /> Left</button>
                       <button aria-label="Rotate drawers right" onClick={() => updateRoom({ builtInStorage: getRotatedStorage(design.room, 45) })}>Right <RotateCcw size={18} style={{ transform: "scaleX(-1)" }} /></button>
                     </div>
-                    <div className="dimension-fields"><label>Rotation (°)<input type="number" min="0" max="360" step="5" value={((design.room.builtInStorage.rotation ?? -90) % 360 + 360) % 360} onChange={event => {
-                      const value = event.currentTarget.valueAsNumber;
-                      if (!Number.isFinite(value)) return;
-                      const storage = { ...design.room.builtInStorage!, rotation: Math.max(0, Math.min(360, value)) };
-                      storage.position = getStoragePlacement({ ...design.room, builtInStorage: storage });
-                      updateRoom({ builtInStorage: storage });
-                    }} /></label></div>
-                    <div className="dimension-fields">{(["Left / right (m)", "Front / back (m)"] as const).map((label, axis) => <label key={label}>{label}<input type="number" step="0.1" value={Number(getStoragePlacement(design.room)[axis].toFixed(2))} onChange={event => {
-                      const value = event.currentTarget.valueAsNumber;
-                      if (!Number.isFinite(value)) return;
-                      const position = getStoragePlacement(design.room);
-                      position[axis] = value;
-                      updateRoom({ builtInStorage: { ...design.room.builtInStorage!, position: getStoragePlacement(design.room, position) } });
-                    }} /></label>)}</div>
+                    <div className="dimension-fields">
+                      <DimensionInput label="Rotation" unit="°" min={0} max={360} value={((design.room.builtInStorage.rotation ?? -90) % 360 + 360) % 360} onCommit={rotation => {
+                        const storage = { ...design.room.builtInStorage!, rotation };
+                        storage.position = getStoragePlacement({ ...design.room, builtInStorage: storage });
+                        updateRoom({ builtInStorage: storage });
+                      }}/>
+                    </div>
+                    <div className="dimension-fields">
+                      {(["Left / right", "Front / back"] as const).map((label, axis) =>
+                        <DimensionInput key={label} label={label} value={getStoragePlacement(design.room)[axis]} min={-12} max={12} onCommit={value => {
+                          const position = getStoragePlacement(design.room);
+                          position[axis] = value;
+                          updateRoom({ builtInStorage: { ...design.room.builtInStorage!, position: getStoragePlacement(design.room, position) } });
+                        }}/>
+                      )}
+                    </div>
                   </>}
 
                 </RoomSettingsSection>}
@@ -1217,10 +1219,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 {selectedDecor.mount === "wall" && <label>Wall<select aria-label="Décor wall" value={selectedItem.wall ?? "back"} onChange={event => setItemWall(selectedItem.id, event.currentTarget.value as WallSide)}>
                   <option value="back">Back wall</option><option value="left">Left wall</option><option value="right">Right wall</option><option value="front">Front wall</option>
                 </select></label>}
-                {(selectedDecor.mount === "wall" || selectedDecor.mount === "table") && <label>{selectedDecor.mount === "wall" ? "Centre height (m)" : "Height above floor (m)"}<input type="number" step="0.1" min="0" max={design.room.height} value={Number(selectedItem.position[1].toFixed(2))} onChange={event => {
-                  const height = event.currentTarget.valueAsNumber;
-                  if (Number.isFinite(height)) moveItem(selectedItem.id, [selectedItem.position[0], height, selectedItem.position[2]]);
-                }} /></label>}
+                {(selectedDecor.mount === "wall" || selectedDecor.mount === "table") && <DimensionInput label={selectedDecor.mount === "wall" ? "Centre height" : "Height above floor"} min={0} max={design.room.height} value={selectedItem.position[1]} onCommit={height => moveItem(selectedItem.id, [selectedItem.position[0], height, selectedItem.position[2]])}/>}
                 <small>{selectedDecor.mount === "table" ? "Set the height to match your tabletop." : selectedDecor.mount === "wall" ? "Drag onto another visible wall to move it there. Orbit the room to reach every wall." : selectedDecor.mount === "ceiling" ? "Suspended from the ceiling; drag to reposition." : "Drag to move, or use the arrows and rotation controls."}</small>
               </div>}
               <div className="design-list">
