@@ -130,31 +130,56 @@ function RoomSettingsSection({ title, children }: { title: string; children: Rea
   </details>;
 }
 
-function DimensionInput({ label, value, min, max, onCommit }: {
+/** Exact measurement field: decimal touch keyboard, no edits until Enter/blur. */
+function DimensionInput({ label, value, min, max, onCommit, unit = "m" }: {
   label: string;
   value: number;
   min: number;
   max: number;
   onCommit: (value: number) => void;
+  unit?: "m" | "°" | "%";
 }) {
   const [draft, setDraft] = useState(String(value));
   const [editing, setEditing] = useState(false);
+  const cancelled = useRef(false);
   useEffect(() => { if (!editing) setDraft(String(value)); }, [value, editing]);
-  const commit = () => {
-    const parsed = Number(draft);
-    if (draft.trim() !== "" && Number.isFinite(parsed)) {
-      onCommit(Math.min(max, Math.max(min, parsed)));
+
+  const commit = (text: string) => {
+    if (cancelled.current) {
+      cancelled.current = false;
+      setDraft(String(value));
+      setEditing(false);
+      return;
+    }
+    const input = text.trim();
+    const parsed = Number(input);
+    if (input !== "" && Number.isFinite(parsed)) {
+      const next = Math.max(min, Math.min(max, parsed));
+      if (next !== value) onCommit(next);
+      setDraft(String(next));
+    } else {
+      setDraft(String(value));
     }
     setEditing(false);
-    setDraft(draft.trim() !== "" && Number.isFinite(parsed) ? String(Math.min(max, Math.max(min, parsed))) : String(value));
   };
-  return <label>{label} (m)
+
+  return <label className="exact-measurement-field">
+    <span>{label} ({unit})</span>
     <input type="number" inputMode="decimal" min={min} max={max} step="any"
-      value={draft} onFocus={() => setEditing(true)}
+      value={draft}
+      onFocus={event => { cancelled.current = false; setEditing(true); event.currentTarget.select(); }}
       onChange={event => setDraft(event.currentTarget.value)}
-      onBlur={commit}
-      onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraft(String(value)); event.currentTarget.blur(); } }}
-      aria-label={`${label} in metres`} />
+      onBlur={event => commit(event.currentTarget.value)}
+      onKeyDown={event => {
+        if (event.key === "Enter") event.currentTarget.blur();
+        if (event.key === "Escape") {
+          cancelled.current = true;
+          event.currentTarget.blur();
+        }
+      }}
+      aria-label={`${label} in ${unit === "m" ? "metres" : unit === "°" ? "degrees" : "percent"}`}
+      title={`Type a value between ${min} and ${max}, then press Enter or tap outside.`}
+    />
   </label>;
 }
 
