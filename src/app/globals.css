@@ -430,6 +430,9 @@ input:focus-visible {
 }
 
 .product-card {
+  /* Skip painting off-screen catalogue tiles on touch/mobile devices. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 340px;
   min-width: 0;
   overflow: hidden;
   border: 1px solid #e2e7e7;
@@ -1166,9 +1169,11 @@ input:focus-visible {
 .zoom-controls,
 .inspiration-button {
   border: 1px solid rgb(194 205 206 / 85%);
-  background: rgb(255 255 255 / 90%);
+  background: rgb(255 255 255 / 96%);
   box-shadow: 0 6px 20px rgb(29 50 52 / 10%);
-  backdrop-filter: blur(16px);
+  /* Blurring the moving WebGL canvas behind multiple toolbars forces
+     an additional expensive compositing pass every rendered frame. */
+  backdrop-filter: none;
 }
 
 .history-controls {
