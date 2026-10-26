@@ -299,6 +299,13 @@ function ItemSelectionOutline({ selectedId }: { selectedId: string | null }) {
     if (composer) {
       composer.setPixelRatio(viewport.dpr);
       composer.setSize(size.width, size.height);
+      // Run the expensive stencil/depth/edge detection at reduced resolution.
+      // The original scene remains full quality; the bold teal edge is
+      // composited back over it without a second full-size mask pass.
+      const outlineScale = window.matchMedia("(pointer: coarse)").matches ? .6 : .75;
+      const maskWidth = Math.max(1, Math.round(size.width * viewport.dpr * outlineScale));
+      const maskHeight = Math.max(1, Math.round(size.height * viewport.dpr * outlineScale));
+      pipeline.current?.outline.setSize(maskWidth, maskHeight);
     }
     invalidate();
   }, [active, selectedId, size.width, size.height, viewport.dpr, invalidate]);
