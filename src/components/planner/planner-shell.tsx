@@ -31,6 +31,7 @@ import {
   PanelLeftClose,
   Redo2,
   RotateCcw,
+  Ruler,
   Search,
   Sun,
   Moon,
@@ -48,7 +49,7 @@ import type { CameraView } from "./room-scene";
 import { formatKes, products, registerUploadedTrialProduct, unregisterUploadedTrialProduct, type ProductCategory } from "@/data/products";
 import { ProductCardImage } from "./product-card-image";
 import { getRoomArea, matchRoomPreset, roomPresets } from "@/data/room-presets";
-import { getConferenceScreen, type ConferenceScreenConfig } from "@/lib/conference-screen";
+import { getConferenceScreen, screenLimits, type ConferenceScreenConfig } from "@/lib/conference-screen";
 import {
   decodeSharedDesign,
   encodeSharedDesign,
@@ -124,7 +125,7 @@ const floorFinishes = [
 ];
 
 function RoomSettingsSection({ title, children }: { title: string; children: ReactNode }) {
-  return <details className="room-setting" name="rama-room-settings" defaultOpen={title === "Room size"}>
+  return <details className="room-setting" name="rama-room-settings">
     <summary>{title}<ChevronDown size={17} aria-hidden="true" /></summary>
     <div className="room-setting-content">{children}</div>
   </details>;
