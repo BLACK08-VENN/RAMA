@@ -124,7 +124,7 @@ const floorFinishes = [
 ];
 
 function RoomSettingsSection({ title, children }: { title: string; children: ReactNode }) {
-  return <details className="room-setting" name="rama-room-settings">
+  return <details className="room-setting" name="rama-room-settings" defaultOpen={title === "Room size"}>
     <summary>{title}<ChevronDown size={17} aria-hidden="true" /></summary>
     <div className="room-setting-content">{children}</div>
   </details>;
@@ -251,6 +251,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [showExactItem, setShowExactItem] = useState(false);
   const [lightingMode, setLightingMode] = useState<"day" | "evening">("day");
   const [isPhone, setIsPhone] = useState(false);
   const [isTouch, setIsTouch] = useState(false);
@@ -336,6 +337,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     rotateItem,
     setItemWall,
     moveItem,
+    resizeItem,
     undo,
     redo,
   } = usePlannerStore();
@@ -693,13 +695,14 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
 
   const updateOpeningNumber = (
     opening: "door" | "window",
-    key: "width" | "position" | "sillHeight",
+    key: "width" | "height" | "position" | "sillHeight",
     value: number,
     min: number,
     max: number,
   ) => {
     if (!Number.isFinite(value)) return;
-    const nextValue = Math.min(max, Math.max(min, value));
+    const physicalMax = key === "width" ? (opening === "door" ? design.room.depth - .7 : design.room.width - .7) : key === "height" ? (opening === "door" ? design.room.height - .08 : design.room.height - design.room.window.sillHeight - .15) : key === "sillHeight" ? design.room.height - design.room.window.height - .15 : max;
+    const nextValue = Math.min(max, Math.max(min, Math.min(physicalMax, value)));
     if (opening === "door") {
       updateDoorSetting({ [key]: nextValue });
       return;
@@ -1019,7 +1022,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 </RoomSettingsSection>
                 <RoomSettingsSection title="Room size">
 
-                  <p className="resize-instruction">Drag the teal handles on the room edges to pull or push the walls. Use the fields below for exact sizes.</p>
+                  <p className="resize-instruction">Type exact measurements in metres (for example 3.275). Press Enter or tap away to apply. Teal drag handles remain available.</p>
                   <div className="dimension-fields">
                     <DimensionInput label="Width" value={design.room.width} min={2.5} max={12} onCommit={value => updateRoomDimension("width", value)} />
                     <DimensionInput label="Depth" value={design.room.depth} min={2.5} max={12} onCommit={value => updateRoomDimension("depth", value)} />
@@ -1033,13 +1036,13 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     const value = design.room[area] ?? { enabled: false, width: design.room.width, depth: area === "balcony" ? 2.4 : 4 };
                     return <div className="opening-section" key={area}>
                       <div className="opening-row"><strong>{area === "balcony" ? "Balcony deck" : "Grassy front yard"}</strong><label className="toggle-control"><input type="checkbox" checked={value.enabled} onChange={event => updateRoom({ [area]: { ...value, enabled: event.currentTarget.checked } })} /><i /><b>{value.enabled ? "On" : "Off"}</b></label></div>
-                      {value.enabled && <div className="dimension-fields">{(["width", "depth"] as const).map(dimension => <label key={dimension}>{dimension === "width" ? "Width (m)" : "Depth (m)"}<input type="number" min={dimension === "width" ? 2.5 : 1.5} max="12" step="0.1" value={value[dimension]} onChange={event => { const next = event.currentTarget.valueAsNumber; if (Number.isFinite(next)) updateRoom({ [area]: { ...value, [dimension]: Math.max(dimension === "width" ? 2.5 : 1.5, Math.min(12, next)) } }); }} /></label>)}</div>}
+                      {value.enabled && <div className="dimension-fields">{(["width", "depth"] as const).map(dimension => <DimensionInput key={`${area}-${dimension}`} label={dimension === "width" ? "Width" : "Depth"} value={value[dimension]} min={dimension === "width" ? 2.5 : 1.5} max={12} onCommit={next => updateRoom({ [area]: { ...value, [dimension]: next } })}/>)}</div>}
                     </div>;
                   })}
                 </RoomSettingsSection>
                 {isBedroomRoom(design.room) && <RoomSettingsSection title="Built-in storage">
                   <div className="opening-row"><span><strong>Built-in wardrobe & drawers</strong><small>Drag to move; use the buttons to rotate</small></span><label className="toggle-control"><input type="checkbox" checked={design.room.builtInStorage?.enabled ?? false} onChange={event => updateRoom({ builtInStorage: { ...design.room.builtInStorage, width: design.room.builtInStorage?.width ?? 2, enabled: event.currentTarget.checked } })} /><i /><b>{design.room.builtInStorage?.enabled ? "On" : "Off"}</b></label></div>
-                  {design.room.builtInStorage?.enabled && <div className="dimension-fields"><label>Width (m)<input type="number" min="1" max="4" step="0.1" value={design.room.builtInStorage.width} onChange={event => { const value = event.currentTarget.valueAsNumber; if (Number.isFinite(value)) updateRoom({ builtInStorage: { ...design.room.builtInStorage, enabled: true, width: Math.max(1, Math.min(4, value)) } }); }} /></label></div>}
+                  {design.room.builtInStorage?.enabled && <div className="dimension-fields"><DimensionInput label="Wardrobe width" min={1} max={4} value={design.room.builtInStorage.width} onCommit={width => updateRoom({ builtInStorage: { ...design.room.builtInStorage, enabled: true, width } })}/></div>}
                   {design.room.builtInStorage?.enabled && <>
                     <div className="storage-rotation-controls">
                       <button aria-label="Rotate drawers left" onClick={() => updateRoom({ builtInStorage: getRotatedStorage(design.room, -45) })}><RotateCcw size={18} /> Left</button>
@@ -1075,7 +1078,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     {design.room.door.enabled && (
                       <div className="opening-fields">
                         <label className="opening-position">Door style<select value={design.room.door.style ?? "hinged"} onChange={(event) => updateDoorSetting({ style: event.currentTarget.value as DoorConfig["style"] })}><option value="hinged">Modern panel door</option><option value="sliding">Sliding glass doors</option></select></label>
-                        <label>Width<input type="number" min="0.7" max="3.6" step="0.1" value={design.room.door.width} onChange={(event) => updateOpeningNumber("door", "width", event.currentTarget.valueAsNumber, 0.7, 3.6)} /></label>
+                        <DimensionInput label="Door width" value={design.room.door.width} min={.7} max={Math.min(3.6, design.room.depth - .7)} onCommit={value => updateOpeningNumber("door", "width", value, .7, 3.6)}/>
+                        <DimensionInput label="Door height" value={design.room.door.height} min={1.8} max={Math.min(2.5, design.room.height - .08)} onCommit={value => updateOpeningNumber("door", "height", value, 1.8, 2.5)}/>
                         <label>Position<input type="range" min="-0.35" max="0.35" step="0.05" value={design.room.door.position} onChange={(event) => updateOpeningNumber("door", "position", event.currentTarget.valueAsNumber, -0.35, 0.35)} /></label>
                       </div>
                     )}
@@ -1108,8 +1112,9 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                             <option value="none">None</option><option value="curtains">Soft curtains</option><option value="blinds">Roller blinds</option>
                           </select>
                         </label>
-                        <label>Width<input type="number" min="0.8" max="5.5" step="0.1" value={design.room.window.width} onChange={(event) => updateOpeningNumber("window", "width", event.currentTarget.valueAsNumber, 0.8, 5.5)} /></label>
-                        <label>Sill height<input type="number" min="0.15" max="1.4" step="0.1" value={design.room.window.sillHeight} onChange={(event) => updateOpeningNumber("window", "sillHeight", event.currentTarget.valueAsNumber, 0.15, 1.4)} /></label>
+                        <DimensionInput label="Window width" value={design.room.window.width} min={.8} max={Math.min(5.5, design.room.width - .7)} onCommit={value => updateOpeningNumber("window", "width", value, .8, 5.5)}/>
+                        <DimensionInput label="Window height" value={design.room.window.height} min={.6} max={Math.max(.6, Math.min(2.4, design.room.height - design.room.window.sillHeight - .15))} onCommit={value => updateOpeningNumber("window", "height", value, .6, 2.4)}/>
+                        <DimensionInput label="Sill height" value={design.room.window.sillHeight} min={.15} max={Math.max(.15, Math.min(1.4, design.room.height - design.room.window.height - .15))} onCommit={value => updateOpeningNumber("window", "sillHeight", value, .15, 1.4)}/>
                         <label className="opening-position">Position<input type="range" min="-0.35" max="0.35" step="0.05" value={design.room.window.position} onChange={(event) => updateOpeningNumber("window", "position", event.currentTarget.valueAsNumber, -0.35, 0.35)} /></label>
                       </div>
                     )}
