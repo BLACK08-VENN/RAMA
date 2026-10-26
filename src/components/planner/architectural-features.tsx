@@ -68,10 +68,10 @@ function WallPaintMaterial({ color, finish = "paint", span = 4, height = 3 }: { 
       .then(([albedo, normal, roughness]) => {
         if (!active) {albedo.dispose();normal.dispose();roughness.dispose();return;}
         albedo.colorSpace = THREE.SRGBColorSpace;
-        [albedo, normal, roughness].forEach(map => {
+        [albedo, normal, roughness].forEach((map, index) => {
           map.wrapS = map.wrapT = THREE.RepeatWrapping;
           map.minFilter = THREE.LinearMipmapLinearFilter;
-          map.anisotropy = 8;
+          map.anisotropy = index === 0 ? 4 : 2;
         });
         setLoaded({finish, maps:{color:albedo,normal,roughness}});
         invalidate();
