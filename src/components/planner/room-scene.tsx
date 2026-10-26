@@ -4,6 +4,10 @@ import { Environment, Grid, Html, OrbitControls, PerformanceMonitor, RoundedBox,
 import { Canvas, ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { productById, productModels, type ProductModel } from "@/data/products";
 import {
@@ -236,10 +240,65 @@ function CameraRig({
   return null;
 }
 
+// Outline the combined visible silhouette, including nested/async GLB meshes.
+// Render after drag/camera updates so the edge stays attached while moving.
+function ItemSelectionOutline({ selectedId }: { selectedId: string | null }) {
+  const { gl, scene, camera, size, viewport, invalidate } = useThree();
+  const pipeline = useRef<{ composer: EffectComposer; outline: OutlinePass } | null>(null);
+  const active = selectedId !== null;
+
+  useEffect(() => {
+    if (!active) return;
+    const composer = new EffectComposer(gl);
+    composer.renderTarget1.samples = composer.renderTarget2.samples = Math.min(4, gl.capabilities.maxSamples);
+    const render = new RenderPass(scene, camera);
+    const outline = new OutlinePass(new THREE.Vector2(), scene, camera);
+    const output = new OutputPass();
+    outline.visibleEdgeColor.set("#0d9399");
+    outline.hiddenEdgeColor.set("#000000");
+    outline.edgeStrength = 3;
+    outline.edgeThickness = 1;
+    outline.edgeGlow = 0;
+    composer.addPass(render);
+    composer.addPass(outline);
+    composer.addPass(output);
+    pipeline.current = { composer, outline };
+    invalidate();
+    return () => {
+      pipeline.current = null;
+      outline.dispose();
+      output.dispose();
+      render.dispose();
+      composer.dispose();
+    };
+  }, [active, gl, scene, camera, invalidate]);
+
+  useEffect(() => {
+    const composer = pipeline.current?.composer;
+    if (composer) {
+      composer.setPixelRatio(viewport.dpr);
+      composer.setSize(size.width, size.height);
+    }
+    invalidate();
+  }, [active, selectedId, size.width, size.height, viewport.dpr, invalidate]);
+
+  useFrame((_, delta) => {
+    const current = pipeline.current;
+    const item = selectedId ? scene.getObjectByName(`placed-item-${selectedId}`) : undefined;
+    if (!current || !item?.visible) {
+      gl.render(scene, camera);
+      return;
+    }
+    current.outline.selectedObjects = [item];
+    current.composer.render(delta);
+  }, 1);
+
+  return null;
+}
+
 function DraggableFurniture({
   item,
   room,
-  selected,
   dragEnabled,
   onSelect,
   onMove,
@@ -248,7 +307,6 @@ function DraggableFurniture({
 }: {
   item: PlacedItem;
   room: RoomConfig;
-  selected: boolean;
   dragEnabled: boolean;
   onSelect: (id: string) => void;
   onMove: (id: string, position: [number, number, number], wall?: WallSide) => void;
@@ -292,17 +350,11 @@ function DraggableFurniture({
   return (
     <group
       {...drag}
+      name={`placed-item-${item.id}`}
       position={item.position}
       rotation={item.rotation}
-      scale={selected ? 1.035 : 1}
     >
       {children}
-      {selected && !mounted && (
-        <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[1.18, 1.24, 48]} />
-          <meshBasicMaterial color="#0d9399" transparent opacity={0.9} />
-        </mesh>
-      )}
     </group>
   );
 }
@@ -840,7 +892,6 @@ export function RoomScene({
           key={item.id}
           item={item}
           room={room}
-          selected={selectedId === item.id}
           dragEnabled={editMode && (cameraView !== "front" || productById[item.productId]?.decor?.mount === "wall")}
           onSelect={onSelect}
           onMove={onMove}
@@ -866,6 +917,7 @@ export function RoomScene({
           infiniteGrid={false}
         />
       )}
+      <ItemSelectionOutline selectedId={selectedId} />
       <OrbitControls
         ref={controlsRef}
         makeDefault
