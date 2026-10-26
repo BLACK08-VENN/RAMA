@@ -2,6 +2,7 @@
 
 import type { UploadedTrialModel } from "./trial-model-storage";
 import { verifyGlb } from "./trial-model-storage";
+import type { Texture, Material, BufferGeometry, Mesh } from "three";
 
 /** Run only on user upload; the GLTF parser is dynamically imported, not bundled into first paint. */
 export async function inspectUploadedTrialGlb(file: File): Promise<UploadedTrialModel> {
@@ -23,11 +24,11 @@ export async function inspectUploadedTrialGlb(file: File): Promise<UploadedTrial
   // Inspection creates temporary decoded geometries/textures just to measure
   // the upload. Release them immediately: the real model loads separately
   // when placed in the room, from the retained original GLB blob.
-  const disposedTextures = new Set<THREE.Texture>();
-  const disposedMaterials = new Set<THREE.Material>();
-  const disposedGeometry = new Set<THREE.BufferGeometry>();
+  const disposedTextures = new Set<Texture>();
+  const disposedMaterials = new Set<Material>();
+  const disposedGeometry = new Set<BufferGeometry>();
   gltf.scene.traverse(object => {
-    const mesh = object as THREE.Mesh;
+    const mesh = object as Mesh;
     if (!mesh.isMesh) return;
     if (mesh.geometry && !disposedGeometry.has(mesh.geometry)) {
       disposedGeometry.add(mesh.geometry);
