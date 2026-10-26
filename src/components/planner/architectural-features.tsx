@@ -154,7 +154,8 @@ function ScreenStretchHandle({ room, screen, preview, corner, onPreview, onChang
   const position: [number, number, number] = [preview.x - screen.x + corner[0] * preview.width / 2, preview.y - screen.y + corner[1] * preview.height / 2, .065];
   const configAt = (point: number[]) => stretchConferenceScreen(room, screen, corner, [screen.x + point[0], screen.y + point[1]]);
   const lastPreview = useRef("");
-  const { camera, viewport, size } = useThree();
+  const { camera, viewport, size, gl } = useThree();
+  useEffect(() => () => { gl.domElement.style.removeProperty("cursor"); }, [gl]);
   const drag = useObjectDrag({
     enabled: Boolean(onChange), position, normal: new THREE.Vector3(0, 0, 1),
     createProjection: (origin, grabbed) => {
@@ -188,9 +189,11 @@ function ScreenStretchHandle({ room, screen, preview, corner, onPreview, onChang
     const height = viewport.getCurrentViewport(camera, handle.getWorldPosition(new THREE.Vector3()), size).height;
     handle.scale.setScalar(height / Math.max(1, size.height) * 44 / .24);
   });
-  return <group {...drag} position={position}>
-    <mesh renderOrder={1001}><planeGeometry args={[.24, .24]} /><meshBasicMaterial color="#ffffff" depthTest={false} toneMapped={false} /></mesh>
-    <mesh position={[0, 0, .002]} renderOrder={1002}><planeGeometry args={[.17, .17]} /><meshBasicMaterial color="#0d9399" depthTest={false} toneMapped={false} /></mesh>
+  return <group {...drag} position={position}
+    onPointerOver={event => { event.stopPropagation(); gl.domElement.style.setProperty("cursor", corner[0] === corner[1] ? "nesw-resize" : "nwse-resize"); }}
+    onPointerOut={() => { gl.domElement.style.removeProperty("cursor"); }}>
+    {/* Invisible touch target keeps corner stretching without visible boxes. */}
+    <mesh><planeGeometry args={[.24, .24]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} /></mesh>
   </group>;
 }
 

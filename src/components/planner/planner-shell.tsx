@@ -1168,7 +1168,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                       <select value={design.room.conferenceRecessedLights ? "yes" : "no"} onChange={event => updateRoom({ conferenceRecessedLights: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select>
                     </label>
                   </div>
-                  {design.room.conferencePresentationWall && <p className="resize-instruction">Use Stretch screen in the room view. Pull a teal corner to resize, drag the screen to move it, or tap Change wall.</p>}
+                  {design.room.conferencePresentationWall && <p className="resize-instruction">Use Stretch screen in the room view. Pull a screen corner to resize, drag the screen to move it, or tap Change wall.</p>}
                   <div className="finish-section"><span>Conference flooring</span>
                     <div className="floor-options">{conferenceFloors.map(finish => <button type="button" key={finish.name} className={design.room.floorName === finish.name ? "selected" : ""} onClick={() => updateRoom({ floorName: finish.name, floorColor: finish.color })}><i style={{ backgroundColor: finish.color, backgroundImage: `url(/materials/ambientcg/${finish.label}/Color.jpg)`, backgroundSize: "cover", backgroundPosition: "center" }}/><span>{finish.label}</span></button>)}</div>
                   </div>
@@ -1251,7 +1251,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                   selectItem(null); setEditMode(true); setCameraView(`screen-${wall}`);
                 }}><RefreshCw size={16} /> Change wall</button>
               </div>
-              <p>Pull a teal corner to stretch. Drag the screen to move.</p>
+              <p>Pull a screen corner to stretch. Drag the screen to move.</p>
             </div>
           )}
 
