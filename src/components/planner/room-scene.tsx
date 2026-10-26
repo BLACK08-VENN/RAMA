@@ -328,7 +328,7 @@ function DraggableFurniture({
     enabled: dragEnabled,
     position: item.position,
     normal: mounted ? new THREE.Vector3(wall === "left" || wall === "right" ? 1 : 0, 0, wall === "left" || wall === "right" ? 0 : 1) : new THREE.Vector3(0, 1, 0),
-    clamp: position => clampItemPosition(room, item.kind, position, item.productId, mounted ? previewWall.current : item.wall, item.rotation[1]),
+    clamp: position => clampItemPosition(room, item.kind, position, item.productId, mounted ? previewWall.current : item.wall, item.rotation[1], item.size),
     createProjection: mounted ? (origin, grabbed) => {
       previewWall.current = wall;
       const project = createWallDragProjection(room, wall, origin, grabbed, camera.position.clone());
@@ -902,7 +902,9 @@ export function RoomScene({
           onMove={onMove}
           onDraggingChange={handleDraggingChange}
         >
-          <Furniture item={item} trialModelUrls={trialModelUrls} />
+          <group scale={item.size && productById[item.productId]?.decor ? [item.size[0] / productById[item.productId].decor!.width, item.size[1] / productById[item.productId].decor!.height, item.size[2] / productById[item.productId].decor!.depth] : [1, 1, 1]}>
+            <Furniture item={item} trialModelUrls={trialModelUrls} />
+          </group>
         </DraggableFurniture>
         );
         return content;
