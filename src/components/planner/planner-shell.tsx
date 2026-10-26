@@ -1302,6 +1302,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 moveItem(item.id, [0, item.position[1], z]);
               }}><option value="room">Inside room</option>{design.room.balcony?.enabled && <option value="balcony">Balcony</option>}{design.room.yard?.enabled && <option value="yard">Front yard</option>}</select>}
               <span>Move</span>
+              {selectedDecor?.mount === "floor" && <button type="button" className={showExactItem ? "active" : ""} aria-label="Type exact furniture dimensions" aria-expanded={showExactItem} onClick={() => setShowExactItem(open => !open)}><Ruler size={16}/><span className="selection-action-label">Exact size</span></button>}
               <div className="selection-move-controls" aria-label="Move selected item">
                 <button onClick={() => moveSelected(-0.1, 0)} aria-label="Move left"><ArrowLeft size={15} /></button>
                 <button onClick={() => moveSelected(0, -0.1)} aria-label={selectedDecor?.mount === "wall" ? "Move up" : "Move forward"}><ArrowUp size={15} /></button>
@@ -1314,6 +1315,25 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
               <button aria-label={selectedDecor?.mount === "wall" ? "Move to next wall" : "Rotate selected item"} onClick={() => rotateItem(selectedId)}><RotateCcw size={17} /><span className="selection-action-label">{selectedDecor?.mount === "wall" ? "Next wall" : "Rotate"}</span></button>
               <button aria-label="Remove selected item" onClick={removeSelected} className="danger"><Trash2 size={17} /><span className="selection-action-label">Remove</span></button>
             </div>
+          )}
+
+          {showExactItem && selectedItem && selectedDecor?.mount === "floor" && (!isPhone || !panelOpen) && (
+            <section className="exact-item-popover" aria-label="Exact furniture measurements">
+              <div className="exact-item-heading">
+                <strong>Exact measurements</strong>
+                <button type="button" onClick={() => setShowExactItem(false)} aria-label="Close exact measurements"><X size={18}/></button>
+              </div>
+              <p>Type the measurements in metres. Changes apply on Enter or when you tap outside.</p>
+              <div className="exact-item-fields">
+                <DimensionInput key={selectedItem.id + "-width"} label="Width" value={selectedItem.size?.[0] ?? selectedDecor.width} min={.1} max={design.room.width} onCommit={width => resizeItem(selectedItem.id, [width, selectedItem.size?.[1] ?? selectedDecor.height, selectedItem.size?.[2] ?? selectedDecor.depth])}/>
+                <DimensionInput key={selectedItem.id + "-depth"} label="Depth" value={selectedItem.size?.[2] ?? selectedDecor.depth} min={.1} max={design.room.depth} onCommit={depth => resizeItem(selectedItem.id, [selectedItem.size?.[0] ?? selectedDecor.width, selectedItem.size?.[1] ?? selectedDecor.height, depth])}/>
+                <DimensionInput key={selectedItem.id + "-height"} label="Height" value={selectedItem.size?.[1] ?? selectedDecor.height} min={.1} max={design.room.height} onCommit={height => resizeItem(selectedItem.id, [selectedItem.size?.[0] ?? selectedDecor.width, height, selectedItem.size?.[2] ?? selectedDecor.depth])}/>
+                <DimensionInput key={selectedItem.id + "-x"} label="Left / right" value={selectedItem.position[0]} min={-design.room.width / 2} max={design.room.width / 2} onCommit={x => moveItem(selectedItem.id, [x, selectedItem.position[1], selectedItem.position[2]])}/>
+                <DimensionInput key={selectedItem.id + "-z"} label="Front / back" value={selectedItem.position[2]} min={-design.room.depth / 2} max={design.room.depth / 2 + (design.room.balcony?.enabled ? design.room.balcony.depth : 0) + (design.room.yard?.enabled ? design.room.yard.depth : 0)} onCommit={z => moveItem(selectedItem.id, [selectedItem.position[0], selectedItem.position[1], z])}/>
+                <DimensionInput key={selectedItem.id + "-rotation"} label="Rotation" value={Number((selectedItem.rotation[1] * 180 / Math.PI).toFixed(3))} min={-360} max={360} unit="°" onCommit={degrees => rotateItem(selectedItem.id, degrees * Math.PI / 180 - selectedItem.rotation[1])}/>
+              </div>
+              <small>The model is resized proportionally along each dimension. The room boundaries automatically limit placement.</small>
+            </section>
           )}
 
           {isTouch && !panelOpen && <div className="mobile-gesture-hint">{editMode ? "Drag items and floor handles to adjust" : "One finger to rotate · Pinch to zoom"}</div>}
