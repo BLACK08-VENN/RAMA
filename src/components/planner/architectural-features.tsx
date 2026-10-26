@@ -84,11 +84,15 @@ function WallPaintMaterial({ color, finish = "paint", span = 4, height = 3 }: { 
     loaded?.maps.roughness.dispose();
   }, [loaded]);
   const maps = loaded?.finish === finish ? loaded.maps : null;
-  // Consistent metre-based UV scale on each architectural wall.
-  if (maps) for (const map of [maps.color, maps.normal, maps.roughness]) {
-    map.repeat.set(span / 1.5, height / 1.5);
-    map.needsUpdate = true;
-  }
+  // Texture.repeat is a uniform transform; re-marking a full texture for
+  // upload on *every React render* caused expensive GPU work during edits.
+  useEffect(() => {
+    if (!maps) return;
+    for (const map of [maps.color, maps.normal, maps.roughness]) {
+      map.repeat.set(span / 1.5, height / 1.5);
+    }
+    invalidate();
+  }, [maps, span, height, invalidate]);
   return <meshStandardMaterial
     key={`${finish}-${maps ? "pbr" : "fallback"}`}
     color={maps ? "#ffffff" : color}
