@@ -41,7 +41,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
         color.colorSpace = THREE.SRGBColorSpace;
         color.wrapS = color.wrapT = THREE.RepeatWrapping;
         color.minFilter = THREE.LinearMipmapLinearFilter;
-        color.anisotropy = 8;
+        color.anisotropy = 4;
         setLoaded({ id, maps: { color } });
         invalidate();
         const optional = await Promise.all(
@@ -54,7 +54,7 @@ export function FloorSurface({ room }: { room: RoomConfig }) {
           owned.add(map);
           map.wrapS = map.wrapT = THREE.RepeatWrapping;
           map.minFilter = THREE.LinearMipmapLinearFilter;
-          map.anisotropy = 8;
+          map.anisotropy = 2;
         });
         setLoaded({ id, maps: { color, normal: normal ?? undefined, roughness: roughness ?? undefined } });
         invalidate();
