@@ -20,6 +20,33 @@ export async function inspectUploadedTrialGlb(file: File): Promise<UploadedTrial
     throw new Error("This GLB could not be opened. Check that it contains a complete model and supported textures.");
   }
   const size = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3());
+  // Inspection creates temporary decoded geometries/textures just to measure
+  // the upload. Release them immediately: the real model loads separately
+  // when placed in the room, from the retained original GLB blob.
+  const disposedTextures = new Set<THREE.Texture>();
+  const disposedMaterials = new Set<THREE.Material>();
+  const disposedGeometry = new Set<THREE.BufferGeometry>();
+  gltf.scene.traverse(object => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    if (mesh.geometry && !disposedGeometry.has(mesh.geometry)) {
+      disposedGeometry.add(mesh.geometry);
+      mesh.geometry.dispose();
+    }
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) {
+      if (!material || disposedMaterials.has(material)) continue;
+      disposedMaterials.add(material);
+      for (const candidate of Object.values(material)) {
+        if (!(candidate instanceof THREE.Texture) || disposedTextures.has(candidate)) continue;
+        disposedTextures.add(candidate);
+        const image = candidate.image as { close?: () => void } | undefined;
+        candidate.dispose();
+        image?.close?.();
+      }
+      material.dispose();
+    }
+  });
   if (![size.x, size.y, size.z].every(value => Number.isFinite(value) && value > 0.00001)) {
     throw new Error("The GLB does not contain measurable 3D geometry.");
   }
