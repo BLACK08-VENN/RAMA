@@ -1081,6 +1081,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                         <DimensionInput label="Door width" value={design.room.door.width} min={.7} max={Math.min(3.6, design.room.depth - .7)} onCommit={value => updateOpeningNumber("door", "width", value, .7, 3.6)}/>
                         <DimensionInput label="Door height" value={design.room.door.height} min={1.8} max={Math.min(2.5, design.room.height - .08)} onCommit={value => updateOpeningNumber("door", "height", value, 1.8, 2.5)}/>
                         <label>Position<input type="range" min="-0.35" max="0.35" step="0.05" value={design.room.door.position} onChange={(event) => updateOpeningNumber("door", "position", event.currentTarget.valueAsNumber, -0.35, 0.35)} /></label>
+                        <DimensionInput label="Door offset from centre" value={-design.room.door.position * (design.room.depth - design.room.door.width)} min={-.35 * (design.room.depth - design.room.door.width)} max={.35 * (design.room.depth - design.room.door.width)} onCommit={offset => updateOpeningNumber("door", "position", -offset / (design.room.depth - design.room.door.width), -.35, .35)}/>
                       </div>
                     )}
                   </div></RoomSettingsSection>
@@ -1116,6 +1117,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                         <DimensionInput label="Window height" value={design.room.window.height} min={.6} max={Math.max(.6, Math.min(2.4, design.room.height - design.room.window.sillHeight - .15))} onCommit={value => updateOpeningNumber("window", "height", value, .6, 2.4)}/>
                         <DimensionInput label="Sill height" value={design.room.window.sillHeight} min={.15} max={Math.max(.15, Math.min(1.4, design.room.height - design.room.window.height - .15))} onCommit={value => updateOpeningNumber("window", "sillHeight", value, .15, 1.4)}/>
                         <label className="opening-position">Position<input type="range" min="-0.35" max="0.35" step="0.05" value={design.room.window.position} onChange={(event) => updateOpeningNumber("window", "position", event.currentTarget.valueAsNumber, -0.35, 0.35)} /></label>
+                        <DimensionInput label="Window offset from centre" value={design.room.window.position * (design.room.width - design.room.window.width)} min={-.35 * (design.room.width - design.room.window.width)} max={.35 * (design.room.width - design.room.window.width)} onCommit={offset => updateOpeningNumber("window", "position", offset / (design.room.width - design.room.window.width), -.35, .35)}/>
                       </div>
                     )}
                   </div></RoomSettingsSection>
@@ -1172,7 +1174,15 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 {design.room.presetId === "conference-room" && <>
                   <RoomSettingsSection title="Presentation screen">
                     <div className="opening-fields">{([["conferencePresentationWall", "Presentation screen"]] as const).map(([key, label]) => <label className="opening-position" key={key}>{label}<select value={design.room[key] ? "yes" : "no"} onChange={event => updateRoom({ [key]: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select></label>)}</div>
-                    {design.room.conferencePresentationWall && <p className="resize-instruction">Pull a screen corner to resize, drag it to move, or tap Change wall in the room view.</p>}
+                    {design.room.conferencePresentationWall && <>
+                      <p className="resize-instruction">Enter the precise screen dimensions or use the stretch handles. Measurements are in metres.</p>
+                      <div className="dimension-fields">
+                        <DimensionInput label="Screen width" value={conferenceScreen.width} min={.8} max={screenLimits(design.room, conferenceScreen.width, conferenceScreen.height, conferenceScreen.wall).widthMax} onCommit={width => changeConferenceScreen({ width })}/>
+                        <DimensionInput label="Screen height" value={conferenceScreen.height} min={.5} max={screenLimits(design.room, conferenceScreen.width, conferenceScreen.height, conferenceScreen.wall).heightMax} onCommit={height => changeConferenceScreen({ height })}/>
+                        <DimensionInput label="Horizontal offset" value={conferenceScreen.x} min={-screenLimits(design.room, conferenceScreen.width, conferenceScreen.height, conferenceScreen.wall).xLimit} max={screenLimits(design.room, conferenceScreen.width, conferenceScreen.height, conferenceScreen.wall).xLimit} onCommit={x => changeConferenceScreen({ x })}/>
+                        <DimensionInput label="Centre height" value={conferenceScreen.y} min={screenLimits(design.room, conferenceScreen.width, conferenceScreen.height, conferenceScreen.wall).yMin} max={screenLimits(design.room, conferenceScreen.width, conferenceScreen.height, conferenceScreen.wall).yMax} onCommit={y => changeConferenceScreen({ y })}/>
+                      </div>
+                    </>}
                   </RoomSettingsSection>
                   <RoomSettingsSection title="Floors">
                   <div className="finish-section"><span>Conference flooring</span>
