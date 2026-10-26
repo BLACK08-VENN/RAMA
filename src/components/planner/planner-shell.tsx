@@ -15,7 +15,6 @@ import {
   RefreshCw,
   PanelsTopLeft,
   CircleHelp,
-  DoorOpen,
   ExternalLink,
   Grid3X3,
   Heart,
@@ -32,13 +31,11 @@ import {
   PanelLeftClose,
   Redo2,
   RotateCcw,
-  Ruler,
   Search,
   Sun,
   Moon,
   Share2,
   ShoppingBag,
-  Shapes,
   Sparkles,
   Trash2,
   Undo2,
@@ -46,7 +43,7 @@ import {
   View,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CameraView } from "./room-scene";
 import { formatKes, products, registerUploadedTrialProduct, unregisterUploadedTrialProduct, type ProductCategory } from "@/data/products";
 import { ProductCardImage } from "./product-card-image";
@@ -125,6 +122,13 @@ const floorFinishes = [
   { name: "Black onyx", color: "#292a2c", label: "Onyx010" },
   { name: "Fabric floor", color: "#a49d94", label: "Fabric081C" },
 ];
+
+function RoomSettingsSection({ title, children }: { title: string; children: ReactNode }) {
+  return <details className="room-setting" name="rama-room-settings">
+    <summary>{title}<ChevronDown size={17} aria-hidden="true" /></summary>
+    <div className="room-setting-content">{children}</div>
+  </details>;
+}
 
 function DimensionInput({ label, value, min, max, onCommit }: {
   label: string;
@@ -315,7 +319,6 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const selectedDecor = products.find(product => product.id === selectedItem?.productId)?.decor;
   const roomArea = getRoomArea(design.room);
   const activeRoomPreset = matchRoomPreset(design.room);
-  const openingCount = Number(design.room.door.enabled) + Number(design.room.window.enabled);
   const conferenceScreen = getConferenceScreen(design.room);
   const changeConferenceScreen = (change: Partial<ConferenceScreenConfig>) => {
     updateRoom({ conferenceScreen: getConferenceScreen(design.room, change) });
@@ -962,11 +965,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 <div><span className="eyebrow">Room settings</span><h1>Customize room</h1></div>
               </div>
               <div className="setting-stack">
-                <section className="dimension-card">
-                  <div className="dimension-card-heading">
-                    <Shapes size={21} />
-                    <span><strong>Start from a room</strong><small>Empty designer shells and everyday room sizes</small></span>
-                  </div>
+                <RoomSettingsSection title="Choose room">
+
                   <div className="room-preset-grid" role="group" aria-label="Room templates">
                     {roomPresets.map((preset) => {
                       const selected = activeRoomPreset?.id === preset.id;
@@ -991,25 +991,19 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                       );
                     })}
                   </div>
-                </section>
-                <section className="dimension-card">
-                  <div className="dimension-card-heading">
-                    <Ruler size={21} />
-                    <span>
-                      <strong>{activeRoomPreset ? activeRoomPreset.name : "Custom room"}</strong>
-                      <small>Measurements in metres</small>
-                    </span>
-                  </div>
+                </RoomSettingsSection>
+                <RoomSettingsSection title="Room size">
+
                   <p className="resize-instruction">Drag the teal handles on the room edges to pull or push the walls. Use the fields below for exact sizes.</p>
                   <div className="dimension-fields">
                     <DimensionInput label="Width" value={design.room.width} min={2.5} max={12} onCommit={value => updateRoomDimension("width", value)} />
                     <DimensionInput label="Depth" value={design.room.depth} min={2.5} max={12} onCommit={value => updateRoomDimension("depth", value)} />
                     <DimensionInput label="Height" value={design.room.height} min={2.2} max={4.5} onCommit={value => updateRoomDimension("height", value)} />
                   </div>
-                </section>
+                </RoomSettingsSection>
                 {(!design.room.spaceType || design.room.spaceType === "indoor") && <>
-                <section className="dimension-card">
-                  <div className="dimension-card-heading"><span><strong>Outdoor spaces</strong><small>Optional deck and lawn</small></span></div>
+                <RoomSettingsSection title="Outdoor spaces">
+
                   {(["balcony", "yard"] as const).map(area => {
                     const value = design.room[area] ?? { enabled: false, width: design.room.width, depth: area === "balcony" ? 2.4 : 4 };
                     return <div className="opening-section" key={area}>
@@ -1017,8 +1011,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                       {value.enabled && <div className="dimension-fields">{(["width", "depth"] as const).map(dimension => <label key={dimension}>{dimension === "width" ? "Width (m)" : "Depth (m)"}<input type="number" min={dimension === "width" ? 2.5 : 1.5} max="12" step="0.1" value={value[dimension]} onChange={event => { const next = event.currentTarget.valueAsNumber; if (Number.isFinite(next)) updateRoom({ [area]: { ...value, [dimension]: Math.max(dimension === "width" ? 2.5 : 1.5, Math.min(12, next)) } }); }} /></label>)}</div>}
                     </div>;
                   })}
-                </section>
-                {isBedroomRoom(design.room) && <section className="dimension-card">
+                </RoomSettingsSection>
+                {isBedroomRoom(design.room) && <RoomSettingsSection title="Built-in storage">
                   <div className="opening-row"><span><strong>Built-in wardrobe & drawers</strong><small>Drag to move; use the buttons to rotate</small></span><label className="toggle-control"><input type="checkbox" checked={design.room.builtInStorage?.enabled ?? false} onChange={event => updateRoom({ builtInStorage: { ...design.room.builtInStorage, width: design.room.builtInStorage?.width ?? 2, enabled: event.currentTarget.checked } })} /><i /><b>{design.room.builtInStorage?.enabled ? "On" : "Off"}</b></label></div>
                   {design.room.builtInStorage?.enabled && <div className="dimension-fields"><label>Width (m)<input type="number" min="1" max="4" step="0.1" value={design.room.builtInStorage.width} onChange={event => { const value = event.currentTarget.valueAsNumber; if (Number.isFinite(value)) updateRoom({ builtInStorage: { ...design.room.builtInStorage, enabled: true, width: Math.max(1, Math.min(4, value)) } }); }} /></label></div>}
                   {design.room.builtInStorage?.enabled && <>
@@ -1042,14 +1036,9 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     }} /></label>)}</div>
                   </>}
 
-                </section>}
-                <section className="dimension-card"><div className="opening-row"><span><strong>Dining corner sink</strong><small>Compact basin, tap and cupboard</small></span><label className="toggle-control"><input type="checkbox" checked={design.room.diningSink ?? false} onChange={event => updateRoom({ diningSink: event.currentTarget.checked })} /><i /><b>{design.room.diningSink ? "On" : "Off"}</b></label></div></section>
-                <section className="openings-card">
-                  <div className="dimension-card-heading">
-                    <DoorOpen size={21} />
-                    <span><strong>Doors & windows</strong><small>{openingCount} architectural {openingCount === 1 ? "element" : "elements"}</small></span>
-                  </div>
-                  <div className="opening-section">
+                </RoomSettingsSection>}
+                <RoomSettingsSection title="Dining sink"><div className="opening-row"><span><strong>Dining corner sink</strong><small>Compact basin, tap and cupboard</small></span><label className="toggle-control"><input type="checkbox" checked={design.room.diningSink ?? false} onChange={event => updateRoom({ diningSink: event.currentTarget.checked })} /><i /><b>{design.room.diningSink ? "On" : "Off"}</b></label></div></RoomSettingsSection>
+                <RoomSettingsSection title="Doors"><div className="opening-section">
                     <div className="opening-row">
                       <span><strong>Door</strong><small>Left wall</small></span>
                       <label className="toggle-control">
@@ -1065,8 +1054,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                         <label>Position<input type="range" min="-0.35" max="0.35" step="0.05" value={design.room.door.position} onChange={(event) => updateOpeningNumber("door", "position", event.currentTarget.valueAsNumber, -0.35, 0.35)} /></label>
                       </div>
                     )}
-                  </div>
-                  <div className="opening-section">
+                  </div></RoomSettingsSection>
+                <RoomSettingsSection title="Windows"><div className="opening-section">
                     <div className="opening-row">
                       <span><strong>Window</strong><small>Back wall</small></span>
                       <label className="toggle-control">
@@ -1099,15 +1088,15 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                         <label className="opening-position">Position<input type="range" min="-0.35" max="0.35" step="0.05" value={design.room.window.position} onChange={(event) => updateOpeningNumber("window", "position", event.currentTarget.valueAsNumber, -0.35, 0.35)} /></label>
                       </div>
                     )}
-                  </div>
-                </section>
-                <section className="dimension-card">
-                  <div className="dimension-card-heading"><span><strong>Statement lighting</strong><small>Choose a chandelier for your room</small></span></div>
+                  </div></RoomSettingsSection>
+                <RoomSettingsSection title="Lighting">
+
                   <div className="opening-fields"><label className="opening-position">Chandelier<select value={design.room.chandelier ?? "none"} onChange={(event) => updateRoom({ chandelier: event.currentTarget.value as "none" | "rings" | "globes" })}><option value="none">No chandelier</option><option value="rings">Floating luminous rings</option><option value="globes">Brass & opal globes</option></select></label></div>
-                </section>
+                {design.room.presetId === "conference-room" && <div className="opening-fields">{([["conferenceRecessedLights", "Recessed ceiling lights"],["conferenceCeilingBulkhead", "Ceiling bulkhead"]] as const).map(([key, label]) => <label className="opening-position" key={key}>{label}<select value={design.room[key] ? "yes" : "no"} onChange={event => updateRoom({ [key]: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select></label>)}</div>}
+                </RoomSettingsSection>
                 {design.room.presetId !== "conference-room" && <>
-                <div className="finish-section">
-                  <span>Floor finish</span>
+                <RoomSettingsSection title="Floors">
+
                   <div className="floor-options">
                     {floorFinishes.map((finish) => (
                       <button
@@ -1120,9 +1109,9 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                       </button>
                     ))}
                   </div>
-                </div>
+                </RoomSettingsSection>
                 </>}
-                <div className="finish-section">
+                <RoomSettingsSection title="Walls">{design.room.presetId === "conference-room" && <div className="opening-fields">{([["conferenceGlassWalls", "Glass partition walls"],["conferenceAcousticPanels", "Acoustic wall panels"]] as const).map(([key, label]) => <label className="opening-position" key={key}>{label}<select value={design.room[key] ? "yes" : "no"} onChange={event => updateRoom({ [key]: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select></label>)}</div>}<div className="finish-section">
                   <span>Wall finish</span>
                   <div className="floor-options">
                     <button type="button"
@@ -1148,31 +1137,19 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                       />
                     ))}
                   </div>
-                </div>
-                {design.room.presetId === "conference-room" && <section className="dimension-card">
-                  <div className="dimension-card-heading"><span><strong>Conference room finishes</strong><small>Glass partitions, lighting and professional flooring</small></span></div>
-                  <div className="opening-fields">
-                    <label className="opening-position">Glass partition walls
-                      <select value={design.room.conferenceGlassWalls ? "yes" : "no"} onChange={event => updateRoom({ conferenceGlassWalls: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select>
-                    </label>
-                    {([
-                      ["conferencePresentationWall", "TV / presentation wall"],
-                      ["conferenceAcousticPanels", "Acoustic wall panels"],
-                      ["conferenceCeilingBulkhead", "Ceiling bulkhead"]
-                    ] as const).map(([key,label]) => <label key={key} className="opening-position">{label}
-                      <select value={design.room[key] ? "yes" : "no"} onChange={event => updateRoom({[key]:event.currentTarget.value === "yes"})}>
-                        <option value="yes">Enabled</option><option value="no">Disabled</option>
-                      </select>
-                    </label>)}
-                    <label className="opening-position">Recessed ceiling lights
-                      <select value={design.room.conferenceRecessedLights ? "yes" : "no"} onChange={event => updateRoom({ conferenceRecessedLights: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select>
-                    </label>
-                  </div>
-                  {design.room.conferencePresentationWall && <p className="resize-instruction">Use Stretch screen in the room view. Pull a screen corner to resize, drag the screen to move it, or tap Change wall.</p>}
+                </div></RoomSettingsSection>
+
+                {design.room.presetId === "conference-room" && <>
+                  <RoomSettingsSection title="Presentation screen">
+                    <div className="opening-fields">{([["conferencePresentationWall", "Presentation screen"]] as const).map(([key, label]) => <label className="opening-position" key={key}>{label}<select value={design.room[key] ? "yes" : "no"} onChange={event => updateRoom({ [key]: event.currentTarget.value === "yes" })}><option value="yes">Enabled</option><option value="no">Disabled</option></select></label>)}</div>
+                    {design.room.conferencePresentationWall && <p className="resize-instruction">Pull a screen corner to resize, drag it to move, or tap Change wall in the room view.</p>}
+                  </RoomSettingsSection>
+                  <RoomSettingsSection title="Floors">
                   <div className="finish-section"><span>Conference flooring</span>
                     <div className="floor-options">{conferenceFloors.map(finish => <button type="button" key={finish.name} className={design.room.floorName === finish.name ? "selected" : ""} onClick={() => updateRoom({ floorName: finish.name, floorColor: finish.color })}><i style={{ backgroundColor: finish.color, backgroundImage: `url(/materials/ambientcg/${finish.label}/Color.jpg)`, backgroundSize: "cover", backgroundPosition: "center" }}/><span>{finish.label}</span></button>)}</div>
                   </div>
-                </section>}
+                  </RoomSettingsSection>
+                </>}
                 </>}
               </div>
             </div>
