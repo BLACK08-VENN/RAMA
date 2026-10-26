@@ -63,6 +63,8 @@ export type PlacedItem = {
   wall?: WallSide;
   position: [number, number, number];
   rotation: [number, number, number];
+  /** Optional exact dimensions [width, height, depth] in metres. */
+  size?: [number, number, number];
 };
 
 const itemClearance: Record<ProductKind, number> = {
@@ -113,8 +115,9 @@ export const getItemPlacementBounds = (room: RoomConfig, kind: ProductKind) => {
   return { maxX: Math.max(0, room.width / 2 - clearance), maxZ: Math.max(0, room.depth / 2 - clearance) };
 };
 
-export const clampItemPosition = (room: RoomConfig, kind: ProductKind, position: [number, number, number], productId?: string, wall: WallSide = "back", rotation = 0): [number, number, number] => {
-  const spec = productId ? productById[productId]?.decor : undefined;
+export const clampItemPosition = (room: RoomConfig, kind: ProductKind, position: [number, number, number], productId?: string, wall: WallSide = "back", rotation = 0, size?: [number, number, number]): [number, number, number] => {
+  const baseSpec = productId ? productById[productId]?.decor : undefined;
+  const spec = baseSpec && size ? { ...baseSpec, width: size[0], height: size[1], depth: size[2] } : baseSpec;
   if (spec?.mount === "wall") {
     const horizontal = wall === "back" || wall === "front";
     const limit = Math.max(0, (horizontal ? room.width : room.depth) / 2 - spec.width / 2 - .03);
@@ -166,6 +169,7 @@ type PlannerState = {
   rotateItem: (id: string, radians?: number) => void;
   moveItem: (id: string, position: [number, number, number], wall?: WallSide) => void;
   setItemWall: (id: string, wall: WallSide) => void;
+  resizeItem: (id: string, size: [number, number, number]) => void;
   undo: () => void;
   redo: () => void;
 };
@@ -303,7 +307,8 @@ const isValidSharedDesign = (design: DesignDocument) => {
       validKinds.includes(item.kind as PlacedItem["kind"]) &&
       (item.wall === undefined || ["back", "right", "front", "left"].includes(item.wall as string)) &&
       Array.isArray(item.position) && item.position.length === 3 && item.position.every(isFiniteNumber) &&
-      Array.isArray(item.rotation) && item.rotation.length === 3 && item.rotation.every(isFiniteNumber),
+      Array.isArray(item.rotation) && item.rotation.length === 3 && item.rotation.every(isFiniteNumber) &&
+      (item.size === undefined || (Array.isArray(item.size) && item.size.length === 3 && item.size.every(value => isFiniteNumber(value) && value >= .1 && value <= 12))),
     )
   );
 };
@@ -336,7 +341,7 @@ export const decodeSharedDesign = (payload: string): DesignDocument | null => {
 };
 
 const clampItemsToRoom = (items: PlacedItem[], room: RoomConfig): PlacedItem[] =>
-  items.map(item => ({ ...item, position: clampItemPosition(room, item.kind, item.position, item.productId, item.wall, item.rotation[1]) }));
+  items.map(item => ({ ...item, position: clampItemPosition(room, item.kind, item.position, item.productId, item.wall, item.rotation[1], item.size) }));
 
 const withTimestamp = (design: DesignDocument): DesignDocument => ({
   ...design,
@@ -440,10 +445,10 @@ export const usePlannerStore = create<PlannerState>()(
             if (productById[item.productId]?.decor?.mount === "wall") {
               const walls: WallSide[] = ["back", "right", "front", "left"];
               const wall = walls[(walls.indexOf(item.wall ?? "back") + 1) % 4];
-              return { ...item, wall, position: clampItemPosition(design.room, item.kind, [0, item.position[1], 0], item.productId, wall), rotation: [0, wallRotation[wall], 0] };
+              return { ...item, wall, position: clampItemPosition(design.room, item.kind, [0, item.position[1], 0], item.productId, wall, 0, item.size), rotation: [0, wallRotation[wall], 0] };
             }
             const rotation: [number, number, number] = [item.rotation[0], item.rotation[1] + radians, item.rotation[2]];
-            return { ...item, rotation, position: clampItemPosition(design.room, item.kind, item.position, item.productId, item.wall, rotation[1]) };
+            return { ...item, rotation, position: clampItemPosition(design.room, item.kind, item.position, item.productId, item.wall, rotation[1], item.size) };
           }),
         })),
         moveItem: (id, position, requestedWall) => commit((design) => ({
@@ -452,15 +457,34 @@ export const usePlannerStore = create<PlannerState>()(
             if (item.id !== id) return item;
             const wall = productById[item.productId]?.decor?.mount === "wall" ? requestedWall ?? item.wall ?? "back" : item.wall;
             const rotation: [number, number, number] = wall ? [0, wallRotation[wall], 0] : item.rotation;
-            return { ...item, wall, rotation, position: clampItemPosition(design.room, item.kind, position, item.productId, wall, rotation[1]) };
+            return { ...item, wall, rotation, position: clampItemPosition(design.room, item.kind, position, item.productId, wall, rotation[1], item.size) };
           }),
         })),
         setItemWall: (id, wall) => commit(design => ({
           ...design,
           items: design.items.map(item => item.id === id && productById[item.productId]?.decor?.mount === "wall" ? {
             ...item, wall, rotation: [0, wallRotation[wall], 0],
-            position: clampItemPosition(design.room, item.kind, [0, item.position[1], 0], item.productId, wall),
+            position: clampItemPosition(design.room, item.kind, [0, item.position[1], 0], item.productId, wall, 0, item.size),
           } : item),
+        })),
+        resizeItem: (id, dimensions) => commit(design => ({
+          ...design,
+          items: design.items.map(item => {
+            if (item.id !== id) return item;
+            const product = productById[item.productId];
+            const spec = product?.decor;
+            if (!spec || spec.mount !== "floor") return item;
+            const size: [number, number, number] = [
+              Math.min(design.room.width, Math.max(.1, dimensions[0])),
+              Math.min(design.room.height, Math.max(.1, dimensions[1])),
+              Math.min(design.room.depth, Math.max(.1, dimensions[2])),
+            ];
+            if (!size.every(Number.isFinite)) return item;
+            return {
+              ...item, size,
+              position: clampItemPosition(design.room, item.kind, item.position, item.productId, item.wall, item.rotation[1], size),
+            };
+          }),
         })),
         undo: () => {
           const { history, design, selectedId } = get();
