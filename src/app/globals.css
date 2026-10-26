@@ -2283,6 +2283,28 @@ input:focus-visible {
 
 .welcome-copy h1 { font-size: clamp(40px, 4.8vw, 74px); }
 .welcome-steps li { gap: 0; }
+.conference-screen-controls { position: absolute; top: 124px; right: 12px; z-index: 6; width: 294px; max-width: calc(100% - 24px); border: 1px solid #d5e1de; border-radius: 14px; background: #fffffff5; box-shadow: 0 4px 18px #193d3520; color: #23443f; }
+.conference-screen-controls:not([open]) { width: auto; }
+.conference-screen-controls summary { display: flex; align-items: center; gap: 8px; padding: 12px 14px; min-height: 46px; cursor: pointer; font-size: 12px; font-weight: 600; list-style: none; }
+.conference-screen-controls summary::-webkit-details-marker { display: none; }
+.conference-screen-controls summary svg:last-child { margin-left: auto; }
+.conference-screen-controls[open] summary svg:last-child { transform: rotate(180deg); }
+.conference-screen-settings { padding: 0 14px 14px; max-height: min(440px, calc(100dvh - 340px)); overflow-y: auto; overscroll-behavior: contain; }
+.conference-screen-settings p, .conference-screen-settings small { display: block; font-size: 11px; line-height: 1.5; color: #526966; }
+.conference-screen-settings p { margin: 0 0 12px; }
+.conference-screen-settings .dimension-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.conference-screen-settings .dimension-fields label { min-width: 0; font-size: 10px; }
+.conference-screen-settings .dimension-fields input { min-height: 44px; width: 100%; }
+.conference-screen-arrows, .conference-screen-actions { display: flex; gap: 6px; margin: 12px 0; }
+.conference-screen-settings button { display: flex; align-items: center; justify-content: center; min-height: 44px; min-width: 40px; border: 1px solid #c4d8d3; border-radius: 8px; background: #f0f7f5; color: #155d56; font-size: 11px; padding: 8px; cursor: pointer; }
+.conference-screen-settings button:disabled { opacity: .4; cursor: default; }
+.conference-screen-actions button { flex: 1; }
+.conference-screen-actions button:first-child { background: #0d9399; color: #fff; border-color: #0d9399; }
+.conference-screen-controls :focus-visible { outline: 3px solid #0d9399; outline-offset: 2px; }
+@media (max-width: 700px) {
+  .conference-screen-controls.behind-menu { display: none; }
+  .conference-screen-controls { width: 270px; }
+}
 @media (orientation: portrait), (max-width: 760px) {
   .welcome-copy h1 { font-size: clamp(36px, 6vw, 60px); }
 }

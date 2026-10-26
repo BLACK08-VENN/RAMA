@@ -1258,6 +1258,34 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
             onResize={(dimension, value) => updateRoom({ [dimension]: value })}
           />
 
+          {design.room.presetId === "conference-room" && design.room.conferencePresentationWall && (
+            <details className={`conference-screen-controls ${isPhone && panelOpen ? "behind-menu" : ""}`}
+              onToggle={event => { if (event.currentTarget.open) { selectItem(null); setEditMode(true); } }}>
+              <summary><SlidersHorizontal size={17} /> Adjust screen <ChevronDown size={15} /></summary>
+              <div className="conference-screen-settings" role="group" aria-label="Presentation screen adjustments">
+                <p>Resize the screen or move it along the presentation wall.</p>
+                <div className="dimension-fields">
+                  <DimensionInput label="Screen width" value={Number(conferenceScreen.width.toFixed(2))} min={0.8} max={conferenceScreenBounds.widthMax} onCommit={width => changeConferenceScreen({ width })} />
+                  <DimensionInput label="Screen height" value={Number(conferenceScreen.height.toFixed(2))} min={0.5} max={conferenceScreenBounds.heightMax} onCommit={height => changeConferenceScreen({ height })} />
+                  <DimensionInput label="Left / right from centre" value={Number(conferenceScreen.x.toFixed(2))} min={-conferenceScreenBounds.xLimit} max={conferenceScreenBounds.xLimit} onCommit={x => changeConferenceScreen({ x })} />
+                  <DimensionInput label="Centre height above floor" value={Number(conferenceScreen.y.toFixed(2))} min={conferenceScreenBounds.yMin} max={conferenceScreenBounds.yMax} onCommit={y => changeConferenceScreen({ y })} />
+                </div>
+                <div className="conference-screen-arrows" role="group" aria-label="Move presentation screen in 10 centimetre steps">
+                  <button type="button" aria-label="Move screen left" disabled={conferenceScreen.x <= -conferenceScreenBounds.xLimit} onClick={() => changeConferenceScreen({ x: conferenceScreen.x - .1 })}><ArrowLeft size={18} /></button>
+                  <button type="button" aria-label="Move screen up" disabled={conferenceScreen.y >= conferenceScreenBounds.yMax} onClick={() => changeConferenceScreen({ y: conferenceScreen.y + .1 })}><ArrowUp size={18} /></button>
+                  <button type="button" aria-label="Move screen down" disabled={conferenceScreen.y <= conferenceScreenBounds.yMin} onClick={() => changeConferenceScreen({ y: conferenceScreen.y - .1 })}><ArrowDown size={18} /></button>
+                  <button type="button" aria-label="Move screen right" disabled={conferenceScreen.x >= conferenceScreenBounds.xLimit} onClick={() => changeConferenceScreen({ x: conferenceScreen.x + .1 })}><ArrowRight size={18} /></button>
+                  <button type="button" onClick={() => changeConferenceScreen({ x: 0 })}>Centre</button>
+                </div>
+                <div className="conference-screen-actions">
+                  <button type="button" onClick={() => { setEditMode(true); setCameraView("front"); }}>Drag screen</button>
+                  <button type="button" onClick={() => changeConferenceScreen(DEFAULT_CONFERENCE_SCREEN)}>Reset screen</button>
+                </div>
+                <small>Drag screen opens the front view in Move mode. Drag the display left, right, up or down. Changes save with your room.</small>
+              </div>
+            </details>
+          )}
+
           {!panelOpen && (
             <button className="reopen-panel" onClick={() => setPanelOpen(true)}><PanelLeftClose size={19} /> Browse products</button>
           )}
