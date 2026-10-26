@@ -2402,3 +2402,14 @@ input:focus-visible {
   }
   .selection-toolbar > * { flex-shrink: 0; }
 }
+
+/* Exact-measurement inputs stay usable in a narrow touch drawer. */
+@media (max-width: 700px), (max-width: 1000px) and (max-height: 500px) and (pointer: coarse) {
+  .dimension-fields,
+  .opening-fields .dimension-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .exact-measurement-field { font-size: 12px; }
+}
+@media (max-width: 390px) {
+  .dimension-fields,
+  .opening-fields .dimension-fields { grid-template-columns: minmax(0, 1fr); }
+}
