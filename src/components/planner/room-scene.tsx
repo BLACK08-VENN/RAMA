@@ -254,29 +254,11 @@ function ItemSelectionOutline({ selectedId }: { selectedId: string | null }) {
     const render = new RenderPass(scene, camera);
     const outline = new OutlinePass(new THREE.Vector2(), scene, camera);
     const output = new OutputPass();
-    // Use a neutral edge mask, then alpha-blend solid teal instead of adding
-    // light. Additive outlines wash out against pale floors and walls.
-    outline.visibleEdgeColor.set("#ffffff");
+    outline.visibleEdgeColor.set("#0d9399");
     outline.hiddenEdgeColor.set("#000000");
-    outline.edgeStrength = 24;
-    outline.edgeThickness = 9;
+    outline.edgeStrength = 12;
+    outline.edgeThickness = 6;
     outline.edgeGlow = 0;
-    outline.overlayMaterial.uniforms.selectionColor = { value: new THREE.Color("#00565c") };
-    outline.overlayMaterial.fragmentShader = `
-      varying vec2 vUv;
-      uniform sampler2D maskTexture;
-      uniform sampler2D edgeTexture1;
-      uniform float edgeStrength;
-      uniform vec3 selectionColor;
-      void main() {
-        float edge = texture2D(edgeTexture1, vUv).r;
-        float exterior = texture2D(maskTexture, vUv).r;
-        float coverage = clamp(edge * edgeStrength * exterior, 0.0, 1.0);
-        gl_FragColor = vec4(selectionColor, coverage);
-      }
-    `;
-    outline.overlayMaterial.blending = THREE.NormalBlending;
-    outline.overlayMaterial.transparent = true;
     composer.addPass(render);
     composer.addPass(outline);
     composer.addPass(output);
