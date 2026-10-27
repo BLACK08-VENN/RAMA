@@ -44,7 +44,7 @@ import {
   View,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import type { CameraView } from "./room-scene";
 import { formatKes, products, registerUploadedTrialProduct, unregisterUploadedTrialProduct, type ProductCategory } from "@/data/products";
 import { ProductCardImage } from "./product-card-image";
@@ -182,6 +182,66 @@ function DimensionInput({ label, value, min, max, onCommit, unit = "m" }: {
       title={`Type a value between ${min} and ${max}, then press Enter or tap outside.`}
     />
   </label>;
+}
+
+function SwipeableCategoryRail({ label, children }: { label: string; children: ReactNode }) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const gesture = useRef<{ pointerId: number; startX: number; scrollLeft: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    // Native touch scrolling provides momentum and works with screen readers.
+    // Desktop mouse and stylus users can drag the same rail.
+    if (event.pointerType === "touch" || event.button !== 0) return;
+    gesture.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      scrollLeft: event.currentTarget.scrollLeft,
+      moved: false,
+    };
+    suppressClick.current = false;
+  };
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const active = gesture.current;
+    if (!active || active.pointerId !== event.pointerId) return;
+    const distance = event.clientX - active.startX;
+    if (!active.moved && Math.abs(distance) < 7) return;
+    if (!active.moved) {
+      active.moved = true;
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Capture can be unavailable. */ }
+    }
+    suppressClick.current = true;
+    event.currentTarget.scrollLeft = active.scrollLeft - distance;
+    event.preventDefault();
+  };
+  const finish = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (gesture.current?.pointerId !== event.pointerId) return;
+    gesture.current = null;
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch { /* The browser may have released the pointer. */ }
+  };
+  return <div ref={railRef} className="category-list" aria-label={label} role="group" tabIndex={0}
+    onPointerDown={onPointerDown}
+    onPointerMove={onPointerMove}
+    onPointerUp={finish}
+    onPointerCancel={event => { gesture.current = null; suppressClick.current = false; finish(event); }}
+    onClickCapture={event => {
+      if (!suppressClick.current) return;
+      suppressClick.current = false;
+      event.preventDefault();
+      event.stopPropagation();
+    }}
+    onDragStart={event => event.preventDefault()}
+    onKeyDown={event => {
+      if (event.target !== event.currentTarget) return;
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        railRef.current?.scrollBy({ left: event.key === "ArrowRight" ? 160 : -160, behavior: "smooth" });
+      }
+    }}>
+    {children}
+  </div>;
 }
 
 export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
@@ -899,7 +959,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     }} />
                 </label>
               )}
-              <div className="category-list" aria-label={activePanel === "decor" ? "Décor categories" : "Product categories"}>
+              <SwipeableCategoryRail label={activePanel === "decor" ? "Swipe or drag décor categories" : "Swipe or drag furniture categories"}>
                 {(activePanel === "decor" ? decorGroups : categories).map((category) => (
                   <button
                     key={category}
@@ -909,7 +969,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     {category}
                   </button>
                 ))}
-              </div>
+              </SwipeableCategoryRail>
 
               {activePanel === "decor" && activeDecorGroup === "Trial furniture" && (
                 <p style={{fontSize:13,lineHeight:1.5,padding:"6px 2px"}}>Trial furniture is stored in this browser. Upload any GLB using the button above and it appears here automatically; tap Add to furnish your room. The original six items can also be imported individually.</p>
@@ -1222,7 +1282,13 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 {(selectedDecor.mount === "wall" || selectedDecor.mount === "table") && <DimensionInput label={selectedDecor.mount === "wall" ? "Centre height" : "Height above floor"} min={0} max={design.room.height} value={selectedItem.position[1]} onCommit={height => moveItem(selectedItem.id, [selectedItem.position[0], height, selectedItem.position[2]])}/>}
                 <small>{selectedDecor.mount === "table" ? "Set the height to match your tabletop." : selectedDecor.mount === "wall" ? "Drag onto another visible wall to move it there. Orbit the room to reach every wall." : selectedDecor.mount === "ceiling" ? "Suspended from the ceiling; drag to reposition." : "Drag to move, or use the arrows and rotation controls."}</small>
               </div>}
-              <div className="design-list">
+              {placedItems.length > 0 && <details className="design-items-disclosure">
+                <summary aria-label={`View items used in this room, ${placedItems.length} items`}>
+                  <span>Items used in this room <small>${placedItems.length} ${placedItems.length === 1 ? "item" : "items"}</small></span>
+                  <ChevronDown size={18} aria-hidden="true" />
+                </summary>
+                <p>Select an item below to locate or edit it in your room.</p>
+                <div className="design-list">
                 {placedItems.map((item) => {
                   const product = products.find((candidate) => candidate.id === item.productId);
                   if (!product) return null;
@@ -1234,7 +1300,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                     </button>
                   );
                 })}
-              </div>
+                </div>
+              </details>}
             </div>
           )}
         </aside>
