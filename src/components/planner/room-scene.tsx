@@ -116,18 +116,40 @@ const softboxes: { position: [number, number, number]; scale: [number, number, n
   { position: [0, 7, 0], scale: [9, 9, 1], tint: "#f6fafa" },
 ];
 
-function StudioEnvironment() {
+function StudioEnvironment({ evening }: { evening: boolean }) {
   return (
-    <Environment frames={1} resolution={256} environmentIntensity={ENVIRONMENT_INTENSITY}>
-      <color attach="background" args={["#c4c4be"]} />
+    <Environment frames={1} resolution={256} environmentIntensity={evening ? 0.4 : ENVIRONMENT_INTENSITY}>
+      <color attach="background" args={[evening ? "#a18b78" : "#c4c4be"]} />
       {softboxes.map((box, index) => (
         <mesh key={`softbox-${index}`} position={box.position} scale={box.scale}>
           <planeGeometry />
-          <meshBasicMaterial color={box.tint} />
+          <meshBasicMaterial color={evening ? ["#ffe2b6", "#d99b66", "#ffd5a0"][index] : box.tint} />
         </mesh>
       ))}
     </Environment>
   );
+}
+
+/** Warm 2700K-style architectural accents: two shadow-free practical sources
+ * and a subtle cove strip. No bloom or extra shadow passes are required. */
+function EveningAccentLighting({ room }: { room: RoomConfig }) {
+  const indoor = !room.spaceType || room.spaceType === "indoor";
+  const ceilingY = room.height - .3;
+  const spread = Math.max(4.5, Math.min(9, room.width * .88));
+  return <group>
+    <pointLight color="#ffc18a" intensity={6} position={[-room.width*.23, ceilingY, -room.depth*.21]} distance={spread} decay={2} castShadow={false} />
+    <pointLight color="#ffd4a7" intensity={5} position={[room.width*.22, ceilingY, room.depth*.23]} distance={spread} decay={2} castShadow={false} />
+    {indoor && <group position={[0, room.height - .23, -room.depth/2 + .09]}>
+      <mesh>
+        <boxGeometry args={[room.width * .72, .023, .04]} />
+        <meshBasicMaterial color="#ffbe78" toneMapped={false} />
+      </mesh>
+      <mesh position={[0,-.07,.015]}>
+        <boxGeometry args={[room.width * .72, .09, .01]} />
+        <meshBasicMaterial color="#ffc996" transparent opacity={.22} depthWrite={false} />
+      </mesh>
+    </group>}
+  </group>;
 }
 
 function viewPose(view: CameraView, roomHeight: number, span: number, centerZ: number): CameraPose {
@@ -896,19 +918,20 @@ export function RoomScene({
       onPointerMissed={() => onSelect(null)}
       gl={{ antialias: typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
     >
-      <color attach="background" args={["#ecece7"]} />
-      <fog attach="fog" args={["#ecece7", getOutdoorMetrics(room).span * 3, getOutdoorMetrics(room).span * 5]} />
+      <color attach="background" args={[lightingMode === "evening" ? "#71645e" : "#ecece7"]} />
+      <fog attach="fog" args={[lightingMode === "evening" ? "#71645e" : "#ecece7", getOutdoorMetrics(room).span * 3, getOutdoorMetrics(room).span * 5]} />
       <ContextRecovery onLost={() => setContextLost(true)} />
       <AdaptiveResolution interacting={orbiting || dragging} />
-      <StudioEnvironment />
+      <StudioEnvironment key={lightingMode} evening={lightingMode === "evening"} />
+      {lightingMode === "evening" && <EveningAccentLighting room={visibleRoom} />}
       {/* Lower flat ambient light; broad bounced daylight shapes the room
           without bleaching wall paint or washing texture out of wood. */}
-      <ambientLight intensity={lightingMode === "evening" ? 0.36 : 0.48} color={lightingMode === "evening" ? "#fff0de" : "#f7f5f0"} />
-      <hemisphereLight args={[lightingMode === "evening" ? "#f4d9bd" : "#e5edee", "#b6a69a", lightingMode === "evening" ? 0.36 : 0.55]} />
+      <ambientLight intensity={lightingMode === "evening" ? 0.26 : 0.48} color={lightingMode === "evening" ? "#ffe1bf" : "#f7f5f0"} />
+      <hemisphereLight args={[lightingMode === "evening" ? "#edbd90" : "#e5edee", "#b6a69a", lightingMode === "evening" ? 0.25 : 0.55]} />
       <directionalLight
         position={[4, 8, 5]}
-        intensity={lightingMode === "evening" ? 0.42 : 1.9}
-        color={lightingMode === "evening" ? "#e6a97d" : "#fff5e7"}
+        intensity={lightingMode === "evening" ? 0.15 : 1.9}
+        color={lightingMode === "evening" ? "#bc8d70" : "#fff5e7"}
         shadow-mapSize={[SHADOW_MAP_SIZE, SHADOW_MAP_SIZE]}
         shadow-camera-left={-shadowExtent}
         shadow-camera-right={shadowExtent}
@@ -920,8 +943,8 @@ export function RoomScene({
         shadow-normalBias={0.02}
         shadow-radius={3}
       />
-      <directionalLight position={[-4, 4, -2]} intensity={lightingMode === "evening" ? 0.12 : 0.32} color="#dbe6f0" />
-      <directionalLight position={[0.5, 3, -6]} intensity={lightingMode === "evening" ? 0.7 : 0.32} color={lightingMode === "evening" ? "#ffd7a3" : "#f2e6d4"} />
+      <directionalLight position={[-4, 4, -2]} intensity={lightingMode === "evening" ? 0.09 : 0.32} color={lightingMode === "evening" ? "#a29aa1" : "#dbe6f0"} />
+      <directionalLight position={[0.5, 3, -6]} intensity={lightingMode === "evening" ? 0.65 : 0.32} color={lightingMode === "evening" ? "#ffc085" : "#f2e6d4"} />
       <CameraRig view={cameraView} room={room} zoomRequest={zoomRequest} controlsRef={controlsRef} />
       <StyledRoom editMode={editMode} room={visibleRoom} onStorageMove={onStorageMove} onScreenChange={onScreenChange} onDraggingChange={handleDraggingChange} />
       {editMode && (["width", "depth"] as const).flatMap((dimension) =>
