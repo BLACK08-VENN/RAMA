@@ -375,13 +375,22 @@ input:focus-visible {
   gap: 7px;
   margin: 14px -1px 17px;
   overflow-x: auto;
-  padding: 1px;
-  scrollbar-width: none;
+  overflow-y: hidden;
+  padding: 2px 1px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #b8c8c6 transparent;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
 }
-
-.category-list::-webkit-scrollbar {
-  display: none;
-}
+.category-list:active { cursor: grabbing; }
+.category-list:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 8px; }
+.category-list::-webkit-scrollbar { display: block; height: 4px; }
+.category-list::-webkit-scrollbar-thumb { border-radius: 8px; background: #b8c8c6; }
+.category-list::-webkit-scrollbar-track { background: transparent; }
 
 .category-list button {
   height: 29px;
@@ -2417,4 +2426,40 @@ input:focus-visible {
 @media (max-width: 390px) {
   .dimension-fields,
   .opening-fields .dimension-fields { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Secondary inventory is useful for finding/editing items, not a permanent
+   wall of rows under Saved rooms. Keep it collapsed until requested. */
+.design-items-disclosure {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+.design-items-disclosure > summary {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  list-style: none;
+  color: #29443e;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.design-items-disclosure > summary::-webkit-details-marker { display: none; }
+.design-items-disclosure > summary span { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.design-items-disclosure > summary small { font-weight: 500; font-size: 11px; color: #637773; }
+.design-items-disclosure > summary svg { flex-shrink: 0; transition: transform .18s ease; }
+.design-items-disclosure[open] > summary svg { transform: rotate(180deg); }
+.design-items-disclosure > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: -3px; }
+.design-items-disclosure > p { margin: 0 14px 12px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.design-items-disclosure .design-list { padding: 0 12px 13px; }
+@media (pointer: coarse) {
+  .category-list button { min-height: 38px; font-size: 11px; padding-inline: 14px; }
+  .category-list { gap: 9px; padding-bottom: 10px; }
 }
