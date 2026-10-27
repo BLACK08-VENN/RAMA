@@ -1284,7 +1284,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
               </div>}
               {placedItems.length > 0 && <details className="design-items-disclosure">
                 <summary aria-label={`View items used in this room, ${placedItems.length} items`}>
-                  <span>Items used in this room <small>${placedItems.length} ${placedItems.length === 1 ? "item" : "items"}</small></span>
+                  <span>Items used in this room <small>{placedItems.length} {placedItems.length === 1 ? "item" : "items"}</small></span>
                   <ChevronDown size={18} aria-hidden="true" />
                 </summary>
                 <p>Select an item below to locate or edit it in your room.</p>
