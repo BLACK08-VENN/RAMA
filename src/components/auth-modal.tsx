@@ -9,27 +9,49 @@ type AuthModalProps = {
 };
 
 export function AuthModal({ onClose }: AuthModalProps) {
-  const { signIn, signUp } = useAuth();
+  const { user, signIn, signUp, signOut, isConfigured, loading: checkingSession } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setMessage(null);
     setLoading(true);
 
     try {
       if (isSignUp) {
-        await signUp(email, password);
+        const { needsConfirmation } = await signUp(email, password);
+        setIsSignUp(false);
+        if (needsConfirmation) {
+          setMessage("Check your inbox and spam folder for a confirmation link, then return here to sign in. If you already have an account, sign in with your existing password. Signing up again does not change it.");
+        }
       } else {
         await signIn(email, password);
       }
-      onClose();
+      setPassword("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      const detail = err instanceof Error ? err.message : "Authentication failed";
+      setError(detail === "Invalid login credentials"
+        ? "The email or password is incorrect. Use your existing account password; creating the account again will not change it."
+        : detail);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await signOut();
+      setMessage("You have signed out.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sign out. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -37,12 +59,23 @@ export function AuthModal({ onClose }: AuthModalProps) {
 
   return (
     <div className="auth-modal-overlay" onClick={onClose}>
-      <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onClick={(e) => e.stopPropagation()}>
         <button className="auth-modal-close" onClick={onClose} aria-label="Close">
           <X size={20} />
         </button>
-        <h2>{isSignUp ? "Create account" : "Sign in"}</h2>
+        <h2 id="auth-title">{user ? "Your account" : isSignUp ? "Create account" : "Sign in"}</h2>
+        {checkingSession ? <p role="status">Checking your session…</p> : user ? (
+          <>
+            <p role="status">Signed in as <strong>{user.email}</strong></p>
+            {error && <p className="auth-error" role="alert">{error}</p>}
+            <form onSubmit={(e) => { e.preventDefault(); onClose(); }}>
+              <button type="submit">Continue designing</button>
+            </form>
+            <p className="auth-switch"><button type="button" disabled={loading} onClick={handleSignOut}>{loading ? "Signing out…" : "Sign out"}</button></p>
+          </>
+        ) : !isConfigured ? <p role="alert">Accounts are temporarily unavailable. Please try again later.</p> : <>
         <p>{isSignUp ? "Sign up to save your designs to the cloud" : "Sign in to access your saved designs"}</p>
+        {message && <p role="status">{message}</p>}
         <form onSubmit={handleSubmit}>
           <label>
             <span>Email</span>
@@ -52,6 +85,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
+              disabled={loading}
             />
           </label>
           <label>
@@ -61,21 +95,23 @@ export function AuthModal({ onClose }: AuthModalProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={isSignUp ? 6 : undefined}
               autoComplete={isSignUp ? "new-password" : "current-password"}
+              disabled={loading}
             />
           </label>
-          {error && <p className="auth-error">{error}</p>}
+          {error && <p className="auth-error" role="alert">{error}</p>}
           <button type="submit" disabled={loading}>
             {loading ? "Please wait..." : isSignUp ? "Create account" : "Sign in"}
           </button>
         </form>
         <p className="auth-switch">
           {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-          <button type="button" onClick={() => setIsSignUp(!isSignUp)}>
+          <button type="button" disabled={loading} onClick={() => { setIsSignUp(!isSignUp); setError(null); setMessage(null); setPassword(""); }}>
             {isSignUp ? "Sign in" : "Create one"}
           </button>
         </p>
+        </>}
       </div>
     </div>
   );

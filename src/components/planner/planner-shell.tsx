@@ -1072,8 +1072,9 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
             <Box size={17} /> <span>Save</span>
           </button>
           <button className="icon-button" aria-label="Help"><CircleHelp size={20} /></button>
-          <button className="icon-button" aria-label="Account" onClick={() => setAuthModalOpen(true)}>
+          <button className={user ? "header-text-button" : "icon-button"} aria-label={user ? `Account: ${user.email}` : "Account"} onClick={() => setAuthModalOpen(true)}>
             <UserRound size={20} />
+            {user && <span>Signed in</span>}
           </button>
         </div>
       </header>
