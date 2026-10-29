@@ -257,6 +257,27 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   useEffect(() => {
     let active = true;
     const restore = async () => {
+      // Six shared trial models may be bundled under public/models/trial/.
+      // Use HTTP success checks so missing files never break old local imports.
+      const sharedFiles: Record<TrialModelId, string> = {
+        "trial-office-chair": "office-chair.glb",
+        "trial-seat": "seat.glb",
+        "trial-dining-table": "dining-table.glb",
+        "trial-conference-table": "conference-table.glb",
+        "trial-white-seat": "white-seat.glb",
+        "trial-couch": "couch.glb",
+      };
+      for (const id of trialModelIds) {
+        if (!active) return;
+        try {
+          const url = `/models/trial/${sharedFiles[id]}`;
+          const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+          if (response.ok && (response.headers.get("content-type")?.includes("model") || response.headers.get("content-type")?.includes("octet-stream") || Number(response.headers.get("content-length")) > 1000)) {
+            trialUrlsRef.current[id] = url;
+            setTrialModelUrls({ ...trialUrlsRef.current });
+            continue;
+          }
+        } catch { /* Bundled asset unavailable; try this browser's saved copy. */ }
       for (const id of trialModelIds) {
         try {
           const stored = await readTrialModel(id);
