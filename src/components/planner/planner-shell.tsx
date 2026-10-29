@@ -12,6 +12,8 @@ import {
   Check,
   ChevronDown,
   Copy,
+  Download,
+  Upload,
   RefreshCw,
   PanelsTopLeft,
   CircleHelp,
@@ -66,7 +68,7 @@ import type { DecorGroup } from "@/data/decor-catalog";
 import { useAuth } from "@/components/auth-provider";
 import { AuthModal } from "@/components/auth-modal";
 import { RoomSwitchPrompt } from "./room-switch-prompt";
-import { readSavedRooms, saveRoomSnapshot, deleteRoomSnapshot, type SavedRoom } from "@/lib/saved-rooms";
+import { readSavedRooms, saveRoomSnapshot, deleteRoomSnapshot, exportSavedRoomArchive, importSavedRoomArchive, type SavedRoom } from "@/lib/saved-rooms";
 import { saveDesignToCloud } from "@/lib/design-storage";
 import { addUploadedTrialModel, listUploadedTrialModels, removeUploadedTrialModel, readTrialModel, saveTrialModel, verifyGlb, trialModelIds, type TrialModelId } from "@/lib/trial-model-storage";
 import { inspectUploadedTrialGlb } from "@/lib/trial-glb-import";
@@ -545,6 +547,39 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   };
 
   const openSavedRoom = (saved: SavedRoom) => requestRoomSwitch({ kind: "saved", saved, name: saved.title });
+
+  const downloadSavedRooms = () => {
+    try {
+      const json = exportSavedRoomArchive(window.localStorage, design);
+      const doc = JSON.parse(json) as { rooms: SavedRoom[] };
+      if (doc.rooms.length === 0) { notify("Decorate and save a room first."); return; }
+      const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `furniture-rama-showrooms-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      notify(`${doc.rooms.length} room designs exported. Save the file for your other screen.`);
+    } catch (error) {
+      console.warn("Showroom export failed", error);
+      notify("Unable to export your saved rooms.");
+    }
+  };
+  const uploadSavedRooms = async (file?: File) => {
+    if (!file) return;
+    try {
+      if (file.size > 8_000_000) throw new Error("File too large");
+      const result = importSavedRoomArchive(window.localStorage, await file.text());
+      setSavedRooms(readSavedRooms(window.localStorage));
+      notify(result.imported ? `${result.imported} saved rooms imported. Open one below.` : "No new rooms found; your existing designs are preserved.");
+    } catch (error) {
+      console.warn("Showroom import failed", error);
+      notify("Invalid showroom file. Export the rooms from Furniture Rama first.");
+    }
+  };
+
 
   const saveAndSwitchRoom = () => {
     if (!pendingRoom) return;
@@ -1285,6 +1320,18 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                 <strong>Save your decorated room</strong>
                 <p>Saved rooms stay in this browser on this device. Rename your room to save another version.</p>
                 <button className="saved-room-save" onClick={saveDecoratedRoom}><Box size={17} /> Save this room</button>
+                <div className="showroom-portability" role="group" aria-label="Transfer saved rooms between devices">
+                  <button type="button" onClick={downloadSavedRooms}><Download size={16} /> Export my rooms</button>
+                  <label><Upload size={16} /> Import rooms
+                    <input type="file" accept=".json,application/json" aria-label="Import Furniture Rama showroom backup"
+                      onChange={event => {
+                        const file = event.currentTarget.files?.[0];
+                        event.currentTarget.value = "";
+                        void uploadSavedRooms(file);
+                      }} />
+                  </label>
+                </div>
+                <p className="showroom-transfer-help">To show these exact rooms on another device, export this file on your original browser, then import it on the other screen. 3D model files are separate.</p>
                 {isAuthConfigured && <button className="saved-room-account" onClick={handleSaveToCloud} disabled={savingToCloud}>{savingToCloud ? "Saving…" : user ? "Save to my account" : "Sign in to save to my account"}</button>}
                 {savedRooms.length > 0 && <div className="saved-room-list">
                   <strong>Your saved rooms</strong>
