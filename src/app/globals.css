@@ -2463,3 +2463,40 @@ input:focus-visible {
   .category-list button { min-height: 38px; font-size: 11px; padding-inline: 14px; }
   .category-list { gap: 9px; padding-bottom: 10px; }
 }
+
+/* Portable showroom backups: preserve exact saved layouts across devices. */
+.showroom-portability {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.showroom-portability > button,
+.showroom-portability > label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 125px;
+  flex: 1 1 130px;
+  border: 1px solid #b8ccc7;
+  border-radius: 9px;
+  background: #f4f9f7;
+  color: #235c58;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+.showroom-portability > button:hover,
+.showroom-portability > label:hover { background: #e9f4f0; }
+.showroom-portability > button:focus-visible,
+.showroom-portability > label:focus-within { outline: 2px solid #0d9399; outline-offset: 2px; }
+.showroom-portability input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.showroom-transfer-help { font-size: 11px; line-height: 1.5; color: #637672; margin: 9px 0 13px; }
