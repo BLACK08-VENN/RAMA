@@ -68,6 +68,12 @@ export const products: PlannerProduct[] = [
     decor: { group: "Trial furniture", mount: "floor", width: 2.35, depth: 1, height: 0.92, color: "#81776e" },
   },
   {
+    id: "trial-bed", name: "Bedroom bed · trial", category: "Décor", kind: "bed", decorative: true,
+    price: 0, productUrl: "", image: "/delton-grey.jpg", accent: "#c5ad9b",
+    dimensions: "200 × 160 × 80 cm (trial scale)",
+    decor: { group: "Trial furniture", mount: "floor", width: 2.0, depth: 1.6, height: 0.8, color: "#c5ad9b" },
+  },
+  {
     id: "delton-sofa",
     openCartProductId: 980,
     productUrl: "https://furniturerama.co.ke/delton-single-sofa-bed-grey",
