@@ -14,6 +14,7 @@ export const trialModelIds = [
   "trial-conference-table",
   "trial-white-seat",
   "trial-couch",
+  "trial-bed",
 ] as const;
 
 export type TrialModelId = (typeof trialModelIds)[number];
