@@ -1009,6 +1009,9 @@ input:focus-visible {
 .scene-stage canvas {
   display: block;
   touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
 }
 
 .scene-stage:fullscreen {
@@ -1327,6 +1330,106 @@ input:focus-visible {
 
 .selection-toolbar button.danger {
   color: #c23c4b;
+}
+
+/* Action menu that opens on the piece you last clicked. */
+.item-action-menu {
+  position: absolute;
+  z-index: 20;
+  width: 196px;
+  pointer-events: none;
+}
+
+.item-action-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border: 1px solid rgb(194 205 206 / 85%);
+  border-radius: 14px;
+  padding: 9px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 16px 38px rgb(29 50 52 / 20%);
+  backdrop-filter: blur(16px);
+  pointer-events: auto;
+  animation: item-action-menu-in 130ms ease-out;
+}
+
+@keyframes item-action-menu-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.item-action-title {
+  overflow: hidden;
+  padding: 0 3px 7px;
+  border-bottom: 1px solid var(--line);
+  color: #2f3738;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.item-action-panel button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: #f3f6f6;
+  color: #46514f;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.item-action-panel button:hover {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
+
+.item-action-panel button.active {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
+
+.item-action-panel .item-action-move {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 6px 0;
+}
+
+.item-action-panel .item-action-move button {
+  min-height: 34px;
+  background: transparent;
+}
+
+.item-action-panel .item-action-move button:hover {
+  background: #eff4f4;
+}
+
+.item-action-panel .item-action-remove {
+  background: transparent;
+  color: #c23c4b;
+}
+
+.item-action-panel .item-action-remove:hover {
+  background: #fdeef0;
+  color: #a92f3d;
 }
 
 .zoom-controls {

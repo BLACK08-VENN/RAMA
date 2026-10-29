@@ -20,7 +20,7 @@ import {
 } from "@/stores/planner-store";
 
 import { createWallDragProjection, isWallVisible } from "./wall-drag";
-import { useObjectDrag, pointerCaptureTarget } from "./use-object-drag";
+import { useObjectDrag, pointerCaptureTarget, type TapPoint } from "./use-object-drag";
 import type { ConferenceScreenConfig } from "@/lib/conference-screen";
 import { DecorModel } from "./decor-models";
 import { DiningSink } from "./dining-sink";
@@ -47,6 +47,7 @@ type RoomSceneProps = {
   trialModelUrls: Record<string, string>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  onItemTap?: (id: string, point: TapPoint) => void;
   onMove: (id: string, position: [number, number, number], wall?: WallSide) => void;
   onResize: (dimension: "width" | "depth", value: number) => void;
   onStorageMove: (position: [number, number]) => void;
@@ -358,6 +359,7 @@ function DraggableFurniture({
   room,
   dragEnabled,
   onSelect,
+  onTap,
   onMove,
   onDraggingChange,
   children,
@@ -366,6 +368,7 @@ function DraggableFurniture({
   room: RoomConfig;
   dragEnabled: boolean;
   onSelect: (id: string) => void;
+  onTap?: (point: TapPoint) => void;
   onMove: (id: string, position: [number, number, number], wall?: WallSide) => void;
   onDraggingChange: (dragging: boolean) => void;
   children: React.ReactNode;
@@ -400,9 +403,14 @@ function DraggableFurniture({
     onCancel: () => { previewWall.current = wall; },
     isVisible: mounted ? () => isWallVisible(room, previewWall.current, camera.position) : undefined,
     onSelect: () => onSelect(item.id),
+    onTap,
     onMove: position => onMove(item.id, position, mounted ? previewWall.current : undefined),
     onDraggingChange,
   });
+
+  // A mirrored piece needs its faces turned around, otherwise the negative scale
+  // leaves the artwork culled and the frame inside out.
+  const scale: [number, number, number] = item.flip ? [-1, 1, 1] : [1, 1, 1];
 
   return (
     <group
@@ -410,6 +418,7 @@ function DraggableFurniture({
       name={`placed-item-${item.id}`}
       position={item.position}
       rotation={item.rotation}
+      scale={scale}
     >
       {children}
     </group>
@@ -542,7 +551,11 @@ function Bed() {
 const glbBoundsCache = new WeakMap<THREE.Object3D, { size: THREE.Vector3; center: THREE.Vector3; minY: number }>();
 
 function GlbModel({ model }: { model: ProductModel }) {
-  const gltf = useGLTF(model.url);
+  // None of the shipped models declare KHR_draco_mesh_compression or EXT_meshopt_compression,
+  // and drei attaches both decoders by default. Left on, the Draco loader compiles a WebAssembly
+  // decoder that the content security policy blocks outright, and pulls it from the Google CDN,
+  // so every page load logged a blocked-script error for a decoder nothing here uses.
+  const gltf = useGLTF(model.url, false, false);
   const maxAnisotropy = useThree(state => Math.min(4, state.gl.capabilities.getMaxAnisotropy()));
 
   const { object, scale, offset } = useMemo(() => {
@@ -595,7 +608,7 @@ function GlbModel({ model }: { model: ProductModel }) {
 }
 
 function Furniture({ item, trialModelUrls }: { item: PlacedItem; trialModelUrls: Record<string, string> }) {
-  if (["plant", "rug", "mirror", "vase", "wall-art"].includes(item.kind)) return <DecorModel item={item} />;
+  if (["plant", "rug", "mirror", "vase", "wall-art"].includes(item.kind)) return <DecorModel item={item} mirrored={Boolean(item.flip)} />;
   const imported = trialModelUrls[item.productId];
   const spec = productById[item.productId]?.decor;
   // The uploaded dining table is authored along local Z; rotate it into
@@ -840,6 +853,7 @@ export function RoomScene({
   trialModelUrls,
   selectedId,
   onSelect,
+  onItemTap,
   onMove,
   onResize,
   onStorageMove,
@@ -968,6 +982,7 @@ export function RoomScene({
           room={room}
           dragEnabled={editMode && (cameraView !== "front" || productById[item.productId]?.decor?.mount === "wall")}
           onSelect={onSelect}
+          onTap={onItemTap ? (point) => onItemTap(item.id, point) : undefined}
           onMove={onMove}
           onDraggingChange={handleDraggingChange}
         >

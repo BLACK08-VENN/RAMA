@@ -174,20 +174,20 @@ function mirrorShape(spec: DecorSpec, inset = 0) {
   shape.closePath(); return shape;
 }
 
-function Mirror({ spec }: { spec: DecorSpec }) {
+function Mirror({ spec, mirrored }: { spec: DecorSpec; mirrored: boolean }) {
   const shapes = useMemo(() => [mirrorShape(spec), mirrorShape(spec, .012)], [spec]);
   return <group>
-    <mesh castShadow><extrudeGeometry args={[shapes[0], { depth: .012, bevelEnabled: true, bevelSize: .003, bevelThickness: .002, bevelSegments: 1, steps: 1, curveSegments: 24 }]} /><meshStandardMaterial color={spec.color} metalness={.85} roughness={.23} /></mesh>
-    <mesh position={[0, 0, .017]}><shapeGeometry args={[shapes[1], 24]} /><meshStandardMaterial color="#e6eeec" metalness={1} roughness={.045} envMapIntensity={1.25} /></mesh>
+    <mesh castShadow><extrudeGeometry args={[shapes[0], { depth: .012, bevelEnabled: true, bevelSize: .003, bevelThickness: .002, bevelSegments: 1, steps: 1, curveSegments: 24 }]} /><meshStandardMaterial color={spec.color} metalness={.85} roughness={.23} side={mirrored ? THREE.DoubleSide : THREE.FrontSide} /></mesh>
+    <mesh position={[0, 0, .017]}><shapeGeometry args={[shapes[1], 24]} /><meshStandardMaterial color="#e6eeec" metalness={1} roughness={.045} envMapIntensity={1.25} side={mirrored ? THREE.DoubleSide : THREE.FrontSide} /></mesh>
   </group>;
 }
 
-function WallArt({ spec }: { spec: DecorSpec }) {
+function WallArt({ spec, mirrored }: { spec: DecorSpec; mirrored: boolean }) {
   const texture = useDecorTexture(spec, true);
   return <group>
-    <mesh castShadow><boxGeometry args={[spec.width, spec.height, .035]} /><meshStandardMaterial color={spec.style === "woven" ? "#b49976" : "#695340"} roughness={.8} /></mesh>
-    <mesh position={[0, 0, .019]}><planeGeometry args={[spec.width - .045, spec.height - .045]} /><meshStandardMaterial color="#f4eee3" roughness={.9} /></mesh>
-    <mesh position={[0, 0, .021]}><planeGeometry args={[spec.width - .085, spec.height - .085]} /><meshStandardMaterial map={texture} bumpMap={texture} bumpScale={.001} roughness={.95} /></mesh>
+    <mesh castShadow><boxGeometry args={[spec.width, spec.height, .035]} /><meshStandardMaterial color={spec.style === "woven" ? "#b49976" : "#695340"} roughness={.8} side={mirrored ? THREE.DoubleSide : THREE.FrontSide} /></mesh>
+    <mesh position={[0, 0, .019]}><planeGeometry args={[spec.width - .045, spec.height - .045]} /><meshStandardMaterial color="#f4eee3" roughness={.9} side={mirrored ? THREE.DoubleSide : THREE.FrontSide} /></mesh>
+    <mesh position={[0, 0, .021]}><planeGeometry args={[spec.width - .085, spec.height - .085]} /><meshStandardMaterial map={texture} bumpMap={texture} bumpScale={.001} roughness={.95} side={mirrored ? THREE.DoubleSide : THREE.FrontSide} /></mesh>
   </group>;
 }
 
@@ -202,12 +202,12 @@ function Vase({ spec }: { spec: DecorSpec }) {
   </group>;
 }
 
-export function DecorModel({ item }: { item: PlacedItem }) {
+export function DecorModel({ item, mirrored = false }: { item: PlacedItem; mirrored?: boolean }) {
   const spec = productById[item.productId]?.decor;
   if (!spec) return null;
   if (item.kind === "plant") return <Plant spec={spec} />;
   if (item.kind === "rug") return <Rug spec={spec} />;
-  if (item.kind === "mirror") return <Mirror spec={spec} />;
-  if (item.kind === "wall-art") return <WallArt spec={spec} />;
+  if (item.kind === "mirror") return <Mirror spec={spec} mirrored={mirrored} />;
+  if (item.kind === "wall-art") return <WallArt spec={spec} mirrored={mirrored} />;
   return <Vase spec={spec} />;
 }

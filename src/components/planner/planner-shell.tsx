@@ -48,6 +48,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import type { CameraView } from "./room-scene";
+import type { TapPoint } from "./use-object-drag";
+import { ItemActionMenu } from "./item-action-menu";
 import { formatKes, products, registerUploadedTrialProduct, unregisterUploadedTrialProduct, type ProductCategory } from "@/data/products";
 import { ProductCardImage } from "./product-card-image";
 import { getRoomArea, matchRoomPreset, roomPresets } from "@/data/room-presets";
@@ -400,10 +402,11 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const cancelRoomSwitch = useCallback(() => { setPendingRoom(null); setRoomSwitchError(null); }, []);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      try { setSavedRooms(readSavedRooms(window.localStorage)); } catch { /* Saving remains available if storage becomes accessible later. */ }
+      try { setSavedRooms(readSavedRooms(window.localStorage)); } catch { /* Saving remains available if storage becomes inaccessible later. */ }
     });
     return () => cancelAnimationFrame(frame);
   }, []);
+  const [itemMenu, setItemMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const { user, isConfigured: isAuthConfigured } = useAuth();
   const {
     design,
@@ -418,8 +421,11 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     updateRoom,
     applyRoomPreset,
     addItem,
+    duplicateItem,
     removeItem,
     rotateItem,
+    flipItem,
+    toggleItemWall,
     setItemWall,
     moveItem,
     resizeItem,
@@ -429,6 +435,11 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   const placedItems = design.items;
   const selectedItem = placedItems.find(item => item.id === selectedId);
   const selectedDecor = products.find(product => product.id === selectedItem?.productId)?.decor;
+  const menuItem = placedItems.find(item => item.id === itemMenu?.id);
+  const menuProduct = products.find(product => product.id === menuItem?.productId);
+  // A piece can leave the design while its menu is open, so the menu only counts as
+  // live while the piece it points at is still in the room.
+  const activeMenu = menuItem ? itemMenu : null;
   const roomArea = getRoomArea(design.room);
   const activeRoomPreset = matchRoomPreset(design.room);
   const conferenceScreen = getConferenceScreen(design.room);
@@ -462,10 +473,10 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     [placedItems],
   );
 
-  const notify = (message: string) => {
+  const notify = useCallback((message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(null), 2400);
-  };
+  }, []);
 
   const requestZoom = (direction: "in" | "out") => {
     setZoomRequest((current) => ({ id: current.id + 1, direction }));
@@ -525,6 +536,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   };
 
   const performRoomSwitch = (target: NonNullable<typeof pendingRoom>) => {
+    setItemMenu(null);
     if (target.kind === "preset") {
       applyRoomPreset(target.id);
       setActivePanel("decor");
@@ -778,9 +790,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     notify("Item removed");
   };
 
-  const moveSelected = useCallback((deltaX: number, deltaZ: number) => {
-    if (!selectedId) return;
-    const item = placedItems.find((candidate) => candidate.id === selectedId);
+  const moveItemBy = useCallback((id: string, deltaX: number, deltaZ: number) => {
+    const item = placedItems.find((candidate) => candidate.id === id);
     if (!item) return;
     const position: [number, number, number] = [...item.position];
     const mounted = products.find(product => product.id === item.productId)?.decor?.mount === "wall";
@@ -789,7 +800,70 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
       position[1] -= deltaZ;
     } else { position[0] += deltaX; position[2] += deltaZ; }
     moveItem(item.id, position);
-  }, [moveItem, placedItems, selectedId]);
+  }, [moveItem, placedItems]);
+
+  const moveSelected = useCallback((deltaX: number, deltaZ: number) => {
+    if (!selectedId) return;
+    moveItemBy(selectedId, deltaX, deltaZ);
+  }, [moveItemBy, selectedId]);
+
+  // Left clicking a piece opens its action menu, and the menu keeps working on the
+  // copy it just made, so a run of duplicates takes one click each.
+  const handleSelect = useCallback((id: string | null) => {
+    selectItem(id);
+    setItemMenu(current => {
+      if (!current) return current;
+      if (id === null || id !== current.id) return null;
+      return current;
+    });
+  }, [selectItem]);
+
+  const handleItemTap = useCallback((id: string, point: TapPoint) => {
+    const stage = sceneStageRef.current;
+    if (!stage) return;
+    const box = stage.getBoundingClientRect();
+    const x = point.x - box.left;
+    const y = point.y - box.top;
+    setItemMenu(current => {
+      if (current && current.id === id && Math.abs(current.x - x) < 14 && Math.abs(current.y - y) < 14) return null;
+      return { id, x, y };
+    });
+  }, []);
+
+  const handleDuplicate = useCallback(() => {
+    if (!itemMenu) return;
+    const copyId = duplicateItem(itemMenu.id);
+    if (!copyId) return;
+    setItemMenu(current => current ? { ...current, id: copyId } : current);
+    notify("Duplicated");
+  }, [duplicateItem, itemMenu, notify]);
+
+  const handleMenuRotate = useCallback(() => {
+    if (!itemMenu) return;
+    rotateItem(itemMenu.id);
+  }, [itemMenu, rotateItem]);
+
+  const handleMenuFlip = useCallback(() => {
+    if (!itemMenu) return;
+    flipItem(itemMenu.id);
+  }, [flipItem, itemMenu]);
+
+  const handleMenuToggleWall = useCallback(() => {
+    if (!itemMenu) return;
+    toggleItemWall(itemMenu.id);
+  }, [itemMenu, toggleItemWall]);
+
+  const handleMenuMove = useCallback((deltaX: number, deltaZ: number) => {
+    if (!itemMenu) return;
+    moveItemBy(itemMenu.id, deltaX, deltaZ);
+  }, [itemMenu, moveItemBy]);
+
+  const handleMenuRemove = useCallback(() => {
+    if (!itemMenu) return;
+    removeItem(itemMenu.id);
+    setItemMenu(null);
+    notify("Item removed");
+  }, [itemMenu, notify, removeItem]);
 
   const selectRoomPreset = (presetId: string) => {
     const preset = roomPresets.find(candidate => candidate.id === presetId);
@@ -866,14 +940,38 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
   }, []);
 
+  const handleUndo = useCallback(() => {
+    setItemMenu(null);
+    undo();
+  }, [undo]);
+
+  const handleRedo = useCallback(() => {
+    setItemMenu(null);
+    redo();
+  }, [redo]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (pendingRoom) return;
       const target = event.target as HTMLElement;
       if (target.matches("input, textarea, [contenteditable='true']")) return;
+      if (event.key === "Escape" && itemMenu) {
+        event.preventDefault();
+        setItemMenu(null);
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d" && selectedId) {
+        event.preventDefault();
+        const copyId = duplicateItem(selectedId);
+        if (!copyId) return;
+        setItemMenu(current => current ? { ...current, id: copyId } : current);
+        notify("Duplicated");
+        return;
+      }
       if ((event.key === "Delete" || event.key === "Backspace") && selectedId) {
         event.preventDefault();
         removeItem(selectedId);
+        setItemMenu(null);
         return;
       }
       const movements: Record<string, [number, number]> = {
@@ -890,7 +988,21 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [moveSelected, removeItem, selectedId, pendingRoom]);
+  }, [duplicateItem, itemMenu, moveSelected, notify, removeItem, selectedId, pendingRoom]);
+
+  // A press anywhere else on the page drops the action menu, and a piece that leaves
+  // the design takes its menu with it.
+  useEffect(() => {
+    if (!itemMenu) return;
+    const dismiss = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".item-action-menu")) return;
+      if (target?.closest(".scene-stage canvas")) return;
+      setItemMenu(null);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [itemMenu]);
 
   return (
     <main className="planner-app">
@@ -1362,7 +1474,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
                   const product = products.find((candidate) => candidate.id === item.productId);
                   if (!product) return null;
                   return (
-                    <button key={item.id} className={selectedId === item.id ? "active" : ""} onClick={() => { selectItem(item.id); if (isTouch) setEditMode(true); if (isPhone) setPanelOpen(false); }}>
+                    <button key={item.id} className={selectedId === item.id ? "active" : ""} onClick={() => { handleSelect(item.id); if (isTouch) setEditMode(true); if (isPhone) setPanelOpen(false); }}>
                       <Image src={product.image} alt="" width={56} height={56} />
                       <span><strong>{product.name}</strong><small>{(product.decorative ? "Styling accessory" : formatKes(product.price))}</small></span>
                       <ChevronDown size={16} />
@@ -1386,7 +1498,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
             placedItems={placedItems}
             trialModelUrls={trialModelUrls}
             selectedId={selectedId}
-            onSelect={selectItem}
+            onSelect={handleSelect}
+            onItemTap={handleItemTap}
             onMove={moveItem}
             onStorageMove={position => updateRoom({ builtInStorage: { ...design.room.builtInStorage, enabled: true, width: design.room.builtInStorage?.width ?? 2, position } })}
             onScreenChange={changeConferenceScreen}
@@ -1414,8 +1527,8 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
 
           <div className="scene-topbar">
             <div className="history-controls">
-              <button aria-label="Undo" onClick={undo} disabled={history.length === 0}><Undo2 size={18} /></button>
-              <button aria-label="Redo" onClick={redo} disabled={future.length === 0}><Redo2 size={18} /></button>
+              <button aria-label="Undo" onClick={handleUndo} disabled={history.length === 0}><Undo2 size={18} /></button>
+              <button aria-label="Redo" onClick={handleRedo} disabled={future.length === 0}><Redo2 size={18} /></button>
             </div>
             <div className="room-metadata"><span>{activeRoomPreset ? activeRoomPreset.name : "Custom room"}</span><i />{design.room.width.toFixed(1)} × {design.room.depth.toFixed(1)} m</div>
             <button
@@ -1428,7 +1541,23 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
             </button>
           </div>
 
-          {selectedId && (
+          {activeMenu && menuItem && menuProduct && !(isPhone && panelOpen) && (
+            <ItemActionMenu
+              title={menuProduct.name}
+              wallMounted={menuProduct.decor?.mount === "wall"}
+              flipped={Boolean(menuItem.flip)}
+              x={activeMenu.x}
+              y={activeMenu.y}
+              onDuplicate={handleDuplicate}
+              onRotate={handleMenuRotate}
+              onFlip={handleMenuFlip}
+              onToggleWall={handleMenuToggleWall}
+              onMove={handleMenuMove}
+              onRemove={handleMenuRemove}
+            />
+          )}
+
+          {selectedId && !activeMenu && (
             <div className={`selection-toolbar ${isPhone && panelOpen ? "behind-menu" : ""}`}>
               {selectedDecor?.mount !== "wall" && (design.room.balcony?.enabled || design.room.yard?.enabled) && <select aria-label="Place selected furniture in area" value={(() => { const z = placedItems.find(item => item.id === selectedId)?.position[2] ?? 0; return z <= design.room.depth / 2 ? "room" : design.room.balcony?.enabled && z < design.room.depth / 2 + design.room.balcony.depth ? "balcony" : "yard"; })()} onChange={event => {
                 const item = placedItems.find(item => item.id === selectedId); if (!item) return;

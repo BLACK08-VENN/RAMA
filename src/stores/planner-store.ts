@@ -55,6 +55,7 @@ export type RoomConfig = {
 
 export type WallSide = "back" | "right" | "front" | "left";
 export const wallRotation: Record<WallSide, number> = { back: 0, right: -Math.PI / 2, front: Math.PI, left: Math.PI / 2 };
+export const oppositeWall: Record<WallSide, WallSide> = { back: "front", front: "back", left: "right", right: "left" };
 
 export type PlacedItem = {
   id: string;
@@ -65,6 +66,8 @@ export type PlacedItem = {
   rotation: [number, number, number];
   /** Optional exact dimensions [width, height, depth] in metres. */
   size?: [number, number, number];
+  /** Mirrors wall-mounted décor across its wall, so artwork can face the way the room needs. */
+  flip?: boolean;
 };
 
 const itemClearance: Record<ProductKind, number> = {
@@ -165,8 +168,11 @@ type PlannerState = {
   updateRoom: (room: Partial<RoomConfig>) => void;
   applyRoomPreset: (presetId: string) => void;
   addItem: (item: PlacedItem) => void;
+  duplicateItem: (id: string) => string | null;
   removeItem: (id: string) => void;
   rotateItem: (id: string, radians?: number) => void;
+  flipItem: (id: string) => void;
+  toggleItemWall: (id: string) => void;
   moveItem: (id: string, position: [number, number, number], wall?: WallSide) => void;
   setItemWall: (id: string, wall: WallSide) => void;
   resizeItem: (id: string, size: [number, number, number]) => void;
@@ -306,6 +312,7 @@ const isValidSharedDesign = (design: DesignDocument) => {
       typeof item.productId === "string" && item.productId.length > 0 && item.productId.length <= 120 &&
       validKinds.includes(item.kind as PlacedItem["kind"]) &&
       (item.wall === undefined || ["back", "right", "front", "left"].includes(item.wall as string)) &&
+      (item.flip === undefined || typeof item.flip === "boolean") &&
       Array.isArray(item.position) && item.position.length === 3 && item.position.every(isFiniteNumber) &&
       Array.isArray(item.rotation) && item.rotation.length === 3 && item.rotation.every(isFiniteNumber) &&
       (item.size === undefined || (Array.isArray(item.size) && item.size.length === 3 && item.size.every(value => isFiniteNumber(value) && value >= .1 && value <= 12))),
@@ -431,6 +438,33 @@ export const usePlannerStore = create<PlannerState>()(
           commit((design) => ({ ...design, items: [...design.items, item] }));
           set({ selectedId: item.id });
         },
+        duplicateItem: (id) => {
+          const design = get().design;
+          const source = design.items.find((item) => item.id === id);
+          if (!source) return null;
+          const spec = productById[source.productId]?.decor;
+          const wall = spec?.mount === "wall" ? source.wall ?? "back" : undefined;
+          const taken = new Set(design.items.map((item) => item.id));
+          let copy = 1;
+          let copyId = `${source.productId}-copy-${copy}`;
+          while (taken.has(copyId)) {
+            copy += 1;
+            copyId = `${source.productId}-copy-${copy}`;
+          }
+          const position: [number, number, number] = [...source.position];
+          if (wall === "back" || wall === "front") position[0] += .3;
+          else if (wall) position[2] += .3;
+          else { position[0] += .3; position[2] += .3; }
+          const clone: PlacedItem = {
+            ...source,
+            id: copyId,
+            wall,
+            position: clampItemPosition(design.room, source.kind, position, source.productId, wall, source.rotation[1]),
+          };
+          commit((current) => ({ ...current, items: [...current.items, clone] }));
+          set({ selectedId: copyId });
+          return copyId;
+        },
         removeItem: (id) => {
           commit((design) => ({
             ...design,
@@ -449,6 +483,33 @@ export const usePlannerStore = create<PlannerState>()(
             }
             const rotation: [number, number, number] = [item.rotation[0], item.rotation[1] + radians, item.rotation[2]];
             return { ...item, rotation, position: clampItemPosition(design.room, item.kind, item.position, item.productId, item.wall, rotation[1], item.size) };
+          }),
+        })),
+        flipItem: (id) => commit((design) => ({
+          ...design,
+          items: design.items.map(item => {
+            if (item.id !== id) return item;
+            if (productById[item.productId]?.decor?.mount !== "wall") return item;
+            return { ...item, flip: !item.flip };
+          }),
+        })),
+        toggleItemWall: (id) => commit((design) => ({
+          ...design,
+          items: design.items.map(item => {
+            if (item.id !== id) return item;
+            if (productById[item.productId]?.decor?.mount !== "wall") return item;
+            const wall = oppositeWall[item.wall ?? "back"];
+            const rotation: [number, number, number] = [0, wallRotation[wall], 0];
+            const horizontal = wall === "back" || wall === "front";
+            const position: [number, number, number] = horizontal
+              ? [item.position[0], item.position[1], 0]
+              : [0, item.position[1], item.position[2]];
+            return {
+              ...item,
+              wall,
+              rotation,
+              position: clampItemPosition(design.room, item.kind, position, item.productId, wall),
+            };
           }),
         })),
         moveItem: (id, position, requestedWall) => commit((design) => ({
