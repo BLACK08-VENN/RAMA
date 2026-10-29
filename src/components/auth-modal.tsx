@@ -13,6 +13,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -34,6 +35,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
         await signIn(email, password);
       }
       setPassword("");
+      setShowPassword(false);
     } catch (err) {
       const detail = err instanceof Error ? err.message : "Authentication failed";
       setError(detail === "Invalid login credentials"
@@ -88,10 +90,13 @@ export function AuthModal({ onClose }: AuthModalProps) {
               disabled={loading}
             />
           </label>
-          <label>
-            <span>Password</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label htmlFor="auth-password"><span>Password</span></label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input
-              type="password"
+              id="auth-password"
+              type={showPassword ? "text" : "password"}
+              style={{ flex: 1, minWidth: 0 }}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -99,7 +104,19 @@ export function AuthModal({ onClose }: AuthModalProps) {
               autoComplete={isSignUp ? "new-password" : "current-password"}
               disabled={loading}
             />
-          </label>
+            <button
+              type="button"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              aria-controls="auth-password"
+              disabled={loading}
+              onClick={() => setShowPassword((visible) => !visible)}
+              style={{ background: "transparent", border: "1px solid var(--line)", borderRadius: 8, padding: "10px 12px", color: "var(--brand-dark)", font: "inherit", cursor: "pointer" }}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+            </div>
+          </div>
           {error && <p className="auth-error" role="alert">{error}</p>}
           <button type="submit" disabled={loading}>
             {loading ? "Please wait..." : isSignUp ? "Create account" : "Sign in"}
@@ -107,7 +124,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
         </form>
         <p className="auth-switch">
           {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-          <button type="button" disabled={loading} onClick={() => { setIsSignUp(!isSignUp); setError(null); setMessage(null); setPassword(""); }}>
+          <button type="button" disabled={loading} onClick={() => { setIsSignUp(!isSignUp); setError(null); setMessage(null); setPassword(""); setShowPassword(false); }}>
             {isSignUp ? "Sign in" : "Create one"}
           </button>
         </p>
