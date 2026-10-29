@@ -278,7 +278,6 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
             continue;
           }
         } catch { /* Bundled asset unavailable; try this browser's saved copy. */ }
-      for (const id of trialModelIds) {
         try {
           const stored = await readTrialModel(id);
           if (!stored || !active) continue;
