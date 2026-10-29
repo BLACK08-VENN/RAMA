@@ -93,6 +93,7 @@ function modelIdFromFilename(name: string): TrialModelId | null {
   if (nameKey.includes("conferencetable") || nameKey.includes("confrencetable")) return "trial-conference-table";
   if (nameKey.includes("diningtable")) return "trial-dining-table";
   if (nameKey.includes("whiteseat")) return "trial-white-seat";
+  if (nameKey.includes("bed")) return "trial-bed";
   if (nameKey.includes("couch")) return "trial-couch";
   if (nameKey.includes("seat")) return "trial-seat";
   return null;
@@ -259,7 +260,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   useEffect(() => {
     let active = true;
     const restore = async () => {
-      // Six shared trial models may be bundled under public/models/trial/.
+      // Shared trial models may be bundled under public/models/trial/.
       // Use HTTP success checks so missing files never break old local imports.
       const sharedFiles: Record<TrialModelId, string> = {
         "trial-office-chair": "office-chair.glb",
@@ -268,6 +269,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
         "trial-conference-table": "conference-table.glb",
         "trial-white-seat": "white-seat.glb",
         "trial-couch": "couch.glb",
+        "trial-bed": "bed.glb",
       };
       for (const id of trialModelIds) {
         if (!active) return;
@@ -655,7 +657,7 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
       const id = modelIdFromFilename(file.name);
       if (id && await importTrialModel(id, file, true)) imported++;
     }
-    notify(imported ? `${imported} trial model${imported === 1 ? "" : "s"} imported. Tap Add to furnish your room.` : "No matching trial models. Select the six named GLB files, not the ZIP.");
+    notify(imported ? `${imported} trial model${imported === 1 ? "" : "s"} imported. Tap Add to furnish your room.` : "No matching trial models. Select the extracted GLB files, not the ZIP.");
   };
 
   const importNewTrialFurniture = async (files: File[]) => {
