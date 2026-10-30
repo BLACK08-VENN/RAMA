@@ -528,7 +528,6 @@ export function PlannerShell({ onWelcome }: { onWelcome?: () => void } = {}) {
   };
 
   const performRoomSwitch = (target: NonNullable<typeof pendingRoom>) => {
-    setItemMenu(null);
     if (target.kind === "preset") {
       applyRoomPreset(target.id);
       setActivePanel("decor");
