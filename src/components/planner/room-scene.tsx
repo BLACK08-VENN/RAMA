@@ -20,7 +20,7 @@ import {
 } from "@/stores/planner-store";
 
 import { createWallDragProjection, isWallVisible } from "./wall-drag";
-import { useObjectDrag, pointerCaptureTarget, type TapPoint } from "./use-object-drag";
+import { useObjectDrag, pointerCaptureTarget } from "./use-object-drag";
 import type { ConferenceScreenConfig } from "@/lib/conference-screen";
 import { DecorModel } from "./decor-models";
 import { DiningSink } from "./dining-sink";
@@ -47,7 +47,6 @@ type RoomSceneProps = {
   trialModelUrls: Record<string, string>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  onItemTap?: (id: string, point: TapPoint) => void;
   onMove: (id: string, position: [number, number, number], wall?: WallSide) => void;
   onResize: (dimension: "width" | "depth", value: number) => void;
   onStorageMove: (position: [number, number]) => void;
@@ -359,7 +358,6 @@ function DraggableFurniture({
   room,
   dragEnabled,
   onSelect,
-  onTap,
   onMove,
   onDraggingChange,
   children,
@@ -368,7 +366,6 @@ function DraggableFurniture({
   room: RoomConfig;
   dragEnabled: boolean;
   onSelect: (id: string) => void;
-  onTap?: (point: TapPoint) => void;
   onMove: (id: string, position: [number, number, number], wall?: WallSide) => void;
   onDraggingChange: (dragging: boolean) => void;
   children: React.ReactNode;
@@ -403,7 +400,6 @@ function DraggableFurniture({
     onCancel: () => { previewWall.current = wall; },
     isVisible: mounted ? () => isWallVisible(room, previewWall.current, camera.position) : undefined,
     onSelect: () => onSelect(item.id),
-    onTap,
     onMove: position => onMove(item.id, position, mounted ? previewWall.current : undefined),
     onDraggingChange,
   });
@@ -853,7 +849,6 @@ export function RoomScene({
   trialModelUrls,
   selectedId,
   onSelect,
-  onItemTap,
   onMove,
   onResize,
   onStorageMove,
@@ -930,6 +925,7 @@ export function RoomScene({
       dpr={[MIN_PIXEL_RATIO, MAX_PIXEL_RATIO]}
       camera={{ position: initialCameraPosition, fov: 42 }}
       onPointerMissed={() => onSelect(null)}
+      onContextMenu={(event) => event.preventDefault()}
       gl={{ antialias: typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping }}
     >
       <color attach="background" args={[lightingMode === "evening" ? "#71645e" : "#ecece7"]} />
@@ -982,7 +978,6 @@ export function RoomScene({
           room={room}
           dragEnabled={editMode && (cameraView !== "front" || productById[item.productId]?.decor?.mount === "wall")}
           onSelect={onSelect}
-          onTap={onItemTap ? (point) => onItemTap(item.id, point) : undefined}
           onMove={onMove}
           onDraggingChange={handleDraggingChange}
         >
